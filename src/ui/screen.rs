@@ -1,7 +1,8 @@
 // ## FILE: ./src/screen.rs
-use crate::keyboard::{KeyAction, KeyboardManager};
-use crate::logging::{AppLogger, LogMessage};
-use crate::prelude::*;
+// src/ui/screen.rs
+use crate::core::prelude::*;
+use crate::input::keyboard::{KeyAction, KeyboardManager};
+use crate::output::logging::{AppLogger, LogMessage};
 
 pub struct ScreenManager<'a> {
     terminal: TerminalBackend,

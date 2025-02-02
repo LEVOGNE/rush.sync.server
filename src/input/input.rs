@@ -1,7 +1,9 @@
 // ## FILE: ./src/input.rs
-use crate::cursor::CursorState;
-use crate::keyboard::{KeyAction, KeyboardManager};
-use crate::prelude::*;
+// src/input/input.rs
+use crate::core::prelude::*;
+use crate::input::keyboard::{KeyAction, KeyboardManager};
+use crate::ui::cursor::CursorState;
+use crate::ui::widget::{InputWidget, Widget};
 
 pub struct InputState<'a> {
     content: String,
@@ -242,8 +244,6 @@ impl<'a> Widget for InputState<'a> {
         Some(self)
     }
 }
-
-use crate::widget::InputWidget;
 
 impl<'a> InputWidget for InputState<'a> {
     fn update_cursor_blink(&mut self) {

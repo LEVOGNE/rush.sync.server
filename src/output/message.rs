@@ -1,7 +1,8 @@
 // ## FILE: ./src/message.rs
-use crate::keyboard::KeyAction;
-use crate::prelude::*;
-use crate::scroll::ScrollState;
+// src/output/message.rs
+use crate::core::prelude::*;
+use crate::input::keyboard::KeyAction;
+use crate::output::scroll::ScrollState;
 
 pub struct Message {
     pub content: String,

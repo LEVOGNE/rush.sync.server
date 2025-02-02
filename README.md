@@ -1,146 +1,101 @@
-# Rush Sync - Terminal-basierte Synchronisationsanwendung
+# Rush Sync
 
-Rush Sync ist eine moderne, Terminal-basierte Anwendung, geschrieben in Rust. Sie bietet eine interaktive Benutzeroberfläche mit Echtzeit-Updates, Scrolling-Funktionalität und anpassbarer Konfiguration.
+Rush Sync ist eine moderne Terminal-basierte Benutzeroberfläche, die in Rust entwickelt wurde. Sie bietet ein interaktives UI mit Logging-Funktionalität, Typewriter-Effekten und scrollbarem Output.
 
 ## Features
 
-- 🎨 Anpassbares Farbschema
-- ⌨️ Konfigurierbare Tastenbelegungen
-- 📜 Scrollbare Nachrichtenansicht
-- 💾 Befehlshistorie
-- ⚡ Typewriter-Effekt für Nachrichten
-- 🔄 Auto-Scroll Funktion
-- 📝 Blinkender Cursor
-- 🎯 Intuitive Tastaturnavigation
+- Interaktive Terminal-Benutzeroberfläche
+- Farbcodierte Log-Ausgaben (ERROR, WARN, INFO, DEBUG)
+- Scrollbare Nachrichtenhistorie
+- Typewriter-Effekt für neue Nachrichten
+- Eingabehistorie mit Pfeiltasten-Navigation
+- Konfigurierbare Farbthemen über TOML-Datei
+- Unicode-Unterstützung
+- Cursor-Navigation und -Bearbeitung
 
-## Installation
+## Tastenkombinationen
 
-### Voraussetzungen
-
-- Rust (Edition 2021)
-- Cargo
-
-### Build-Prozess
-
-```bash
-# Repository klonen
-git clone https://github.com/yourusername/rush-sync.git
-cd rush-sync
-
-# Anwendung bauen
-cargo build --release
-
-# Anwendung ausführen
-cargo run --release
-```
+- `↑/↓`: Durch Eingabehistorie navigieren
+- `←/→`: Cursor im Text bewegen
+- `Home/End`: Zum Anfang/Ende der Zeile springen
+- `Shift + ↑/↓`: Eine Zeile scrollen
+- `Page Up/Down`: Seitenweise scrollen
+- `Enter`: Eingabe bestätigen
+- `ESC` (doppelt): Programm beenden
 
 ## Konfiguration
 
-Die Anwendung kann über eine `rush.toml` Datei konfiguriert werden. Diese kann in folgenden Verzeichnissen platziert werden:
-
-- `./rush.toml` (aktuelles Verzeichnis)
-- `./config/rush.toml` (Produktionsumgebung)
-- `./src/rush.toml` (Entwicklungsumgebung)
-
-### Beispiel-Konfiguration
+Die Konfiguration erfolgt über eine `rush.toml` Datei mit folgenden Hauptsektionen:
 
 ```toml
 [general]
-max_messages = 100
-typewriter_delay = 50
-input_max_length = 100
-max_history = 30
-poll_rate = 16
+max_messages = 100      # Maximale Anzahl gespeicherter Nachrichten
+typewriter_delay = 30   # Verzögerung des Typewriter-Effekts (ms)
+input_max_length = 100  # Maximale Eingabelänge
+max_history = 30        # Größe der Eingabehistorie
+poll_rate = 16         # Event-Poll-Rate (ms)
 
 [theme]
-input_text = "Yellow"
-cursor = "Yellow"
-output_text = "Green"
-border = "DarkGray"
+input_text = "White"    # Farbe des Eingabetexts
+cursor = "White"       # Cursor-Farbe
+output_text = "DarkGray" # Farbe des Ausgabetexts
+border = "DarkGray"     # Rahmenfarbe
 
 [prompt]
-text = "/// "
-color = "Yellow"
+text = "/// "          # Eingabeaufforderung
+color = "White"        # Farbe der Eingabeaufforderung
 ```
 
-## Tastenbelegung
-
-### Standard-Tastenbelegungen
-
-- `←/→`: Cursor bewegen
-- `Home/End`: Zum Anfang/Ende springen
-- `Enter`: Eingabe bestätigen
-- `Shift + ↑/↓`: Scrollen
-- `Page Up/Down`: Seitenweise scrollen
-- `↑/↓`: In der Historie navigieren
-- `ESC` (2x): Anwendung beenden
-
-## Entwicklung
-
-### Projektstruktur
+## Projektstruktur
 
 ```
 src/
-├── message.rs     # Nachrichtenverwaltung
-├── constants.rs   # Konstanten und Konfigurationspfade
-├── scroll.rs      # Scroll-Funktionalität
-├── error.rs       # Fehlerbehandlung
-├── widget.rs      # Widget-Traits
-├── config.rs      # Konfigurationsverwaltung
-├── color.rs       # Farbverwaltung
-├── terminal.rs    # Terminal-Setup
-├── logging.rs     # Logging-System
-├── screen.rs      # Bildschirm-Rendering
-├── event.rs       # Event-Handling
-├── keyboard.rs    # Tastatur-Input
-├── cursor.rs      # Cursor-Verwaltung
-├── input.rs       # Eingabeverarbeitung
-└── main.rs        # Hauptanwendung
+├── core/           # Kernfunktionalität
+├── ui/            # UI-Komponenten
+├── input/         # Eingabeverarbeitung
+├── output/        # Ausgabeformatierung
+└── setup/         # Konfiguration
 ```
 
-### Hauptkomponenten
+## Technische Details
 
-1. **MessageManager**: Verwaltet die Nachrichtenliste und Scroll-Status
-2. **ScreenManager**: Steuert das Terminal-Interface und Event-Handling
-3. **InputState**: Verarbeitet Benutzereingaben und Historie
-4. **Config**: Lädt und verwaltet die Anwendungskonfiguration
-5. **EventHandler**: Asynchrone Event-Verarbeitung
-6. **KeyboardManager**: Tastatureingaben und Bindings
+- Asynchrone Architektur mit Tokio
+- Event-basiertes System für Eingabehandlung
+- Modulares Design mit klarer Trennung der Verantwortlichkeiten
+- Cross-Platform Terminal-Handling mit Crossterm
+- TUI-Rendering mit Ratatui
 
-## Logging
+## Abhängigkeiten
 
-Die Anwendung unterstützt verschiedene Log-Level:
+- tokio (async runtime)
+- crossterm (terminal handling)
+- ratatui (terminal user interface)
+- serde + toml (Konfiguration)
+- log (Logging-Framework)
+- unicode-segmentation (Unicode-Support)
 
-- ERROR: Kritische Fehler
-- WARN: Warnungen
-- INFO: Informative Nachrichten
-- DEBUG: Debug-Informationen
+## Build & Run
 
-Die Logs werden im Terminal mit entsprechender Farbkodierung angezeigt.
+```bash
+# Build
+cargo build --release
 
-## Contribution
+# Run
+cargo run --release
+```
 
-Beiträge sind willkommen! Bitte beachten Sie folgende Punkte:
+## Entwicklung
 
-1. Fork des Repositories
-2. Feature-Branch erstellen
-3. Änderungen committen
-4. Pull Request erstellen
+Das Projekt verwendet eine modulare Struktur für einfache Erweiterbarkeit. Neue Features können durch Implementierung entsprechender Traits hinzugefügt werden:
+
+- `Widget` für neue UI-Komponenten
+- `InputWidget` für Eingabe-Handler
+- Erweiterung der `KeyAction` Enum für neue Tastenkombinationen
 
 ## Lizenz
 
-[Ihre gewählte Lizenz]
+MIT License
 
-## Credits
+## Beiträge
 
-Entwickelt mit folgenden Rust-Crates:
-- tokio
-- crossterm
-- ratatui
-- serde
-- log
-- lazy_static
-
----
-
-Dokumentation zuletzt aktualisiert: [Datum]
+Beiträge sind willkommen! Bitte erstellen Sie einen Pull Request oder ein Issue für Verbesserungsvorschläge.

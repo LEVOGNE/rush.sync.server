@@ -1,5 +1,6 @@
-use crate::constants::{CONFIG_PATHS, DEFAULT_BUFFER_SIZE, DEFAULT_POLL_RATE};
-use crate::prelude::*;
+use crate::core::constants::{DEFAULT_BUFFER_SIZE, DEFAULT_POLL_RATE};
+use crate::core::prelude::*;
+use std::path::PathBuf;
 
 // Interne Struktur für Serialisierung/Deserialisierung
 #[derive(Debug, Serialize, Deserialize)]
@@ -61,33 +62,53 @@ impl Config {
     pub async fn load() -> Result<Self> {
         let mut last_error = None;
 
-        for &path in CONFIG_PATHS.iter() {
-            match Self::from_file(path).await {
-                Ok(mut config) => {
-                    config.debug_info = Some(format!(
-                        "Konfiguration geladen aus '{}': Prompt='{}', Color={:?}",
-                        path, config.prompt.text, config.prompt.color
-                    ));
-                    return Ok(config);
-                }
-                Err(e) => {
-                    last_error = Some(e);
-                    continue;
+        // Prüfe zuerst die Standard-Pfade
+        for path in crate::setup_toml::get_config_paths() {
+            if path.exists() {
+                match Self::from_file(&path).await {
+                    Ok(mut config) => {
+                        config.debug_info =
+                            Some(format!("Konfiguration geladen aus '{}'", path.display()));
+                        return Ok(config);
+                    }
+                    Err(e) => {
+                        last_error = Some(e);
+                        continue;
+                    }
                 }
             }
         }
 
-        log::warn!("Keine Konfigurationsdatei gefunden, verwende Defaults");
-        if let Some(err) = last_error {
-            log::debug!("Letzter Fehler beim Laden: {:?}", err);
+        // Wenn keine Konfiguration gefunden wurde, erstelle eine neue im .rss Verzeichnis
+        log::info!("Keine existierende Konfiguration gefunden, erstelle Standard-Konfiguration");
+        match crate::setup_toml::ensure_config_exists().await {
+            Ok(config_path) => match Self::from_file(&config_path).await {
+                Ok(mut config) => {
+                    config.debug_info = Some(format!(
+                        "Neue Standard-Konfiguration erstellt in '{}'",
+                        config_path.display()
+                    ));
+                    Ok(config)
+                }
+                Err(e) => {
+                    log::error!(
+                        "Fehler beim Laden der neu erstellten Konfiguration: {:?}",
+                        e
+                    );
+                    Err(e)
+                }
+            },
+            Err(e) => {
+                log::error!("Fehler beim Erstellen der Standard-Konfiguration: {:?}", e);
+                if let Some(last_e) = last_error {
+                    log::debug!(
+                        "Letzter Fehler beim Laden existierender Konfiguration: {:?}",
+                        last_e
+                    );
+                }
+                Err(e)
+            }
         }
-
-        let mut default_config = Self::default();
-        default_config.debug_info = Some(format!(
-            "Keine Konfigurationsdatei gefunden in {:?}, verwende Defaults",
-            *CONFIG_PATHS
-        ));
-        Ok(default_config)
     }
 
     pub async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
@@ -143,6 +164,15 @@ impl Config {
 
             let content = toml::to_string_pretty(&config_file)
                 .map_err(|e| AppError::Validation(format!("Serialisierungsfehler: {}", e)))?;
+
+            // Stelle sicher, dass das Verzeichnis existiert
+            if let Some(parent) = PathBuf::from(path).parent() {
+                if !parent.exists() {
+                    tokio::fs::create_dir_all(parent)
+                        .await
+                        .map_err(|e| AppError::Io(e))?;
+                }
+            }
 
             tokio::fs::write(path, content)
                 .await

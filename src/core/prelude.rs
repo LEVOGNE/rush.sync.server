@@ -1,3 +1,5 @@
+// src/core/prelude.rs
+
 // Standard Library Imports
 pub use std::{
     fs,
@@ -35,19 +37,23 @@ pub use log::{Level, LevelFilter, Metadata, Record};
 pub use serde::{Deserialize, Serialize};
 pub use unicode_segmentation::UnicodeSegmentation;
 
-// Internal Imports - Core Types
-pub use crate::{
-    color::AppColor,
+// Internal Imports - Core
+pub use crate::core::{
     config::Config,
     error::{AppError, Result},
-    event::{AppEvent, EventHandler}, // Geändert von Event, Events
-    terminal::TerminalManager,
 };
 
-// Internal Imports - Features
-pub use crate::{
-    input::InputState, message::MessageManager, output::create_output_widget, widget::Widget,
+// Internal Imports - Input
+pub use crate::input::{
+    event::{AppEvent, EventHandler},
+    input::InputState,
 };
+
+// Internal Imports - Output
+pub use crate::output::{message::MessageManager, output::create_output_widget};
+
+// Internal Imports - UI
+pub use crate::ui::{color::AppColor, terminal::TerminalManager, widget::Widget};
 
 // Type Aliases
 pub type TerminalBackend = Terminal<CrosstermBackend<Stdout>>;
