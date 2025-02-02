@@ -1,10 +1,11 @@
 // ## FILE: ./src/input.rs
+use crate::cursor::CursorState;
 use crate::keyboard::{KeyAction, KeyboardManager};
 use crate::prelude::*;
 
 pub struct InputState<'a> {
     content: String,
-    cursor_position: usize, // Position in Graphemen, nicht in Bytes
+    cursor: CursorState,
     prompt: String,
     history: Vec<String>,
     history_position: Option<usize>,
@@ -14,8 +15,8 @@ pub struct InputState<'a> {
 impl<'a> InputState<'a> {
     pub fn new(prompt: &str, config: &'a Config) -> Self {
         Self {
-            content: String::with_capacity(100), // Vorallokieren für bessere Performance
-            cursor_position: 0,
+            content: String::with_capacity(100),
+            cursor: CursorState::new(),
             prompt: prompt.to_string(),
             history: Vec::with_capacity(config.max_history),
             history_position: None,
@@ -55,15 +56,6 @@ impl<'a> InputState<'a> {
         self.history.push(entry);
     }
 
-    fn get_byte_position(&self, grapheme_pos: usize) -> usize {
-        self.content
-            .grapheme_indices(true)
-            .take(grapheme_pos)
-            .last()
-            .map(|(pos, grapheme)| pos + grapheme.len())
-            .unwrap_or(0)
-    }
-
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Option<String> {
         let mut keyboard_manager = KeyboardManager::new();
         match keyboard_manager.get_action(&key) {
@@ -74,66 +66,56 @@ impl<'a> InputState<'a> {
                 if let Ok(_) = self.validate_input(&self.content) {
                     let content = std::mem::take(&mut self.content);
                     self.add_to_history(content.clone());
-                    self.cursor_position = 0;
+                    self.cursor.move_to_start();
                     self.history_position = None;
                     Some(content)
                 } else {
                     None
                 }
             }
-
-            // Neue Scroll-Aktionen - ignorieren in der Eingabeverarbeitung
-            KeyAction::ScrollUp
-            | KeyAction::ScrollDown
-            | KeyAction::PageUp
-            | KeyAction::PageDown => None,
-
             KeyAction::InsertChar(c) => {
                 if self.content.graphemes(true).count() < self.config.input_max_length {
-                    let byte_pos = self.get_byte_position(self.cursor_position);
+                    let byte_pos = self.cursor.get_byte_position(&self.content);
                     self.content.insert(byte_pos, c);
-                    self.cursor_position += 1;
+                    self.cursor.update_text_length(&self.content);
+                    self.cursor.move_right();
                 }
                 None
             }
             KeyAction::MoveLeft => {
-                if self.cursor_position > 0 {
-                    self.cursor_position -= 1;
-                }
+                self.cursor.move_left();
                 None
             }
             KeyAction::MoveRight => {
-                let grapheme_count = self.content.graphemes(true).count();
-                if self.cursor_position < grapheme_count {
-                    self.cursor_position += 1;
-                }
+                self.cursor.move_right();
                 None
             }
             KeyAction::MoveToStart => {
-                self.cursor_position = 0;
+                self.cursor.move_to_start();
                 None
             }
             KeyAction::MoveToEnd => {
-                self.cursor_position = self.content.graphemes(true).count();
+                self.cursor.move_to_end();
                 None
             }
             KeyAction::Backspace => {
-                if self.cursor_position > 0 {
-                    let prev_byte_pos = self.get_byte_position(self.cursor_position - 1);
-                    let current_byte_pos = self.get_byte_position(self.cursor_position);
+                if self.cursor.get_position() > 0 {
+                    let prev_byte_pos = self.cursor.get_byte_position(&self.content);
+                    let current_byte_pos = self.cursor.get_next_byte_position(&self.content);
                     self.content
                         .replace_range(prev_byte_pos..current_byte_pos, "");
-                    self.cursor_position -= 1;
+                    self.cursor.update_text_length(&self.content);
+                    self.cursor.move_left();
                 }
                 None
             }
             KeyAction::Delete => {
-                let grapheme_count = self.content.graphemes(true).count();
-                if self.cursor_position < grapheme_count {
-                    let current_byte_pos = self.get_byte_position(self.cursor_position);
-                    let next_byte_pos = self.get_byte_position(self.cursor_position + 1);
+                if self.cursor.get_position() < self.content.graphemes(true).count() {
+                    let current_byte_pos = self.cursor.get_byte_position(&self.content);
+                    let next_byte_pos = self.cursor.get_next_byte_position(&self.content);
                     self.content
                         .replace_range(current_byte_pos..next_byte_pos, "");
+                    self.cursor.update_text_length(&self.content);
                 }
                 None
             }
@@ -143,14 +125,16 @@ impl<'a> InputState<'a> {
                         self.history_position = Some(pos - 1);
                         if let Some(entry) = self.history.get(pos - 1) {
                             self.content = entry.clone();
-                            self.cursor_position = self.content.graphemes(true).count();
+                            self.cursor.update_text_length(&self.content);
+                            self.cursor.move_to_end();
                         }
                     }
                 } else if !self.history.is_empty() {
                     self.history_position = Some(self.history.len() - 1);
                     if let Some(entry) = self.history.last() {
                         self.content = entry.clone();
-                        self.cursor_position = self.content.graphemes(true).count();
+                        self.cursor.update_text_length(&self.content);
+                        self.cursor.move_to_end();
                     }
                 }
                 None
@@ -161,24 +145,32 @@ impl<'a> InputState<'a> {
                         self.history_position = Some(pos + 1);
                         if let Some(entry) = self.history.get(pos + 1) {
                             self.content = entry.clone();
-                            self.cursor_position = self.content.graphemes(true).count();
+                            self.cursor.update_text_length(&self.content);
+                            self.cursor.move_to_end();
                         }
                     } else {
                         self.history_position = None;
                         self.content.clear();
-                        self.cursor_position = 0;
+                        self.cursor.move_to_start();
                     }
                 }
                 None
             }
-            KeyAction::Cancel | KeyAction::Quit => None,
             KeyAction::ClearLine => {
                 self.content.clear();
-                self.cursor_position = 0;
+                self.cursor.move_to_start();
                 None
             }
-            KeyAction::CopySelection | KeyAction::PasteBuffer => None, // Noch nicht implementiert
-            KeyAction::NoAction => None,
+            // Neue match arms für die fehlenden Aktionen
+            KeyAction::ScrollUp
+            | KeyAction::ScrollDown
+            | KeyAction::PageUp
+            | KeyAction::PageDown
+            | KeyAction::Cancel
+            | KeyAction::Quit
+            | KeyAction::CopySelection
+            | KeyAction::PasteBuffer
+            | KeyAction::NoAction => None,
         }
     }
 }
@@ -186,26 +178,23 @@ impl<'a> InputState<'a> {
 impl<'a> Widget for InputState<'a> {
     fn render(&self) -> Paragraph {
         let graphemes: Vec<&str> = self.content.graphemes(true).collect();
+        let cursor_pos = self.cursor.get_position();
         let mut spans = Vec::with_capacity(4);
 
-        // Prompt
         spans.push(Span::styled(
             &self.prompt,
             Style::default().fg(self.config.prompt.color.into()),
         ));
 
-        // Text vor dem Cursor
-        if self.cursor_position > 0 {
-            let before_cursor = graphemes[..self.cursor_position].join("");
+        if cursor_pos > 0 {
+            let before_cursor = graphemes[..cursor_pos].join("");
             spans.push(Span::styled(
                 before_cursor,
                 Style::default().fg(self.config.theme.input_text.into()),
             ));
         }
 
-        // Cursor und Text danach
-        if let Some(&cursor_char) = graphemes.get(self.cursor_position) {
-            // Cursor-Position
+        if let Some(&cursor_char) = graphemes.get(cursor_pos) {
             spans.push(Span::styled(
                 cursor_char,
                 Style::default()
@@ -213,16 +202,14 @@ impl<'a> Widget for InputState<'a> {
                     .bg(self.config.theme.cursor.into()),
             ));
 
-            // Text nach dem Cursor
-            if self.cursor_position < graphemes.len() - 1 {
-                let after_cursor = graphemes[self.cursor_position + 1..].join("");
+            if cursor_pos < graphemes.len() - 1 {
+                let after_cursor = graphemes[cursor_pos + 1..].join("");
                 spans.push(Span::styled(
                     after_cursor,
                     Style::default().fg(self.config.theme.input_text.into()),
                 ));
             }
         } else {
-            // Leerer Cursor am Ende
             spans.push(Span::styled(
                 " ",
                 Style::default()

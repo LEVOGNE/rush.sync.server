@@ -18,6 +18,7 @@ Ein leistungsfähiges Terminal-basiertes Synchronisations- und Messaging-Tool mi
 ├── src/
 │   ├── main.rs          # Einstiegspunkt der Anwendung
 │   ├── message.rs       # Nachrichtensystem
+│   ├── cursor.rs        # Terminal-Cursor
 │   ├── constants.rs     # Globale Konstanten
 │   ├── scroll.rs        # Scroll-Logik
 │   ├── error.rs         # Fehlerhandling
@@ -62,7 +63,7 @@ Falls `rush.toml` nicht existiert, wird eine Standardkonfiguration geladen.
 | `Seite ↑ / ↓`     | Seitenscrolling        |
 | `Enter`           | Eingabe absenden       |
 | `ESC (zweimal)`   | Beenden                |
-| `ALT + ↑ / ↓`     | Scrollen um eine Zeile |
+| `SHIFT + ↑ / ↓`   | Scrollen um eine Zeile |
 
 ## ✏️ Verbesserungen in der Resize-Logik
 

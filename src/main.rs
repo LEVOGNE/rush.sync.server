@@ -2,6 +2,7 @@
 pub mod color;
 pub mod config;
 pub mod constants;
+pub mod cursor;
 pub mod error;
 pub mod event;
 pub mod input;
