@@ -1,0 +1,16 @@
+[general]
+max_messages = 100
+typewriter_delay = 30
+input_max_length = 100
+max_history = 30
+poll_rate = 16
+
+[theme]
+input_text = "White"
+cursor = "White"
+output_text = "DarkGray"
+border = "DarkGray"
+
+[prompt]
+text = "/// "
+color = "White"
