@@ -2,7 +2,6 @@
 use crate::keyboard::{KeyAction, KeyboardManager};
 use crate::logging::{AppLogger, LogMessage};
 use crate::prelude::*;
-use ratatui::prelude::Rect;
 
 pub struct ScreenManager<'a> {
     terminal: TerminalBackend,
@@ -81,7 +80,6 @@ impl<'a> ScreenManager<'a> {
                             window_height,
                             self.message_manager.get_content_height(),
                         );
-                        log::debug!("Terminal resized to {}x{}", width, height);
                     }
                     AppEvent::Tick => {
                         self.message_manager.update_typewriter();
@@ -115,31 +113,36 @@ impl<'a> ScreenManager<'a> {
         }
     }
 
-    async fn render(&mut self) -> io::Result<()> {
-        self.terminal.draw(|f| {
-            let screen_area = Rect::new(0, 0, self.terminal_size.0, self.terminal_size.1);
+    async fn render(&mut self) -> Result<()> {
+        self.terminal.draw(|frame| {
+            let size = frame.size();
+
+            // Prüfe minimale Größe
+            if size.width < 20 || size.height < 10 {
+                return;
+            }
+
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .margin(1)
                 .constraints([Constraint::Min(3), Constraint::Length(3)])
-                .split(screen_area);
+                .split(size);
 
             let available_height = chunks[0].height.saturating_sub(2) as usize;
 
-            // Aktualisiere ScrollState-Dimensionen vor dem Abrufen der Nachrichten
+            // Aktualisiere ScrollState vor dem Rendering
             self.message_manager
                 .scroll_state
                 .update_dimensions(available_height, self.message_manager.get_content_height());
 
-            // Hole die Nachrichten nach der Dimensionsanpassung
             let messages = self.message_manager.get_messages();
-
             let output_widget =
                 create_output_widget(&messages, available_height as u16, self.config);
-            f.render_widget(output_widget, chunks[0]);
+
+            frame.render_widget(output_widget, chunks[0]);
 
             let input_widget = self.input_state.render();
-            f.render_widget(input_widget, chunks[1]);
+            frame.render_widget(input_widget, chunks[1]);
         })?;
 
         Ok(())

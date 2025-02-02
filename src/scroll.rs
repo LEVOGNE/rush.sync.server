@@ -18,14 +18,31 @@ impl ScrollState {
     }
 
     pub fn update_dimensions(&mut self, window_height: usize, content_height: usize) {
+        // Speichere die alten Werte für Vergleiche
+        let old_window_height = self.window_height;
+        let old_content_height = self.content_height;
+
+        // Aktualisiere die Dimensionen
         self.window_height = window_height;
         self.content_height = content_height;
 
+        // Berechne maximalen Offset
+        let max_offset = self.content_height.saturating_sub(self.window_height);
+
+        // Wenn sich die Fensterhöhe vergrößert hat, behalte die relative Position bei
+        if window_height > old_window_height && !self.auto_scroll {
+            let ratio = self.offset as f64 / old_content_height.max(1) as f64;
+            self.offset = (ratio * content_height as f64).round() as usize;
+        }
+
+        // Stelle sicher, dass der Offset nicht über das Maximum hinausgeht
+        self.offset = self.offset.min(max_offset);
+
+        // Wenn auto_scroll aktiv ist oder force_scroll gesetzt wurde,
+        // scrolle zum Ende
         if self.auto_scroll || self.force_scroll {
-            self.scroll_to_bottom();
-            self.force_scroll = false; // Reset force_scroll nach dem Scrollen
-        } else {
-            self.clamp_offset();
+            self.offset = max_offset;
+            self.force_scroll = false;
         }
     }
 
@@ -53,23 +70,6 @@ impl ScrollState {
     pub fn force_auto_scroll(&mut self) {
         self.force_scroll = true;
         self.auto_scroll = true;
-    }
-
-    fn scroll_to_bottom(&mut self) {
-        if self.content_height > self.window_height {
-            self.offset = self.content_height - self.window_height;
-        } else {
-            self.offset = 0;
-        }
-    }
-
-    fn clamp_offset(&mut self) {
-        if self.content_height > self.window_height {
-            let max_offset = self.content_height - self.window_height;
-            self.offset = self.offset.min(max_offset);
-        } else {
-            self.offset = 0;
-        }
     }
 
     pub fn get_visible_range(&self) -> (usize, usize) {

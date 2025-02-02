@@ -337,23 +337,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mein_projekt"
-version = "0.1.0"
-dependencies = [
- "crossterm",
- "env_logger",
- "futures",
- "lazy_static",
- "log",
- "ratatui",
- "serde",
- "strip-ansi-escapes",
- "tokio",
- "toml",
- "unicode-segmentation",
-]
-
-[[package]]
 name = "memchr"
 version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -514,6 +497,23 @@ name = "regex-syntax"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
+
+[[package]]
+name = "rushsync"
+version = "0.1.1"
+dependencies = [
+ "crossterm",
+ "env_logger",
+ "futures",
+ "lazy_static",
+ "log",
+ "ratatui",
+ "serde",
+ "strip-ansi-escapes",
+ "tokio",
+ "toml",
+ "unicode-segmentation",
+]
 
 [[package]]
 name = "rustc-demangle"

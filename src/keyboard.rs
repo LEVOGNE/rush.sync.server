@@ -99,12 +99,12 @@ impl KeyboardManager {
 
         // Alt + Pfeiltasten für Scrollen
         self.add_binding(
-            KeyEvent::new(KeyCode::Up, event::KeyModifiers::ALT),
+            KeyEvent::new(KeyCode::Up, event::KeyModifiers::SHIFT),
             KeyAction::ScrollUp,
             "Eine Zeile nach oben scrollen",
         );
         self.add_binding(
-            KeyEvent::new(KeyCode::Down, event::KeyModifiers::ALT),
+            KeyEvent::new(KeyCode::Down, event::KeyModifiers::SHIFT),
             KeyAction::ScrollDown,
             "Eine Zeile nach unten scrollen",
         );
