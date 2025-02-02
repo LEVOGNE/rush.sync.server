@@ -194,13 +194,17 @@ impl<'a> Widget for InputState<'a> {
             ));
         }
 
+        // Cursor-Rendering mit Blink-Status
         if let Some(&cursor_char) = graphemes.get(cursor_pos) {
-            spans.push(Span::styled(
-                cursor_char,
+            let cursor_style = if self.cursor.is_visible() {
                 Style::default()
                     .fg(self.config.theme.input_text.into())
-                    .bg(self.config.theme.cursor.into()),
-            ));
+                    .bg(self.config.theme.cursor.into())
+            } else {
+                Style::default().fg(self.config.theme.input_text.into())
+            };
+
+            spans.push(Span::styled(cursor_char, cursor_style));
 
             if cursor_pos < graphemes.len() - 1 {
                 let after_cursor = graphemes[cursor_pos + 1..].join("");
@@ -210,12 +214,16 @@ impl<'a> Widget for InputState<'a> {
                 ));
             }
         } else {
-            spans.push(Span::styled(
-                " ",
+            // Leerer Cursor am Ende
+            let cursor_style = if self.cursor.is_visible() {
                 Style::default()
                     .fg(self.config.theme.input_text.into())
-                    .bg(self.config.theme.cursor.into()),
-            ));
+                    .bg(self.config.theme.cursor.into())
+            } else {
+                Style::default().fg(self.config.theme.input_text.into())
+            };
+
+            spans.push(Span::styled(" ", cursor_style));
         }
 
         Paragraph::new(Line::from(spans)).block(
@@ -228,5 +236,17 @@ impl<'a> Widget for InputState<'a> {
 
     fn handle_input(&mut self, key: KeyEvent) -> Option<String> {
         self.handle_key_event(key)
+    }
+
+    fn as_input_state(&mut self) -> Option<&mut dyn InputWidget> {
+        Some(self)
+    }
+}
+
+use crate::widget::InputWidget;
+
+impl<'a> InputWidget for InputState<'a> {
+    fn update_cursor_blink(&mut self) {
+        self.cursor.update_blink();
     }
 }

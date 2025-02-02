@@ -1,103 +1,146 @@
-# RUSH SYNC
+# Rush Sync - Terminal-basierte Synchronisationsanwendung
 
-Ein leistungsfähiges Terminal-basiertes Synchronisations- und Messaging-Tool mit Unterstützung für anpassbare Konfigurationen, Farbthemen und Echtzeit-Nachrichtenverwaltung.
+Rush Sync ist eine moderne, Terminal-basierte Anwendung, geschrieben in Rust. Sie bietet eine interaktive Benutzeroberfläche mit Echtzeit-Updates, Scrolling-Funktionalität und anpassbarer Konfiguration.
 
-## 📌 Features
+## Features
 
-- **Message Management**: Nachrichtenverlauf mit Auto-Scroll und begrenzter Historie.
-- **Scroll-System**: Unterstützung für Seitenscrolling und dynamische Anpassung.
-- **Konfigurationsdatei** (`rush.toml`): Anpassbare Einstellungen für Nachrichtenanzahl, Farbschema und Eingabeverhalten.
-- **Logging-System**: Strukturierte Logs mit verschiedenen Levels (`INFO`, `DEBUG`, `ERROR`).
-- **Asynchrones Event-Handling** mit `tokio`.
-- **Typewriter-Effekt** für das langsame Anzeigen von Nachrichten.
-- **Tastatursteuerung** für einfache Navigation im Terminal.
+- 🎨 Anpassbares Farbschema
+- ⌨️ Konfigurierbare Tastenbelegungen
+- 📜 Scrollbare Nachrichtenansicht
+- 💾 Befehlshistorie
+- ⚡ Typewriter-Effekt für Nachrichten
+- 🔄 Auto-Scroll Funktion
+- 📝 Blinkender Cursor
+- 🎯 Intuitive Tastaturnavigation
 
-## 📂 Projektstruktur
+## Installation
 
-```
-├── src/
-│   ├── main.rs          # Einstiegspunkt der Anwendung
-│   ├── message.rs       # Nachrichtensystem
-│   ├── cursor.rs        # Terminal-Cursor
-│   ├── constants.rs     # Globale Konstanten
-│   ├── scroll.rs        # Scroll-Logik
-│   ├── error.rs         # Fehlerhandling
-│   ├── widget.rs        # Basis-Widgets für das Terminal-UI
-│   ├── config.rs        # Konfigurationsverwaltung
-│   ├── color.rs         # Farbmanagement
-│   ├── terminal.rs      # Terminalsteuerung
-│   ├── logging.rs       # Logging-Mechanismus
-│   ├── screen.rs        # Bildschirmmanagement
-│   ├── event.rs         # Event-Handling
-│   ├── keyboard.rs      # Tastatureingaben und Hotkeys
-│   ├── output.rs        # Terminal-Ausgabeformatierung
-│   ├── input.rs         # Eingabe-Management
-│   ├── prelude.rs       # Sammelmodul für Importe
-│   └── rush.toml        # Konfigurationsdatei
-```
+### Voraussetzungen
 
-## 🛠 Installation & Nutzung
+- Rust (Edition 2021)
+- Cargo
 
-### 1️⃣ **Projekt kompilieren und ausführen**
+### Build-Prozess
 
-```sh
-cargo run
-```
+```bash
+# Repository klonen
+git clone https://github.com/yourusername/rush-sync.git
+cd rush-sync
 
-### 2️⃣ **Optimierte Version (Release-Build)**
-
-```sh
+# Anwendung bauen
 cargo build --release
-./target/release/rush_sync
+
+# Anwendung ausführen
+cargo run --release
 ```
 
-### 3️⃣ **Konfigurationsdatei (`rush.toml`) anpassen**
+## Konfiguration
 
-Falls `rush.toml` nicht existiert, wird eine Standardkonfiguration geladen.
+Die Anwendung kann über eine `rush.toml` Datei konfiguriert werden. Diese kann in folgenden Verzeichnissen platziert werden:
 
-## 🎮 Tastenkombinationen
+- `./rush.toml` (aktuelles Verzeichnis)
+- `./config/rush.toml` (Produktionsumgebung)
+- `./src/rush.toml` (Entwicklungsumgebung)
 
-| Tastenkombination | Aktion                 |
-| ----------------- | ---------------------- |
-| `↑ / ↓`           | Verlauf durchblättern  |
-| `Seite ↑ / ↓`     | Seitenscrolling        |
-| `Enter`           | Eingabe absenden       |
-| `ESC (zweimal)`   | Beenden                |
-| `SHIFT + ↑ / ↓`   | Scrollen um eine Zeile |
+### Beispiel-Konfiguration
 
-## ✏️ Verbesserungen in der Resize-Logik
+```toml
+[general]
+max_messages = 100
+typewriter_delay = 50
+input_max_length = 100
+max_history = 30
+poll_rate = 16
 
-Ein Problem mit der Resize-Logik in `screen.rs` wurde behoben. Die wichtigsten Verbesserungen:
+[theme]
+input_text = "Yellow"
+cursor = "Yellow"
+output_text = "Green"
+border = "DarkGray"
 
-- **Robuste Größenvalidierung:**
+[prompt]
+text = "/// "
+color = "Yellow"
+```
 
-  - Einführung von konstanten Mindestgrößen (`MIN_WIDTH = 20`, `MIN_HEIGHT = 10`)
-  - Fallback-Rendering bei zu kleinem Terminal
-  - Benutzerfreundliche Fehlermeldung
+## Tastenbelegung
 
-- **Verbesserte ScrollState-Logik:**
+### Standard-Tastenbelegungen
 
-  - Beibehaltung der relativen Scroll-Position bei Größenänderungen
-  - Intelligentere Behandlung von Auto-Scroll
-  - Verbesserte Offset-Berechnung
+- `←/→`: Cursor bewegen
+- `Home/End`: Zum Anfang/Ende springen
+- `Enter`: Eingabe bestätigen
+- `Shift + ↑/↓`: Scrollen
+- `Page Up/Down`: Seitenweise scrollen
+- `↑/↓`: In der Historie navigieren
+- `ESC` (2x): Anwendung beenden
 
-- **Zuverlässigeres Rendering:**
+## Entwicklung
 
-  - Sicherheitsüberprüfungen vor dem Rendering
-  - Optimierte Layout-Berechnung
-  - Korrekte Behandlung der verfügbaren Höhe
+### Projektstruktur
 
-- **Besseres Debugging:**
-  - Ausführlicheres Logging für Resize-Events
-  - Nachverfolgbarkeit von Größenänderungen
-  - Klare Fehlermeldungen
+```
+src/
+├── message.rs     # Nachrichtenverwaltung
+├── constants.rs   # Konstanten und Konfigurationspfade
+├── scroll.rs      # Scroll-Funktionalität
+├── error.rs       # Fehlerbehandlung
+├── widget.rs      # Widget-Traits
+├── config.rs      # Konfigurationsverwaltung
+├── color.rs       # Farbverwaltung
+├── terminal.rs    # Terminal-Setup
+├── logging.rs     # Logging-System
+├── screen.rs      # Bildschirm-Rendering
+├── event.rs       # Event-Handling
+├── keyboard.rs    # Tastatur-Input
+├── cursor.rs      # Cursor-Verwaltung
+├── input.rs       # Eingabeverarbeitung
+└── main.rs        # Hauptanwendung
+```
 
-Mit diesen Verbesserungen sollte die Anwendung stabiler auf Terminalgrößenänderungen reagieren und ein fehlerfreies Rendering ermöglichen.
+### Hauptkomponenten
 
-## 📝 Lizenz
+1. **MessageManager**: Verwaltet die Nachrichtenliste und Scroll-Status
+2. **ScreenManager**: Steuert das Terminal-Interface und Event-Handling
+3. **InputState**: Verarbeitet Benutzereingaben und Historie
+4. **Config**: Lädt und verwaltet die Anwendungskonfiguration
+5. **EventHandler**: Asynchrone Event-Verarbeitung
+6. **KeyboardManager**: Tastatureingaben und Bindings
 
-Dieses Projekt steht unter der **MIT-Lizenz**.
+## Logging
+
+Die Anwendung unterstützt verschiedene Log-Level:
+
+- ERROR: Kritische Fehler
+- WARN: Warnungen
+- INFO: Informative Nachrichten
+- DEBUG: Debug-Informationen
+
+Die Logs werden im Terminal mit entsprechender Farbkodierung angezeigt.
+
+## Contribution
+
+Beiträge sind willkommen! Bitte beachten Sie folgende Punkte:
+
+1. Fork des Repositories
+2. Feature-Branch erstellen
+3. Änderungen committen
+4. Pull Request erstellen
+
+## Lizenz
+
+[Ihre gewählte Lizenz]
+
+## Credits
+
+Entwickelt mit folgenden Rust-Crates:
+- tokio
+- crossterm
+- ratatui
+- serde
+- log
+- lazy_static
 
 ---
 
-🚀 Entwickelt mit **Rust**, `tokio`, `crossterm` und `ratatui`.
+Dokumentation zuletzt aktualisiert: [Datum]

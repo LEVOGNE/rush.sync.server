@@ -83,6 +83,9 @@ impl<'a> ScreenManager<'a> {
                     }
                     AppEvent::Tick => {
                         self.message_manager.update_typewriter();
+                        if let Some(input_state) = self.input_state.as_input_state() {
+                            input_state.update_cursor_blink(); // Hier rufen wir direkt die Methode auf
+                        }
                     }
                 }
             }
