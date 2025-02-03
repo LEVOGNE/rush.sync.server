@@ -132,7 +132,7 @@ impl<'a> ScreenManager<'a> {
                 .constraints([Constraint::Min(3), Constraint::Length(3)])
                 .split(size);
 
-            let available_height = chunks[0].height.saturating_sub(2) as usize;
+            let available_height = chunks[0].height.saturating_sub(0) as usize;
 
             // Aktualisiere ScrollState vor dem Rendering
             self.message_manager

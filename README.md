@@ -1,17 +1,19 @@
 # Rush Sync
 
-Rush Sync ist eine moderne Terminal-basierte Benutzeroberfläche, die in Rust entwickelt wurde. Sie bietet ein interaktives UI mit Logging-Funktionalität, Typewriter-Effekten und scrollbarem Output.
+Rush Sync ist eine moderne Terminal-basierte Benutzeroberfläche, die in Rust entwickelt wurde. Sie bietet ein interaktives UI mit Logging-Funktionalität, Typewriter-Effekten, scrollbarem Output und anpassbarem Design.
 
 ## Features
 
 - Interaktive Terminal-Benutzeroberfläche
 - Farbcodierte Log-Ausgaben (ERROR, WARN, INFO, DEBUG)
-- Scrollbare Nachrichtenhistorie
+- Scrollbare Nachrichtenhistorie mit Auto-Scroll
 - Typewriter-Effekt für neue Nachrichten
 - Eingabehistorie mit Pfeiltasten-Navigation
-- Konfigurierbare Farbthemen über TOML-Datei
+- Vollständig anpassbares Design über TOML-Konfiguration
+- Hintergrund- und Vordergrundfarben für Input/Output
 - Unicode-Unterstützung
-- Cursor-Navigation und -Bearbeitung
+- Erweiterte Cursor-Navigation und -Bearbeitung
+- Automatische Konfigurationserstellung
 
 ## Tastenkombinationen
 
@@ -22,10 +24,13 @@ Rush Sync ist eine moderne Terminal-basierte Benutzeroberfläche, die in Rust en
 - `Page Up/Down`: Seitenweise scrollen
 - `Enter`: Eingabe bestätigen
 - `ESC` (doppelt): Programm beenden
+- `Backspace/Delete`: Text löschen
 
 ## Konfiguration
 
-Die Konfiguration erfolgt über eine `rush.toml` Datei mit folgenden Hauptsektionen:
+Die Konfiguration erfolgt über eine `rush.toml` Datei. Diese wird automatisch im `.rss` Verzeichnis neben der ausführbaren Datei erstellt.
+
+### Standard-Konfiguration
 
 ```toml
 [general]
@@ -36,14 +41,42 @@ max_history = 30        # Größe der Eingabehistorie
 poll_rate = 16         # Event-Poll-Rate (ms)
 
 [theme]
-input_text = "White"    # Farbe des Eingabetexts
-cursor = "White"       # Cursor-Farbe
+input_text = "Black"    # Farbe des Eingabetexts
+input_bg = "White"     # Hintergrundfarbe des Eingabebereichs
+cursor = "Black"       # Cursor-Farbe
 output_text = "DarkGray" # Farbe des Ausgabetexts
-border = "DarkGray"     # Rahmenfarbe
+output_bg = "Black"    # Hintergrundfarbe des Ausgabebereichs
 
 [prompt]
 text = "/// "          # Eingabeaufforderung
-color = "White"        # Farbe der Eingabeaufforderung
+color = "Black"        # Farbe der Eingabeaufforderung
+```
+
+### Verfügbare Farben
+
+- Standard: `Black`, `White`, `Gray`, `DarkGray`
+- Primärfarben: `Red`, `Green`, `Blue`, `Yellow`, `Magenta`, `Cyan`
+- Helle Varianten: `LightRed`, `LightGreen`, `LightBlue`, `LightYellow`, `LightMagenta`, `LightCyan`
+
+## Installation
+
+### Voraussetzungen
+
+- Rust/Cargo (neueste stabile Version)
+- Git (optional, für Entwicklung)
+
+### Build von Source
+
+```bash
+# Repository klonen (optional)
+git clone https://github.com/username/rush_sync.git
+cd rush_sync
+
+# Build
+cargo build --release
+
+# Ausführen
+cargo run --release
 ```
 
 ## Projektstruktur
@@ -51,51 +84,124 @@ color = "White"        # Farbe der Eingabeaufforderung
 ```
 src/
 ├── core/           # Kernfunktionalität
+│   ├── config.rs   # Konfigurationshandling
+│   ├── constants.rs # Konstanten
+│   ├── error.rs    # Fehlertypen
+│   └── prelude.rs  # Common Imports
 ├── ui/            # UI-Komponenten
+│   ├── widget.rs   # Widget-Traits
+│   ├── color.rs    # Farbhandling
+│   ├── cursor.rs   # Cursor-Logik
+│   └── screen.rs   # Hauptscreen-Rendering
 ├── input/         # Eingabeverarbeitung
+│   ├── event.rs    # Event-Handling
+│   ├── keyboard.rs # Tastatur-Input
+│   └── input.rs    # Eingabe-Widget
 ├── output/        # Ausgabeformatierung
-└── setup/         # Konfiguration
+│   ├── message.rs  # Nachrichtenhandling
+│   ├── logging.rs  # Logging-System
+│   └── scroll.rs   # Scroll-Logik
+└── setup/         # Konfiguration & Setup
+    └── setup_toml.rs # TOML Setup
 ```
 
 ## Technische Details
 
-- Asynchrone Architektur mit Tokio
-- Event-basiertes System für Eingabehandlung
-- Modulares Design mit klarer Trennung der Verantwortlichkeiten
-- Cross-Platform Terminal-Handling mit Crossterm
-- TUI-Rendering mit Ratatui
+### Architektur
 
-## Abhängigkeiten
+- **Event Loop**: Asynchrone Event-Verarbeitung mit Tokio
+- **Terminal Handling**: Cross-Platform mit Crossterm
+- **UI Rendering**: Modernes TUI-Framework Ratatui
+- **Konfiguration**: TOML-basiert mit Serde
+- **Logging**: Flexibles Logging-System mit verschiedenen Levels
+- **Unicode**: Volle Unicode-Unterstützung mit Grapheme-Clusters
 
-- tokio (async runtime)
-- crossterm (terminal handling)
-- ratatui (terminal user interface)
-- serde + toml (Konfiguration)
-- log (Logging-Framework)
-- unicode-segmentation (Unicode-Support)
+### Hauptkomponenten
 
-## Build & Run
+- **ScreenManager**: Zentrale UI-Komponente
+- **MessageManager**: Nachrichtenverwaltung und Scrolling
+- **InputState**: Eingabeverarbeitung und Historie
+- **ScrollState**: Scroll-Position und Auto-Scroll
+- **AppLogger**: Asynchrones Logging-System
 
-```bash
-# Build
-cargo build --release
+## Performance
 
-# Run
-cargo run --release
+- Effizientes Memory-Management durch Ringpuffer
+- Optimierte Render-Zyklen
+- Asynchrone Event-Verarbeitung
+- Minimaler CPU-Verbrauch im Idle
+
+## Dependencies
+
+```toml
+[dependencies]
+crossterm = "0.27"
+ratatui = "0.24"
+unicode-segmentation = "1.10"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+env_logger = "0.10"
+log = "0.4"
+lazy_static = "1.4"
+strip-ansi-escapes = "0.1.1"
+tokio = { version = "1.36", features = ["full"] }
+futures = "0.3"
+dirs = "5.0"
 ```
 
 ## Entwicklung
 
-Das Projekt verwendet eine modulare Struktur für einfache Erweiterbarkeit. Neue Features können durch Implementierung entsprechender Traits hinzugefügt werden:
+### Code-Konventionen
 
-- `Widget` für neue UI-Komponenten
-- `InputWidget` für Eingabe-Handler
-- Erweiterung der `KeyAction` Enum für neue Tastenkombinationen
+- Rust 2021 Edition
+- Volle Dokumentation aller öffentlichen APIs
+- Fehlerbehandlung mit eigenen Error-Typen
+- Modulare Struktur mit klaren Zuständigkeiten
+
+### Testing
+
+```bash
+# Unit Tests ausführen
+cargo test
+
+# Integration Tests
+cargo test --test '*'
+
+# Mit Logging
+RUST_LOG=debug cargo test
+```
+
+### Debugging
+
+- Integriertes Debug-Logging
+- Konfigurierbare Log-Level
+- Detaillierte Cursor-Operation-Logs
+
+## Bekannte Einschränkungen
+
+- Minimale Terminalgrößen-Anforderung: 20x10 Zeichen
+- Keine Mausunterstützung
+- Keine RTL-Sprachen-Unterstützung
+
+## Roadmap
+
+- [ ] Mausunterstützung
+- [ ] Split-Screen-Modus
+- [ ] Syntax-Highlighting
+- [ ] Plugin-System
+- [ ] Konfiguration über UI
+- [ ] Verbesserte Unicode-Unterstützung
 
 ## Lizenz
 
-MIT License
+MIT License - Siehe [LICENSE](LICENSE) Datei
 
 ## Beiträge
 
-Beiträge sind willkommen! Bitte erstellen Sie einen Pull Request oder ein Issue für Verbesserungsvorschläge.
+Beiträge sind willkommen! Bitte beachten Sie:
+
+1. Fork des Repositories
+2. Feature Branch erstellen
+3. Änderungen committen
+4. Tests hinzufügen/anpassen
+5. Pull Request erstellen

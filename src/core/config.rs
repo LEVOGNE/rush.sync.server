@@ -22,9 +22,10 @@ struct GeneralConfig {
 #[derive(Debug, Serialize, Deserialize)]
 struct ThemeConfig {
     input_text: String,
+    input_bg: String,
     cursor: String,
     output_text: String,
-    border: String,
+    output_bg: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -48,9 +49,10 @@ pub struct Config {
 
 pub struct Theme {
     pub input_text: AppColor,
+    pub input_bg: AppColor,
     pub cursor: AppColor,
     pub output_text: AppColor,
-    pub border: AppColor,
+    pub output_bg: AppColor,
 }
 
 pub struct Prompt {
@@ -120,11 +122,12 @@ impl Config {
             .map_err(|e| AppError::Validation(format!("Ungültiges TOML-Format: {}", e)))?;
 
         log::debug!(
-            "Theme-Konfiguration geladen: input_text={}, cursor={}, output_text={}, border={}",
+            "Theme-Konfiguration geladen: input_text={}, input_bg={}, cursor={}, output_text={}, output_bg={}",
             config_file.theme.input_text,
+            config_file.theme.input_bg,
             config_file.theme.cursor,
             config_file.theme.output_text,
-            config_file.theme.border
+            config_file.theme.output_bg
         );
 
         Ok(Self {
@@ -152,9 +155,10 @@ impl Config {
                 },
                 theme: ThemeConfig {
                     input_text: self.theme.input_text.to_string(),
+                    input_bg: self.theme.input_bg.to_string(),
                     cursor: self.theme.cursor.to_string(),
                     output_text: self.theme.output_text.to_string(),
-                    border: self.theme.border.to_string(),
+                    output_bg: self.theme.output_bg.to_string(),
                 },
                 prompt: PromptConfig {
                     text: self.prompt.text.clone(),
@@ -186,9 +190,10 @@ impl Theme {
     fn from_config(config: &ThemeConfig) -> Result<Self> {
         Ok(Self {
             input_text: AppColor::from_string(&config.input_text)?,
+            input_bg: AppColor::from_string(&config.input_bg)?,
             cursor: AppColor::from_string(&config.cursor)?,
             output_text: AppColor::from_string(&config.output_text)?,
-            border: AppColor::from_string(&config.border)?,
+            output_bg: AppColor::from_string(&config.output_bg)?,
         })
     }
 }
@@ -222,10 +227,11 @@ impl Default for Config {
 impl Default for Theme {
     fn default() -> Self {
         Self {
-            input_text: AppColor::new(Color::Yellow),
-            cursor: AppColor::new(Color::Yellow),
-            output_text: AppColor::new(Color::Green),
-            border: AppColor::new(Color::DarkGray),
+            input_text: AppColor::new(Color::Black),
+            input_bg: AppColor::new(Color::Black),
+            cursor: AppColor::new(Color::Black),
+            output_text: AppColor::new(Color::White),
+            output_bg: AppColor::new(Color::White),
         }
     }
 }
@@ -234,7 +240,7 @@ impl Default for Prompt {
     fn default() -> Self {
         Self {
             text: "/// ".to_string(),
-            color: AppColor::new(Color::Yellow),
+            color: AppColor::new(Color::Black),
         }
     }
 }

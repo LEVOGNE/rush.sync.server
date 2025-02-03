@@ -10,14 +10,15 @@ max_history = 30
 poll_rate = 16
 
 [theme]
-input_text = "White"
-cursor = "White"
+input_text = "Black"
+input_bg = "White"
+cursor = "Black"
 output_text = "DarkGray"
-border = "DarkGray"
+output_bg = "Black"
 
 [prompt]
 text = "/// "
-color = "White"
+color = "Black"
 "#;
 
 pub async fn ensure_config_exists() -> Result<PathBuf> {

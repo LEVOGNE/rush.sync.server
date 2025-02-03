@@ -70,20 +70,38 @@ impl CursorState {
         self.show_cursor();
     }
 
-    pub fn get_byte_position(&self, text: &str) -> usize {
-        text.grapheme_indices(true)
-            .take(self.position)
-            .last()
-            .map(|(pos, grapheme)| pos + grapheme.len())
-            .unwrap_or(0)
-    }
-
     pub fn get_next_byte_position(&self, text: &str) -> usize {
         text.grapheme_indices(true)
             .take(self.position + 1)
             .last()
             .map(|(pos, grapheme)| pos + grapheme.len())
             .unwrap_or(text.len())
+    }
+
+    pub fn get_byte_position(&self, text: &str) -> usize {
+        // Wenn text leer ist oder Position 0, gib 0 zurück
+        if text.is_empty() || self.position == 0 {
+            return 0;
+        }
+
+        // Wir nehmen das Graphem VOR der aktuellen Position
+        text.grapheme_indices(true)
+            .nth(self.position.saturating_sub(1))
+            .map(|(pos, grapheme)| pos + grapheme.len())
+            .unwrap_or(text.len())
+    }
+
+    pub fn get_prev_byte_position(&self, text: &str) -> usize {
+        // Wenn text leer ist oder Position <= 1, gib 0 zurück
+        if text.is_empty() || self.position <= 1 {
+            return 0;
+        }
+
+        // Wir nehmen das Graphem ZWEI Positionen zurück
+        text.grapheme_indices(true)
+            .nth(self.position.saturating_sub(2))
+            .map(|(pos, grapheme)| pos + grapheme.len())
+            .unwrap_or(0)
     }
 }
 

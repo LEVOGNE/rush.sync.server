@@ -101,14 +101,39 @@ impl<'a> InputState<'a> {
                 None
             }
             KeyAction::Backspace => {
-                if self.cursor.get_position() > 0 {
-                    let prev_byte_pos = self.cursor.get_byte_position(&self.content);
-                    let current_byte_pos = self.cursor.get_next_byte_position(&self.content);
-                    self.content
-                        .replace_range(prev_byte_pos..current_byte_pos, "");
-                    self.cursor.update_text_length(&self.content);
-                    self.cursor.move_left();
+                // Schneller Early Exit wenn nichts zu löschen ist
+                if self.content.is_empty() || self.cursor.get_position() == 0 {
+                    return None;
                 }
+
+                log::debug!(
+                    "START Backspace - Text: '{}', Position: {}",
+                    self.content,
+                    self.cursor.get_position()
+                );
+
+                // Rest der Backspace-Logik...
+                let current_byte_pos = self.cursor.get_byte_position(&self.content);
+                let prev_byte_pos = self.cursor.get_prev_byte_position(&self.content);
+
+                log::debug!(
+                    "Backspace - Current byte pos: {}, Prev byte pos: {}, Text: '{}'",
+                    current_byte_pos,
+                    prev_byte_pos,
+                    self.content
+                );
+
+                self.cursor.move_left();
+                self.content
+                    .replace_range(prev_byte_pos..current_byte_pos, "");
+
+                log::debug!(
+                    "After Backspace - Text: '{}', New Position: {}",
+                    self.content,
+                    self.cursor.get_position()
+                );
+
+                self.cursor.update_text_length(&self.content);
                 None
             }
             KeyAction::Delete => {
@@ -230,9 +255,9 @@ impl<'a> Widget for InputState<'a> {
 
         Paragraph::new(Line::from(spans)).block(
             Block::default()
-                .borders(Borders::ALL)
-                .title("Input")
-                .border_style(Style::default().fg(self.config.theme.border.into())),
+                .padding(Padding::new(3, 1, 1, 1))
+                .borders(Borders::NONE) // Keine Rahmen
+                .style(Style::default().bg(self.config.theme.input_bg.into())),
         )
     }
 

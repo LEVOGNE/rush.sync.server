@@ -8,7 +8,8 @@ pub fn create_output_widget<'a>(
     config: &Config,
 ) -> Paragraph<'a> {
     let mut lines = Vec::new();
-    let max_visible_messages = available_height as usize;
+    //let max_visible_messages = available_height as usize;
+    let max_visible_messages = (available_height as usize).saturating_sub(0); // Kein zusätzlicher Abzug mehr nötig
 
     // Wenn keine Nachrichten da sind, gib ein leeres Widget zurück
     if messages.is_empty() {
@@ -16,9 +17,8 @@ pub fn create_output_widget<'a>(
         return Paragraph::new(empty_lines)
             .block(
                 Block::default()
-                    .borders(Borders::ALL)
-                    .title("Output")
-                    .border_style(Style::default().fg(config.theme.border.into())),
+                    .borders(Borders::NONE) // Keine Rahmen
+                    .style(Style::default().bg(config.theme.output_bg.into())),
             )
             .wrap(Wrap { trim: true });
     }
@@ -73,9 +73,8 @@ pub fn create_output_widget<'a>(
     Paragraph::new(lines)
         .block(
             Block::default()
-                .borders(Borders::ALL)
-                .title("Output")
-                .border_style(Style::default().fg(config.theme.border.into())),
+                .borders(Borders::NONE) // Keine Rahmen
+                .style(Style::default().bg(config.theme.output_bg.into())),
         )
         .wrap(Wrap { trim: true })
 }
