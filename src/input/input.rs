@@ -34,10 +34,13 @@ impl<'a> InputState<'a> {
         }
 
         let grapheme_count = input.graphemes(true).count();
-        if grapheme_count > self.config.input_max_length {
+        // Erhöhe das Limit auf einen sinnvolleren Wert
+        let max_length = 1024; // Oder ein anderer sinnvoller Wert
+
+        if grapheme_count > max_length {
             return Err(AppError::Validation(format!(
                 "Eingabe zu lang (max {} Zeichen)",
-                self.config.input_max_length
+                max_length
             )));
         }
 
@@ -208,55 +211,69 @@ impl<'a> Widget for InputState<'a> {
         let cursor_pos = self.cursor.get_position();
         let mut spans = Vec::with_capacity(4);
 
+        // Prompt hinzufügen
         spans.push(Span::styled(
             &self.prompt,
             Style::default().fg(self.config.prompt.color.into()),
         ));
 
+        // Berechne die verfügbare Breite für den Text
+        // Wir subtrahieren die Länge des Prompts und einen Puffer von 4 Zeichen
+        let prompt_width = self.prompt.graphemes(true).count();
+        let available_width = self
+            .config
+            .input_max_length
+            .saturating_sub(prompt_width + 4);
+
+        // Berechne den sichtbaren Bereich basierend auf der Cursor-Position
+        let viewport_start = if cursor_pos > available_width {
+            cursor_pos - available_width + 10 // 10 Zeichen Puffer für bessere Lesbarkeit
+        } else {
+            0
+        };
+
+        // Rendere den Text vor dem Cursor
         if cursor_pos > 0 {
-            let before_cursor = graphemes[..cursor_pos].join("");
+            let visible_text = if viewport_start < cursor_pos {
+                graphemes[viewport_start..cursor_pos].join("")
+            } else {
+                String::new()
+            };
+
             spans.push(Span::styled(
-                before_cursor,
+                visible_text,
                 Style::default().fg(self.config.theme.input_text.into()),
             ));
         }
 
-        // Cursor-Rendering mit Blink-Status
-        if let Some(&cursor_char) = graphemes.get(cursor_pos) {
-            let cursor_style = if self.cursor.is_visible() {
-                Style::default()
-                    .fg(self.config.theme.input_text.into())
-                    .bg(self.config.theme.cursor.into())
-            } else {
-                Style::default().fg(self.config.theme.input_text.into())
-            };
+        // Cursor-Zeichen rendern
+        let cursor_char = graphemes.get(cursor_pos).map_or(" ", |&c| c);
+        let cursor_style = if self.cursor.is_visible() {
+            Style::default()
+                .fg(self.config.theme.input_text.into())
+                .bg(self.config.theme.cursor.into())
+        } else {
+            Style::default().fg(self.config.theme.input_text.into())
+        };
+        spans.push(Span::styled(cursor_char, cursor_style));
 
-            spans.push(Span::styled(cursor_char, cursor_style));
+        // Text nach dem Cursor
+        if cursor_pos < graphemes.len() {
+            let remaining_width = available_width.saturating_sub(cursor_pos - viewport_start);
+            let end_pos = (cursor_pos + 1 + remaining_width).min(graphemes.len());
 
-            if cursor_pos < graphemes.len() - 1 {
-                let after_cursor = graphemes[cursor_pos + 1..].join("");
+            if cursor_pos + 1 < end_pos {
                 spans.push(Span::styled(
-                    after_cursor,
+                    graphemes[cursor_pos + 1..end_pos].join(""),
                     Style::default().fg(self.config.theme.input_text.into()),
                 ));
             }
-        } else {
-            // Leerer Cursor am Ende
-            let cursor_style = if self.cursor.is_visible() {
-                Style::default()
-                    .fg(self.config.theme.input_text.into())
-                    .bg(self.config.theme.cursor.into())
-            } else {
-                Style::default().fg(self.config.theme.input_text.into())
-            };
-
-            spans.push(Span::styled(" ", cursor_style));
         }
 
         Paragraph::new(Line::from(spans)).block(
             Block::default()
                 .padding(Padding::new(3, 1, 1, 1))
-                .borders(Borders::NONE) // Keine Rahmen
+                .borders(Borders::NONE)
                 .style(Style::default().bg(self.config.theme.input_bg.into())),
         )
     }

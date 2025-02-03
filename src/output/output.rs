@@ -8,8 +8,7 @@ pub fn create_output_widget<'a>(
     config: &Config,
 ) -> Paragraph<'a> {
     let mut lines = Vec::new();
-    //let max_visible_messages = available_height as usize;
-    let max_visible_messages = (available_height as usize).saturating_sub(0); // Kein zusätzlicher Abzug mehr nötig
+    let max_visible_messages = (available_height as usize).saturating_sub(1); // Hier ziehen wir 1 ab
 
     // Wenn keine Nachrichten da sind, gib ein leeres Widget zurück
     if messages.is_empty() {
@@ -17,26 +16,27 @@ pub fn create_output_widget<'a>(
         return Paragraph::new(empty_lines)
             .block(
                 Block::default()
-                    .borders(Borders::NONE) // Keine Rahmen
+                    .borders(Borders::NONE)
                     .style(Style::default().bg(config.theme.output_bg.into())),
             )
             .wrap(Wrap { trim: true });
     }
 
-    // Bestimme den Startindex für die Anzeige
-    // Wichtig: Stelle sicher, dass wir genug Nachrichten für die Anzeige haben
+    // Berechne den korrekten Startindex
     let start_idx = if messages.len() > max_visible_messages {
         messages.len() - max_visible_messages
     } else {
         0
     };
+    let visible_messages = &messages[start_idx..];
+    let visible_len = visible_messages.len();
 
-    // Füge alle sichtbaren Nachrichten hinzu
-    for (i, (message, current_length)) in messages.iter().enumerate().skip(start_idx) {
-        let text = if i == messages.len() - 1 {
-            // Typewriter-Effekt nur für die letzte Nachricht
-            let stripped =
-                String::from_utf8_lossy(&strip(message).unwrap_or_default()).into_owned();
+    // Verarbeite die sichtbaren Nachrichten
+    for (idx, (message, current_length)) in visible_messages.iter().enumerate() {
+        let is_last_message = idx == visible_len - 1;
+        let stripped = String::from_utf8_lossy(&strip(message).unwrap_or_default()).into_owned();
+
+        let text = if is_last_message {
             let graphemes: Vec<&str> = stripped.graphemes(true).collect();
             graphemes
                 .iter()
@@ -44,7 +44,7 @@ pub fn create_output_widget<'a>(
                 .copied()
                 .collect::<String>()
         } else {
-            String::from_utf8_lossy(&strip(message).unwrap_or_default()).into_owned()
+            stripped
         };
 
         let color = if text.contains("[DEBUG]") {
@@ -65,15 +65,15 @@ pub fn create_output_widget<'a>(
         )]));
     }
 
-    // Fülle den Rest mit leeren Zeilen auf
-    while lines.len() < max_visible_messages {
+    let remaining_space = max_visible_messages.saturating_sub(lines.len());
+    for _ in 0..remaining_space {
         lines.push(Line::from(vec![Span::raw("")]));
     }
 
     Paragraph::new(lines)
         .block(
             Block::default()
-                .borders(Borders::NONE) // Keine Rahmen
+                .borders(Borders::NONE)
                 .style(Style::default().bg(config.theme.output_bg.into())),
         )
         .wrap(Wrap { trim: true })
