@@ -63,6 +63,16 @@ impl<'a> ScreenManager<'a> {
                                 self.message_manager.handle_scroll(action, window_height);
                             }
                             KeyAction::NoAction => {}
+                            KeyAction::Submit => {
+                                if let Some(new_input) = self.input_state.handle_input(key) {
+                                    self.message_manager.add_message(new_input.clone());
+                                    // Hier prüfen wir auf ein Exit-Signal (siehe Punkt 2)
+                                    if new_input.starts_with("__EXIT__") {
+                                        self.events.shutdown().await;
+                                        break Ok(());
+                                    }
+                                }
+                            }
                             KeyAction::Quit => {
                                 self.events.shutdown().await;
                                 break Ok(());

@@ -1,4 +1,5 @@
 // src/lib.rs
+pub mod commands;
 pub mod core;
 pub mod input;
 pub mod output;

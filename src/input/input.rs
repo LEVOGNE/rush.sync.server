@@ -1,5 +1,6 @@
 // ## FILE: ./src/input.rs
 // src/input/input.rs
+use crate::commands::handler::CommandHandler;
 use crate::core::prelude::*;
 use crate::input::keyboard::{KeyAction, KeyboardManager};
 use crate::ui::cursor::CursorState;
@@ -12,6 +13,7 @@ pub struct InputState<'a> {
     history: Vec<String>,
     history_position: Option<usize>,
     config: &'a Config,
+    command_handler: CommandHandler,
 }
 
 impl<'a> InputState<'a> {
@@ -23,6 +25,7 @@ impl<'a> InputState<'a> {
             history: Vec::with_capacity(config.max_history),
             history_position: None,
             config,
+            command_handler: CommandHandler::new(), // NEU
         }
     }
 
@@ -68,14 +71,22 @@ impl<'a> InputState<'a> {
                 if self.content.is_empty() {
                     return None;
                 }
-                if let Ok(_) = self.validate_input(&self.content) {
+                if self.validate_input(&self.content).is_ok() {
                     let content = std::mem::take(&mut self.content);
                     self.add_to_history(content.clone());
                     self.cursor.move_to_start();
                     self.history_position = None;
-                    Some(content)
+
+                    // Verarbeite den Befehl über den CommandHandler
+                    let result = self.command_handler.handle_input(&content);
+
+                    // Falls Exit gewünscht ist, markieren wir die Nachricht mit einem speziellen Präfix
+                    if result.should_exit {
+                        return Some(format!("__EXIT__{}", result.message));
+                    }
+                    return Some(result.message);
                 } else {
-                    None
+                    return None;
                 }
             }
             KeyAction::InsertChar(c) => {
