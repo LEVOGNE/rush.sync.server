@@ -14,6 +14,6 @@ impl ExitCommand {
     }
 
     pub fn matches(&self, command: &str) -> bool {
-        matches!(command.trim().to_lowercase().as_str(), "exit" | "quit")
+        matches!(command.trim().to_lowercase().as_str(), "exit" | "q")
     }
 }
