@@ -1,0 +1,13 @@
+{
+  "system": {
+    "commands": {
+      "unknown": "Unknown command: {}",
+      "language": {
+        "current": "Current language: {}",
+        "changed": "Language changed to: {}",
+        "invalid": "Invalid language: {}",
+        "available": "Available languages: {}"
+      }
+    }
+  }
+}

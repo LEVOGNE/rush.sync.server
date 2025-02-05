@@ -31,6 +31,19 @@ impl AppColor {
         }
     }
 
+    pub fn from_custom_level(level: &str) -> Self {
+        match level {
+            "LANG" => {
+                // Nur beim ersten Mal debuggen
+                static FIRST_TIME: std::sync::atomic::AtomicBool =
+                    std::sync::atomic::AtomicBool::new(true);
+                if FIRST_TIME.swap(false, std::sync::atomic::Ordering::Relaxed) {}
+                Self(Color::Cyan)
+            }
+            _ => Self(Color::Gray),
+        }
+    }
+
     pub fn to_ansi_code(&self) -> u8 {
         match self.0 {
             Color::Black => 30,
@@ -49,7 +62,10 @@ impl AppColor {
             Color::LightMagenta => 95,
             Color::LightCyan => 96,
             Color::White => 97,
-            _ => 37,
+            _ => {
+                log::debug!("Unrecognized color, falling back to gray (37)");
+                37
+            }
         }
     }
 

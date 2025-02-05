@@ -1,5 +1,5 @@
-// ## FILE: ./src/output.rs
 use crate::prelude::*;
+use std::str::FromStr;
 use strip_ansi_escapes::strip;
 
 pub fn create_output_widget<'a>(
@@ -8,9 +8,8 @@ pub fn create_output_widget<'a>(
     config: &Config,
 ) -> Paragraph<'a> {
     let mut lines = Vec::new();
-    let max_visible_messages = (available_height as usize).saturating_sub(1); // Hier ziehen wir 1 ab
+    let max_visible_messages = (available_height as usize).saturating_sub(1);
 
-    // Wenn keine Nachrichten da sind, gib ein leeres Widget zurück
     if messages.is_empty() {
         let empty_lines = vec![Line::from(vec![Span::raw("")]); max_visible_messages];
         return Paragraph::new(empty_lines)
@@ -22,7 +21,6 @@ pub fn create_output_widget<'a>(
             .wrap(Wrap { trim: true });
     }
 
-    // Berechne den korrekten Startindex
     let start_idx = if messages.len() > max_visible_messages {
         messages.len() - max_visible_messages
     } else {
@@ -31,7 +29,6 @@ pub fn create_output_widget<'a>(
     let visible_messages = &messages[start_idx..];
     let visible_len = visible_messages.len();
 
-    // Verarbeite die sichtbaren Nachrichten
     for (idx, (message, current_length)) in visible_messages.iter().enumerate() {
         let is_last_message = idx == visible_len - 1;
         let stripped = String::from_utf8_lossy(&strip(message).unwrap_or_default()).into_owned();
@@ -47,21 +44,33 @@ pub fn create_output_widget<'a>(
             stripped
         };
 
-        let color = if text.contains("[DEBUG]") {
-            Color::Blue
-        } else if text.contains("[INFO]") {
-            Color::Green
-        } else if text.contains("[WARN]") {
-            Color::Yellow
-        } else if text.contains("[ERROR]") {
-            Color::Red
+        // Extrahiere den Level aus dem Text (z.B. "[DEBUG]", "[LANG]" etc.)
+        let level = if let Some(start) = text.find('[') {
+            if let Some(end) = text[start..].find(']') {
+                &text[start + 1..start + end]
+            } else {
+                ""
+            }
         } else {
-            config.theme.output_text.0
+            ""
+        };
+
+        // Nutze die zentrale Farblogik aus color.rs
+        let color = if level.is_empty() {
+            config.theme.output_text
+        } else if ["DEBUG", "INFO", "WARN", "ERROR"].contains(&level) {
+            // Wir parsen den Level-String und fallen auf Info zurück wenn es fehlschlägt
+            match Level::from_str(level) {
+                Ok(log_level) => AppColor::from_log_level(log_level),
+                Err(_) => AppColor::from_log_level(Level::Info),
+            }
+        } else {
+            AppColor::from_custom_level(level)
         };
 
         lines.push(Line::from(vec![Span::styled(
             text,
-            Style::default().fg(color),
+            Style::default().fg(color.into()),
         )]));
     }
 

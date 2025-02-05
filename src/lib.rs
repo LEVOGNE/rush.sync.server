@@ -1,6 +1,7 @@
 // src/lib.rs
 pub mod commands;
 pub mod core;
+pub mod i18n;
 pub mod input;
 pub mod output;
 pub mod setup;
