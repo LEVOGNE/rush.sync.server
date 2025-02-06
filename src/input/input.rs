@@ -14,6 +14,7 @@ pub struct InputState<'a> {
     history_position: Option<usize>,
     config: &'a Config,
     command_handler: CommandHandler,
+    keyboard_manager: KeyboardManager, // NEU
 }
 
 impl<'a> InputState<'a> {
@@ -25,7 +26,8 @@ impl<'a> InputState<'a> {
             history: Vec::with_capacity(config.max_history),
             history_position: None,
             config,
-            command_handler: CommandHandler::new(), // NEU
+            command_handler: CommandHandler::new(),   // NEU
+            keyboard_manager: KeyboardManager::new(), // NEU
         }
     }
 
@@ -65,8 +67,7 @@ impl<'a> InputState<'a> {
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Option<String> {
-        let mut keyboard_manager = KeyboardManager::new();
-        match keyboard_manager.get_action(&key) {
+        match self.keyboard_manager.get_action(&key) {
             KeyAction::Submit => {
                 if self.content.is_empty() {
                     return None;

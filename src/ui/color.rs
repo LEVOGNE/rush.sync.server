@@ -69,30 +69,6 @@ impl AppColor {
         }
     }
 
-    // Konvertierung zu String für Konfigurationsdatei
-    pub fn to_string(&self) -> String {
-        match self.0 {
-            Color::Black => "Black",
-            Color::Red => "Red",
-            Color::Green => "Green",
-            Color::Yellow => "Yellow",
-            Color::Blue => "Blue",
-            Color::Magenta => "Magenta",
-            Color::Cyan => "Cyan",
-            Color::Gray => "Gray",
-            Color::DarkGray => "DarkGray",
-            Color::LightRed => "LightRed",
-            Color::LightGreen => "LightGreen",
-            Color::LightYellow => "LightYellow",
-            Color::LightBlue => "LightBlue",
-            Color::LightMagenta => "LightMagenta",
-            Color::LightCyan => "LightCyan",
-            Color::White => "White",
-            _ => "Gray", // Standardfarbe
-        }
-        .to_string()
-    }
-
     // Parsing von String mit Fehlerbehandlung
     pub fn from_string(color_str: &str) -> Result<Self> {
         let color = match color_str {
@@ -139,6 +115,28 @@ impl From<AppColor> for Color {
 
 impl fmt::Display for AppColor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(
+            f,
+            "{}",
+            match self.0 {
+                Color::Black => "Black",
+                Color::Red => "Red",
+                Color::Green => "Green",
+                Color::Yellow => "Yellow",
+                Color::Blue => "Blue",
+                Color::Magenta => "Magenta",
+                Color::Cyan => "Cyan",
+                Color::Gray => "Gray",
+                Color::DarkGray => "DarkGray",
+                Color::LightRed => "LightRed",
+                Color::LightGreen => "LightGreen",
+                Color::LightYellow => "LightYellow",
+                Color::LightBlue => "LightBlue",
+                Color::LightMagenta => "LightMagenta",
+                Color::LightCyan => "LightCyan",
+                Color::White => "White",
+                _ => "Gray", // Standardfarbe
+            }
+        )
     }
 }

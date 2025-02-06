@@ -3,7 +3,7 @@ pub struct ScrollState {
     pub window_height: usize,
     content_height: usize,
     auto_scroll: bool,
-    force_scroll: bool, // Neues Flag für erzwungenes Scrollen
+    force_scroll: bool,
 }
 
 impl ScrollState {
@@ -18,28 +18,17 @@ impl ScrollState {
     }
 
     pub fn update_dimensions(&mut self, window_height: usize, content_height: usize) {
-        // Speichere die alten Werte für Vergleiche
-        let old_window_height = self.window_height;
-        let old_content_height = self.content_height;
+        let max_offset = content_height.saturating_sub(window_height);
 
-        // Aktualisiere die Dimensionen
-        self.window_height = window_height;
-        self.content_height = content_height;
-
-        // Berechne maximalen Offset
-        let max_offset = self.content_height.saturating_sub(self.window_height);
-
-        // Wenn sich die Fensterhöhe vergrößert hat, behalte die relative Position bei
-        if window_height > old_window_height && !self.auto_scroll {
-            let ratio = self.offset as f64 / old_content_height.max(1) as f64;
+        if window_height > self.window_height && !self.auto_scroll {
+            let ratio = self.offset as f64 / self.content_height.max(1) as f64;
             self.offset = (ratio * content_height as f64).round() as usize;
         }
 
-        // Stelle sicher, dass der Offset nicht über das Maximum hinausgeht
+        self.window_height = window_height;
+        self.content_height = content_height;
         self.offset = self.offset.min(max_offset);
 
-        // Wenn auto_scroll aktiv ist oder force_scroll gesetzt wurde,
-        // scrolle zum Ende
         if self.auto_scroll || self.force_scroll {
             self.offset = max_offset;
             self.force_scroll = false;

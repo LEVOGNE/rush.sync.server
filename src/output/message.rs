@@ -27,6 +27,12 @@ impl<'a> MessageManager<'a> {
     }
 
     // Neue Methode um die gesamte Content-Höhe zu erhalten
+
+    pub fn clear_messages(&mut self) {
+        self.messages.clear();
+        self.scroll_state.force_auto_scroll();
+    }
+
     pub fn get_content_height(&self) -> usize {
         self.messages.len()
     }

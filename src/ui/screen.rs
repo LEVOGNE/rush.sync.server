@@ -1,5 +1,3 @@
-// ## FILE: ./src/screen.rs
-// src/ui/screen.rs
 use crate::core::prelude::*;
 use crate::input::keyboard::{KeyAction, KeyboardManager};
 use crate::output::logging::{AppLogger, LogMessage};
@@ -66,8 +64,11 @@ impl<'a> ScreenManager<'a> {
                             KeyAction::Submit => {
                                 if let Some(new_input) = self.input_state.handle_input(key) {
                                     self.message_manager.add_message(new_input.clone());
-                                    // Hier prüfen wir auf ein Exit-Signal (siehe Punkt 2)
-                                    if new_input.starts_with("__EXIT__") {
+
+                                    if new_input.starts_with("__CLEAR__") {
+                                        self.message_manager.clear_messages();
+                                        continue; // Überspringe das Hinzufügen der Clear-Kommando-Nachricht
+                                    } else if new_input.starts_with("__EXIT__") {
                                         self.events.shutdown().await;
                                         break Ok(());
                                     }

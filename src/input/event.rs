@@ -33,7 +33,7 @@ impl EventHandler {
                 tokio::select! {
                     _ = input_shutdown_rx.recv() => break,
                     _ = async {
-                        if crossterm_event::poll(Duration::from_millis(100)).unwrap() {
+                        if crossterm_event::poll(Duration::from_millis(250)).unwrap() {
                             let now = tokio::time::Instant::now();
                             if now.duration_since(last_event_time) >= min_event_interval {
                                 if let Ok(event) = crossterm_event::read() {

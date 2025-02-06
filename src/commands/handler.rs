@@ -1,7 +1,7 @@
 // src/commands/handler.rs
+use crate::commands::clear::ClearCommand;
 use crate::commands::exit::exit::ExitCommand;
 use crate::commands::lang::lang::LanguageCommand;
-
 use crate::i18n;
 
 #[derive(Debug)]
@@ -14,6 +14,7 @@ pub struct CommandResult {
 pub struct CommandHandler {
     exit_command: ExitCommand,
     language_command: LanguageCommand,
+    clear_command: ClearCommand,
 }
 
 impl CommandHandler {
@@ -21,6 +22,7 @@ impl CommandHandler {
         Self {
             exit_command: ExitCommand::new(),
             language_command: LanguageCommand::new(),
+            clear_command: ClearCommand::new(), // NEU
         }
     }
 
@@ -58,6 +60,20 @@ impl CommandHandler {
                 },
                 Err(e) => CommandResult {
                     message: e.to_string(),
+                    success: false,
+                    should_exit: false,
+                },
+            }
+        } else if self.clear_command.matches(parts[0]) {
+            // NEU: Clear-Command Block
+            match self.clear_command.execute() {
+                Ok(msg) => CommandResult {
+                    message: msg,
+                    success: true,
+                    should_exit: false,
+                },
+                Err(e) => CommandResult {
+                    message: format!("Fehler beim Leeren des Outputs: {}", e),
                     success: false,
                     should_exit: false,
                 },
