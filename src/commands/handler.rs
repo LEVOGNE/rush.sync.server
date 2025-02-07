@@ -1,6 +1,7 @@
 // src/commands/handler.rs
 use crate::commands::clear::ClearCommand;
 use crate::commands::exit::exit::ExitCommand;
+use crate::commands::history::HistoryCommand;
 use crate::commands::lang::lang::LanguageCommand;
 use crate::commands::version::VersionCommand;
 use crate::i18n;
@@ -17,6 +18,7 @@ pub struct CommandHandler {
     language_command: LanguageCommand,
     clear_command: ClearCommand,
     version_command: VersionCommand,
+    history_command: HistoryCommand,
 }
 
 impl CommandHandler {
@@ -25,7 +27,8 @@ impl CommandHandler {
             exit_command: ExitCommand::new(),
             language_command: LanguageCommand::new(),
             clear_command: ClearCommand::new(),
-            version_command: VersionCommand::new(), // NEU
+            version_command: VersionCommand::new(),
+            history_command: HistoryCommand::new(),
         }
     }
 
@@ -41,7 +44,21 @@ impl CommandHandler {
             };
         }
 
-        if self.exit_command.matches(input) {
+        // History-Command hinzufügen
+        if self.history_command.matches(parts[0]) {
+            match self.history_command.execute(&parts[1..]) {
+                Ok(msg) => CommandResult {
+                    message: msg,
+                    success: true,
+                    should_exit: false,
+                },
+                Err(e) => CommandResult {
+                    message: e.to_string(),
+                    success: false,
+                    should_exit: false,
+                },
+            }
+        } else if self.exit_command.matches(input) {
             match self.exit_command.execute() {
                 Ok(msg) => CommandResult {
                     message: msg,

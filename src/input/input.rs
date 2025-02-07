@@ -14,7 +14,8 @@ pub struct InputState<'a> {
     history_position: Option<usize>,
     config: &'a Config,
     command_handler: CommandHandler,
-    keyboard_manager: KeyboardManager, // NEU
+    keyboard_manager: KeyboardManager,
+    waiting_for_exit_confirmation: bool,
 }
 
 impl<'a> InputState<'a> {
@@ -26,8 +27,9 @@ impl<'a> InputState<'a> {
             history: Vec::with_capacity(config.max_history),
             history_position: None,
             config,
-            command_handler: CommandHandler::new(),   // NEU
-            keyboard_manager: KeyboardManager::new(), // NEU
+            command_handler: CommandHandler::new(),
+            keyboard_manager: KeyboardManager::new(),
+            waiting_for_exit_confirmation: false,
         }
     }
 
@@ -66,8 +68,87 @@ impl<'a> InputState<'a> {
         self.history.push(entry);
     }
 
+    /*    fn handle_history_navigation(&mut self, action: KeyAction) -> Option<String> {
+           match action {
+               KeyAction::HistoryPrevious => {
+                   if let Some(pos) = self.history_position {
+                       if pos > 0 {
+                           self.update_history_position(pos - 1);
+                       }
+                   } else if !self.history.is_empty() {
+                       self.update_history_position(self.history.len() - 1);
+                   }
+               }
+               KeyAction::HistoryNext => {
+                   if let Some(pos) = self.history_position {
+                       if pos < self.history.len() - 1 {
+                           self.update_history_position(pos + 1);
+                       } else {
+                           self.clear_history_position();
+                       }
+                   }
+               }
+               _ => {}
+           }
+           None
+       }
+
+       fn update_history_position(&mut self, pos: usize) {
+           if let Some(entry) = self.history.get(pos) {
+               self.content = entry.clone();
+               self.cursor.update_text_length(&self.content);
+               self.cursor.move_to_end();
+               self.history_position = Some(pos);
+           }
+       }
+    */
+    fn clear_history_position(&mut self) {
+        self.history_position = None;
+        self.content.clear();
+        self.cursor.move_to_start();
+    }
+
+    fn handle_exit_confirmation(&mut self, action: KeyAction) -> Option<String> {
+        match action {
+            KeyAction::Submit => {
+                self.waiting_for_exit_confirmation = false;
+                match self.content.trim().to_lowercase().as_str() {
+                    "j" | "ja" | "y" | "yes" => {
+                        self.content.clear();
+                        Some("__EXIT__".to_string())
+                    }
+                    _ => {
+                        self.clear_history_position();
+                        Some("Vorgang abgebrochen".to_string())
+                    }
+                }
+            }
+            KeyAction::InsertChar(c) => {
+                if matches!(c.to_lowercase().to_string().as_str(), "j" | "n" | "y") {
+                    self.content.clear();
+                    self.content.push(c);
+                    self.cursor.update_text_length(&self.content);
+                    self.cursor.move_to_end();
+                }
+                None
+            }
+            KeyAction::Backspace | KeyAction::Delete | KeyAction::ClearLine => {
+                self.clear_history_position();
+                None
+            }
+            _ => None,
+        }
+    }
+
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Option<String> {
-        match self.keyboard_manager.get_action(&key) {
+        let action = self.keyboard_manager.get_action(&key);
+
+        if self.waiting_for_exit_confirmation {
+            return self.handle_exit_confirmation(action);
+        }
+
+        // Normale Eingabeverarbeitung
+        match action {
             KeyAction::Submit => {
                 if self.content.is_empty() {
                     return None;
@@ -78,17 +159,26 @@ impl<'a> InputState<'a> {
                     self.cursor.move_to_start();
                     self.history_position = None;
 
-                    // Verarbeite den Befehl über den CommandHandler
                     let result = self.command_handler.handle_input(&content);
 
-                    // Falls Exit gewünscht ist, markieren wir die Nachricht mit einem speziellen Präfix
+                    // Prüfe auf History-Clear Befehl
+                    if result.message == "__CLEAR_HISTORY__" {
+                        self.history.clear();
+                        self.history_position = None;
+                        return Some("History wurde gelöscht".to_string());
+                    }
+
+                    if result.message.starts_with("__CONFIRM_EXIT__") {
+                        self.waiting_for_exit_confirmation = true;
+                        return Some(result.message.replace("__CONFIRM_EXIT__", ""));
+                    }
+
                     if result.should_exit {
                         return Some(format!("__EXIT__{}", result.message));
                     }
                     return Some(result.message);
-                } else {
-                    return None;
                 }
+                None
             }
             KeyAction::InsertChar(c) => {
                 if self.content.graphemes(true).count() < self.config.input_max_length {
@@ -113,52 +203,6 @@ impl<'a> InputState<'a> {
             }
             KeyAction::MoveToEnd => {
                 self.cursor.move_to_end();
-                None
-            }
-            KeyAction::Backspace => {
-                // Schneller Early Exit wenn nichts zu löschen ist
-                if self.content.is_empty() || self.cursor.get_position() == 0 {
-                    return None;
-                }
-
-                log::debug!(
-                    "START Backspace - Text: '{}', Position: {}",
-                    self.content,
-                    self.cursor.get_position()
-                );
-
-                // Rest der Backspace-Logik...
-                let current_byte_pos = self.cursor.get_byte_position(&self.content);
-                let prev_byte_pos = self.cursor.get_prev_byte_position(&self.content);
-
-                log::debug!(
-                    "Backspace - Current byte pos: {}, Prev byte pos: {}, Text: '{}'",
-                    current_byte_pos,
-                    prev_byte_pos,
-                    self.content
-                );
-
-                self.cursor.move_left();
-                self.content
-                    .replace_range(prev_byte_pos..current_byte_pos, "");
-
-                log::debug!(
-                    "After Backspace - Text: '{}', New Position: {}",
-                    self.content,
-                    self.cursor.get_position()
-                );
-
-                self.cursor.update_text_length(&self.content);
-                None
-            }
-            KeyAction::Delete => {
-                if self.cursor.get_position() < self.content.graphemes(true).count() {
-                    let current_byte_pos = self.cursor.get_byte_position(&self.content);
-                    let next_byte_pos = self.cursor.get_next_byte_position(&self.content);
-                    self.content
-                        .replace_range(current_byte_pos..next_byte_pos, "");
-                    self.cursor.update_text_length(&self.content);
-                }
                 None
             }
             KeyAction::HistoryPrevious => {
@@ -198,13 +242,32 @@ impl<'a> InputState<'a> {
                 }
                 None
             }
-            KeyAction::ClearLine => {
-                self.content.clear();
-                self.cursor.move_to_start();
+            KeyAction::Backspace => {
+                if self.content.is_empty() || self.cursor.get_position() == 0 {
+                    return None;
+                }
+                let current_byte_pos = self.cursor.get_byte_position(&self.content);
+                let prev_byte_pos = self.cursor.get_prev_byte_position(&self.content);
+
+                self.cursor.move_left();
+                self.content
+                    .replace_range(prev_byte_pos..current_byte_pos, "");
+                self.cursor.update_text_length(&self.content);
                 None
             }
-            // Neue match arms für die fehlenden Aktionen
-            KeyAction::ScrollUp
+            KeyAction::Delete => {
+                if self.cursor.get_position() < self.content.graphemes(true).count() {
+                    let current_byte_pos = self.cursor.get_byte_position(&self.content);
+                    let next_byte_pos = self.cursor.get_next_byte_position(&self.content);
+                    self.content
+                        .replace_range(current_byte_pos..next_byte_pos, "");
+                    self.cursor.update_text_length(&self.content);
+                }
+                None
+            }
+
+            KeyAction::ClearLine
+            | KeyAction::ScrollUp
             | KeyAction::ScrollDown
             | KeyAction::PageUp
             | KeyAction::PageDown

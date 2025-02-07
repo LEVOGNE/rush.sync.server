@@ -69,6 +69,15 @@ pub fn get_translation(key: &str, params: &[&str]) -> String {
                 template.to_string()
             }
         }
+        ["system", "commands", "unknown"] => {
+            // NEU: Handle unknown command translation
+            let template = &translations.system.commands.unknown;
+            if let Some(&param) = params.first() {
+                template.replace("{}", param)
+            } else {
+                template.to_string()
+            }
+        }
         ["system", "commands", "language", subkey] => {
             let lang_translations = &translations.system.commands.language;
             let template = match *subkey {

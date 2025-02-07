@@ -3,14 +3,14 @@ use crate::prelude::*;
 pub struct ExitCommand;
 
 impl ExitCommand {
-    // new() ist hier optional
     pub fn new() -> Self {
         Self
     }
 
-    /// Führt den Exit-Befehl aus, liefert nur ein kurzes Signal als Nachricht
+    /// Führt den Exit-Befehl aus, gibt aber erst eine Rückfrage zurück
     pub fn execute(&self) -> Result<String> {
-        Ok(String::new()) // oder z. B. Ok("exit".to_string())
+        // Rückgabe einer Bestätigungsanfrage, die dann im Input-State verarbeitet wird
+        Ok("__CONFIRM_EXIT__Möchten Sie das Programm wirklich beenden? (j/n)".to_string())
     }
 
     pub fn matches(&self, command: &str) -> bool {
