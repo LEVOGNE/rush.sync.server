@@ -17,12 +17,12 @@ pub use setup::*;
 pub use ui::*;
 
 /// Führt Test-Logging aus
-pub fn test_logging() {
+/* pub fn test_logging() {
     log::error!("Das ist eine ERROR Test-Nachricht!");
     log::warn!("Das ist eine WARN Test-Nachricht!");
     log::info!("Das ist eine INFO Test-Nachricht!");
     log::debug!("Das ist eine DEBUG Test-Nachricht!");
-}
+} */
 
 /// Initialisiert die Anwendung und startet den Haupt-Loop
 pub async fn run() -> error::Result<()> {

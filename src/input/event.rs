@@ -27,13 +27,13 @@ impl EventHandler {
         let input_tx = tx.clone();
         tokio::spawn(async move {
             let mut last_event_time = tokio::time::Instant::now();
-            let min_event_interval = Duration::from_millis(50);
+            let min_event_interval = Duration::from_millis(33);
 
             loop {
                 tokio::select! {
                     _ = input_shutdown_rx.recv() => break,
                     _ = async {
-                        if crossterm_event::poll(Duration::from_millis(250)).unwrap() {
+                        if crossterm_event::poll(Duration::from_millis(99)).unwrap() {
                             let now = tokio::time::Instant::now();
                             if now.duration_since(last_event_time) >= min_event_interval {
                                 if let Ok(event) = crossterm_event::read() {

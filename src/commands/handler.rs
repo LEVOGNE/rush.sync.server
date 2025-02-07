@@ -2,6 +2,7 @@
 use crate::commands::clear::ClearCommand;
 use crate::commands::exit::exit::ExitCommand;
 use crate::commands::lang::lang::LanguageCommand;
+use crate::commands::version::VersionCommand;
 use crate::i18n;
 
 #[derive(Debug)]
@@ -15,6 +16,7 @@ pub struct CommandHandler {
     exit_command: ExitCommand,
     language_command: LanguageCommand,
     clear_command: ClearCommand,
+    version_command: VersionCommand,
 }
 
 impl CommandHandler {
@@ -22,7 +24,8 @@ impl CommandHandler {
         Self {
             exit_command: ExitCommand::new(),
             language_command: LanguageCommand::new(),
-            clear_command: ClearCommand::new(), // NEU
+            clear_command: ClearCommand::new(),
+            version_command: VersionCommand::new(), // NEU
         }
     }
 
@@ -65,7 +68,6 @@ impl CommandHandler {
                 },
             }
         } else if self.clear_command.matches(parts[0]) {
-            // NEU: Clear-Command Block
             match self.clear_command.execute() {
                 Ok(msg) => CommandResult {
                     message: msg,
@@ -74,6 +76,19 @@ impl CommandHandler {
                 },
                 Err(e) => CommandResult {
                     message: format!("Fehler beim Leeren des Outputs: {}", e),
+                    success: false,
+                    should_exit: false,
+                },
+            }
+        } else if self.version_command.matches(parts[0]) {
+            match self.version_command.execute() {
+                Ok(msg) => CommandResult {
+                    message: msg,
+                    success: true,
+                    should_exit: false,
+                },
+                Err(e) => CommandResult {
+                    message: format!("Fehler beim Anzeigen der Version: {}", e),
                     success: false,
                     should_exit: false,
                 },

@@ -68,11 +68,7 @@ impl Config {
         for path in crate::setup_toml::get_config_paths() {
             if path.exists() {
                 match Self::from_file(&path).await {
-                    Ok(mut config) => {
-                        config.debug_info =
-                            Some(format!("Konfiguration geladen aus '{}'", path.display()));
-                        return Ok(config);
-                    }
+                    Ok(config) => return Ok(config),
                     Err(e) => {
                         last_error = Some(e);
                         continue;
@@ -120,15 +116,6 @@ impl Config {
 
         let config_file: ConfigFile = toml::from_str(&content)
             .map_err(|e| AppError::Validation(format!("Ungültiges TOML-Format: {}", e)))?;
-
-        log::debug!(
-            "Theme-Konfiguration geladen: input_text={}, input_bg={}, cursor={}, output_text={}, output_bg={}",
-            config_file.theme.input_text,
-            config_file.theme.input_bg,
-            config_file.theme.cursor,
-            config_file.theme.output_text,
-            config_file.theme.output_bg
-        );
 
         Ok(Self {
             config_path: Some(path.as_ref().to_string_lossy().into_owned()),

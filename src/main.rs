@@ -1,6 +1,7 @@
 // src/main.rs
 use log::info;
-use rush_sync::{error, run, test_logging};
+use rush_sync::core::constants::VERSION;
+use rush_sync::{error, run};
 
 #[tokio::main]
 async fn main() -> error::Result<()> {
@@ -9,10 +10,7 @@ async fn main() -> error::Result<()> {
         println!("Logger konnte nicht initialisiert werden: {}", e);
     }
 
-    // Dann erst die Test-Nachrichten
-    test_logging();
-
-    info!("Anwendung gestartet");
+    info!("Rush Sync Version {}", VERSION);
 
     // Hauptanwendung starten
     run().await

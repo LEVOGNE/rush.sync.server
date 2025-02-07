@@ -28,11 +28,11 @@ impl TerminalManager {
             cursor::Hide
         )?;
 
-        if crossterm::tty::IsTty::is_tty(&self.stdout) {
+        /* if crossterm::tty::IsTty::is_tty(&self.stdout) {
             log::debug!("Terminal unterstützt ANSI-Farben");
         } else {
             log::warn!("Terminal unterstützt möglicherweise keine ANSI-Farben!");
-        }
+        } */
 
         Ok(())
     }

@@ -33,13 +33,8 @@ impl AppColor {
 
     pub fn from_custom_level(level: &str) -> Self {
         match level {
-            "LANG" => {
-                // Nur beim ersten Mal debuggen
-                static FIRST_TIME: std::sync::atomic::AtomicBool =
-                    std::sync::atomic::AtomicBool::new(true);
-                if FIRST_TIME.swap(false, std::sync::atomic::Ordering::Relaxed) {}
-                Self(Color::Cyan)
-            }
+            "LANG" => Self(Color::Cyan),
+            "VERSION" => Self(Color::LightBlue),
             _ => Self(Color::Gray),
         }
     }

@@ -46,8 +46,6 @@ impl<'a> ScreenManager<'a> {
         }
 
         let result = loop {
-            self.process_pending_logs().await;
-
             if let Some(event) = self.events.next().await {
                 match event {
                     AppEvent::Input(key) => {
@@ -63,7 +61,9 @@ impl<'a> ScreenManager<'a> {
                             KeyAction::NoAction => {}
                             KeyAction::Submit => {
                                 if let Some(new_input) = self.input_state.handle_input(key) {
+                                    //self.events.pause_ticks().await;
                                     self.message_manager.add_message(new_input.clone());
+                                    //self.events.resume_ticks().await;
 
                                     if new_input.starts_with("__CLEAR__") {
                                         self.message_manager.clear_messages();
@@ -102,6 +102,7 @@ impl<'a> ScreenManager<'a> {
                 }
             }
 
+            self.process_pending_logs().await;
             self.render().await?;
         };
 
