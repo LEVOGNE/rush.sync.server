@@ -1,5 +1,6 @@
 // src/i18n/mod.rs
 use crate::prelude::*;
+use crate::setup::cfg_handler::ConfigHandler;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::sync::RwLock;
@@ -11,7 +12,13 @@ pub struct Translations {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SystemTranslations {
+    pub startup: StartupTranslations,
     pub commands: CommandTranslations,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct StartupTranslations {
+    pub version: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -54,8 +61,8 @@ pub fn get_translation(key: &str, params: &[&str]) -> String {
     let parts: Vec<&str> = key.split('.').collect();
 
     match parts.as_slice() {
-        ["system", "commands", "unknown"] => {
-            let template = &translations.system.commands.unknown;
+        ["system", "startup", "version"] => {
+            let template = &translations.system.startup.version;
             if let Some(&param) = params.first() {
                 template.replace("{}", param)
             } else {
@@ -81,11 +88,24 @@ pub fn get_translation(key: &str, params: &[&str]) -> String {
     }
 }
 
+pub async fn init_language_silent() -> Result<()> {
+    let config_handler = ConfigHandler::new().await?;
+    if let Some(saved_lang) = config_handler.get_setting("lang") {
+        let lang_lower = saved_lang.to_lowercase();
+        {
+            let mut current_lang = CURRENT_LANGUAGE.write().unwrap();
+            *current_lang = lang_lower;
+        }
+        let new_translations = load_translations()?;
+        let mut translations = TRANSLATIONS.write().unwrap();
+        *translations = new_translations;
+    }
+    Ok(())
+}
+
 pub fn set_language(lang: &str) -> Result<()> {
-    // Konvertiere Eingabe zu Kleinbuchstaben für den Vergleich
     let lang_lower = lang.to_lowercase();
 
-    // Prüfe ob die Sprache in Kleinbuchstaben verfügbar ist
     let lang_exists = AVAILABLE_LANGUAGES
         .iter()
         .any(|&l| l.to_lowercase() == lang_lower);
@@ -99,10 +119,22 @@ pub fn set_language(lang: &str) -> Result<()> {
 
     {
         let mut current_lang = CURRENT_LANGUAGE.write().unwrap();
-        *current_lang = lang_lower;
+        *current_lang = lang_lower.clone();
     }
 
-    // Neu laden der Übersetzungen
+    // Speichere die neue Spracheinstellung
+    tokio::spawn(async move {
+        if let Ok(mut config_handler) = ConfigHandler::new().await {
+            if let Err(e) = config_handler
+                .set_setting("lang".to_string(), lang_lower)
+                .await
+            {
+                log::error!("Fehler beim Speichern der Spracheinstellung: {}", e);
+            }
+        }
+    });
+
+    // Lade Übersetzungen neu
     let new_translations = load_translations()?;
     let mut translations = TRANSLATIONS.write().unwrap();
     *translations = new_translations;

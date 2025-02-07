@@ -1,5 +1,8 @@
 {
   "system": {
+    "startup": {
+      "version": "Willkommen zu Rush Sync Version {}"
+    },
     "commands": {
       "unknown": "Befehl unbekannt: {}",
       "language": {
