@@ -1,4 +1,5 @@
-// ## FILE: ./src/error.rs
+// src/error.rs
+use crate::i18n::TranslationError;
 use std::io;
 
 #[derive(Debug)]
@@ -6,6 +7,7 @@ pub enum AppError {
     Io(io::Error),
     Validation(String),
     Terminal(String),
+    Translation(TranslationError),
 }
 
 impl From<io::Error> for AppError {
@@ -20,6 +22,7 @@ impl std::fmt::Display for AppError {
             AppError::Io(err) => write!(f, "IO-Fehler: {}", err),
             AppError::Validation(msg) => write!(f, "Validierungsfehler: {}", msg),
             AppError::Terminal(msg) => write!(f, "Terminal-Fehler: {}", msg),
+            AppError::Translation(err) => write!(f, "{}", err),
         }
     }
 }

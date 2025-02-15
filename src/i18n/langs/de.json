@@ -11,6 +11,17 @@
         "invalid": "Ungültige Sprache: {}",
         "available": "Verfügbare Sprachen: {}"
       }
+    },
+    "error": {
+      "config_save": "Sprachkonfiguration konnte nicht gespeichert werden: {}",
+      "validation": "Validierungsfehler: {}"
+    },
+    "log": {
+      "info": "INFO",
+      "error": "FEHLER",
+      "warn": "WARNUNG",
+      "debug": "DEBUG",
+      "trace": "TRACE"
     }
   }
 }

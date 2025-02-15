@@ -1,4 +1,5 @@
 // src/logging.rs
+use crate::i18n::get_translation;
 use crate::prelude::*;
 use std::sync::PoisonError;
 
@@ -42,7 +43,11 @@ impl LogMessage {
 
     pub fn formatted(&self) -> String {
         let color = AppColor::from_log_level(self.level);
-        color.format_message(&self.level.to_string(), &self.message)
+        let level_str = get_translation(
+            &format!("system.log.{}", self.level.to_string().to_lowercase()),
+            &[],
+        );
+        color.format_message(&level_str, &self.message)
     }
 }
 
