@@ -112,15 +112,15 @@ impl<'a> InputState<'a> {
         match action {
             KeyAction::Submit => {
                 self.waiting_for_exit_confirmation = false;
-                let confirm_short = get_translation("system.input.confirm.short", &[]); // "j"
-                let cancel_short = get_translation("system.input.cancel.short", &[]); // "n"
+                let confirm_short = get_translation("system.input.confirm.short", &[]);
+                let cancel_short = get_translation("system.input.cancel.short", &[]);
 
                 match self.content.trim().to_lowercase().as_str() {
-                    input if input == confirm_short => {
+                    input if input == confirm_short.to_lowercase() => {
                         self.content.clear();
                         Some("__EXIT__".to_string())
                     }
-                    input if input == cancel_short => {
+                    input if input == cancel_short.to_lowercase() => {
                         self.clear_history_position();
                         Some(get_translation("system.input.cancelled", &[]))
                     }
@@ -131,11 +131,11 @@ impl<'a> InputState<'a> {
                 }
             }
             KeyAction::InsertChar(c) => {
-                let confirm_short = get_translation("system.input.confirm.short", &[]); // "j"
-                let cancel_short = get_translation("system.input.cancel.short", &[]); // "n"
+                let confirm_short = get_translation("system.input.confirm.short", &[]);
+                let cancel_short = get_translation("system.input.cancel.short", &[]);
 
-                if c.to_lowercase().to_string() == confirm_short
-                    || c.to_lowercase().to_string() == cancel_short
+                if c.to_lowercase().to_string() == confirm_short.to_lowercase()
+                    || c.to_lowercase().to_string() == cancel_short.to_lowercase()
                 {
                     self.content.clear();
                     self.content.push(c);

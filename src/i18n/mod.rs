@@ -68,6 +68,7 @@ struct InputTranslations {
     confirm_exit: TranslationEntry,
     cancelled: TranslationEntry,
     confirm: InputConfirmTranslations,
+    cancel: InputConfirmTranslations,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -239,6 +240,10 @@ impl TranslationConfig {
             ["system", "input", "confirm", "short"] => Some((
                 self.system.input.confirm.short.text.clone(),
                 ColorCategory::from_str(&self.system.input.confirm.short.category),
+            )),
+            ["system", "input", "cancel", "short"] => Some((
+                self.system.input.cancel.short.text.clone(),
+                ColorCategory::from_str(&self.system.input.cancel.short.category),
             )),
 
             // Logs
