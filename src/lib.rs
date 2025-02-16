@@ -26,15 +26,24 @@ pub use ui::*;
 
 /// Initialisiert die Anwendung und startet den Haupt-Loop
 pub async fn run() -> error::Result<()> {
-    // Logger initialisieren
-    if let Err(e) = logging::init() {
-        println!("Logger konnte nicht initialisiert werden: {}", e);
-    }
-
     // Konfiguration laden
-    let config = core::config::Config::load().await?;
+    let config = match core::config::Config::load().await {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!("Fehler beim Laden der Konfiguration: {}", e);
+            return Err(e);
+        }
+    };
 
-    // Screen-Manager initialisieren und starten
-    let mut screen = ui::screen::ScreenManager::new(&config).await?;
+    // Screen-Manager initialisieren
+    let mut screen = match ui::screen::ScreenManager::new(&config).await {
+        Ok(screen) => screen,
+        Err(e) => {
+            eprintln!("Fehler beim Initialisieren des Screen-Managers: {}", e);
+            return Err(e);
+        }
+    };
+
+    // Screen-Manager ausführen
     screen.run().await
 }

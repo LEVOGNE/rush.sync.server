@@ -31,12 +31,12 @@ impl LanguageCommand {
                 let current_lang = i18n::get_current_language();
                 let available_langs = i18n::get_available_languages().join(", ");
 
-                let current = AppColor::from_custom_level("LANG").format_message(
+                let current = AppColor::from_custom_level("LANG", None).format_message(
                     "LANG",
                     &i18n::get_translation("system.commands.language.current", &[&current_lang]),
                 );
 
-                let available = AppColor::from_custom_level("LANG").format_message(
+                let available = AppColor::from_custom_level("LANG", None).format_message(
                     "LANG",
                     &i18n::get_translation(
                         "system.commands.language.available",
@@ -53,11 +53,13 @@ impl LanguageCommand {
                         &[&lang.to_uppercase()],
                     );
 
-                    Ok(AppColor::from_custom_level("LANG").format_message("LANG", &msg))
+                    Ok(AppColor::from_custom_level("LANG", None).format_message("LANG", &msg))
                 }
-                Err(e) => Ok(
-                    AppColor::from_custom_level("ERROR").format_message("ERROR", &e.to_string())
-                ),
+                Err(e) => {
+                    let error_label = i18n::get_translation("system.log.error", &[]);
+                    Ok(AppColor::from_custom_level(&error_label, None)
+                        .format_message(&error_label, &e.to_string()))
+                }
             },
         }
     }

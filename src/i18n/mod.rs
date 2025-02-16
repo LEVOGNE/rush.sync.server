@@ -1,15 +1,45 @@
 // src/i18n/mod.rs
 use crate::prelude::*;
 use crate::setup::cfg_handler::ConfigHandler;
+use crate::ui::color::ColorCategory;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-// Konstanten
 mod langs;
 use langs::{AVAILABLE_LANGUAGES, DEFAULT_LANGUAGE};
-const MAX_CACHE_SIZE: usize = 1000; // Begrenzt Cache-Größe
+const MAX_CACHE_SIZE: usize = 1000;
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TranslationEntry {
+    pub text: String,
+    pub category: String,
+}
+
+impl Default for TranslationEntry {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            category: "default".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct LanguageTranslations {
+    pub current: TranslationEntry,
+    pub changed: TranslationEntry,
+    pub invalid: TranslationEntry,
+    pub available: TranslationEntry,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CommandTranslations {
+    pub unknown: TranslationEntry,
+    pub language: LanguageTranslations,
+    pub version: TranslationEntry,
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TranslationConfig {
@@ -26,45 +56,73 @@ struct TranslationCache {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
-struct LogTranslations {
-    info: String,
-    error: String,
-    warn: String,
-    debug: String,
-    trace: String,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 struct SystemTranslations {
     startup: StartupTranslations,
     commands: CommandTranslations,
-    log: LogTranslations, // Neues Feld für Log-Übersetzungen
+    log: LogTranslations,
+    input: InputTranslations,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+struct InputTranslations {
+    confirm_exit: TranslationEntry,
+    cancelled: TranslationEntry,
+    confirm: InputConfirmTranslations,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+struct InputConfirmTranslations {
+    short: TranslationEntry,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 struct StartupTranslations {
-    version: String,
+    version: TranslationEntry,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
-struct CommandTranslations {
-    unknown: String,
-    language: LanguageTranslations,
+struct LogTranslations {
+    info: TranslationEntry,
+    error: TranslationEntry,
+    warn: TranslationEntry,
+    debug: TranslationEntry,
+    trace: TranslationEntry,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
-struct LanguageTranslations {
-    current: String,
-    changed: String,
-    invalid: String,
-    available: String,
-}
-
-// Standardisierte Fehlertypen für Übersetzungen
 #[derive(Debug)]
 pub enum TranslationError {
     InvalidLanguage(String),
     LoadError(String),
+}
+
+impl Default for LanguageTranslations {
+    fn default() -> Self {
+        Self {
+            current: TranslationEntry::default(),
+            changed: TranslationEntry::default(),
+            invalid: TranslationEntry::default(),
+            available: TranslationEntry::default(),
+        }
+    }
+}
+
+impl Default for CommandTranslations {
+    fn default() -> Self {
+        Self {
+            unknown: TranslationEntry::default(),
+            language: LanguageTranslations::default(),
+            version: TranslationEntry::default(),
+        }
+    }
+}
+
+impl Default for TranslationConfig {
+    fn default() -> Self {
+        Self {
+            system: SystemTranslations::default(),
+            cache: TranslationCache::default(),
+        }
+    }
 }
 
 impl std::fmt::Display for TranslationError {
@@ -101,12 +159,12 @@ impl TranslationState {
         }
     }
 
-    fn update_language(&mut self, new_lang: &str) -> Result<()> {
+    /*  fn update_language(&mut self, new_lang: &str) -> Result<()> {
         let translations = load_translations(new_lang)?;
         self.current_language = new_lang.to_string();
         self.translations = translations;
         Ok(())
-    }
+    } */
 }
 
 impl TranslationCache {
@@ -133,61 +191,97 @@ impl TranslationCache {
     }
 }
 
-impl Default for TranslationConfig {
-    fn default() -> Self {
-        Self {
-            system: SystemTranslations::default(),
-            cache: TranslationCache::default(),
-        }
-    }
-}
-
 impl TranslationConfig {
-    fn get_template(&self, key: &str) -> Option<&String> {
+    fn get_template(&self, key: &str) -> Option<(String, ColorCategory)> {
         let parts: Vec<&str> = key.split('.').collect();
         match parts.as_slice() {
-            ["system", "startup", "version"] => Some(&self.system.startup.version),
-            ["system", "commands", "unknown"] => Some(&self.system.commands.unknown),
-            ["system", "commands", "language", "current"] => {
-                Some(&self.system.commands.language.current)
-            }
-            ["system", "commands", "language", "changed"] => {
-                Some(&self.system.commands.language.changed)
-            }
-            ["system", "commands", "language", "invalid"] => {
-                Some(&self.system.commands.language.invalid)
-            }
-            ["system", "commands", "language", "available"] => {
-                Some(&self.system.commands.language.available)
-            }
-            ["system", "log", level] => {
-                // Einfacher String-Vergleich
-                if level == &"info" {
-                    Some(&self.system.log.info)
-                } else if level == &"error" {
-                    Some(&self.system.log.error)
-                } else if level == &"warn" {
-                    Some(&self.system.log.warn)
-                } else if level == &"debug" {
-                    Some(&self.system.log.debug)
-                } else if level == &"trace" {
-                    Some(&self.system.log.trace)
-                } else {
-                    None
-                }
-            }
+            // Startup
+            ["system", "startup", "version"] => Some((
+                self.system.startup.version.text.clone(),
+                ColorCategory::from_str(&self.system.startup.version.category),
+            )),
+
+            // Commands
+            ["system", "commands", "unknown"] => Some((
+                self.system.commands.unknown.text.clone(),
+                ColorCategory::from_str(&self.system.commands.unknown.category),
+            )),
+            ["system", "commands", "version"] => Some((
+                self.system.commands.version.text.clone(),
+                ColorCategory::from_str(&self.system.commands.version.category),
+            )),
+            ["system", "commands", "language", "current"] => Some((
+                self.system.commands.language.current.text.clone(),
+                ColorCategory::from_str(&self.system.commands.language.current.category),
+            )),
+            ["system", "commands", "language", "changed"] => Some((
+                self.system.commands.language.changed.text.clone(),
+                ColorCategory::from_str(&self.system.commands.language.changed.category),
+            )),
+            ["system", "commands", "language", "invalid"] => Some((
+                self.system.commands.language.invalid.text.clone(),
+                ColorCategory::from_str(&self.system.commands.language.invalid.category),
+            )),
+            ["system", "commands", "language", "available"] => Some((
+                self.system.commands.language.available.text.clone(),
+                ColorCategory::from_str(&self.system.commands.language.available.category),
+            )),
+
+            // Input
+            ["system", "input", "confirm_exit"] => Some((
+                self.system.input.confirm_exit.text.clone(),
+                ColorCategory::from_str(&self.system.input.confirm_exit.category),
+            )),
+            ["system", "input", "cancelled"] => Some((
+                self.system.input.cancelled.text.clone(),
+                ColorCategory::from_str(&self.system.input.cancelled.category),
+            )),
+            ["system", "input", "confirm", "short"] => Some((
+                self.system.input.confirm.short.text.clone(),
+                ColorCategory::from_str(&self.system.input.confirm.short.category),
+            )),
+
+            // Logs
+            ["system", "log", level] => match *level {
+                "info" => Some((
+                    self.system.log.info.text.clone(),
+                    ColorCategory::from_str(&self.system.log.info.category),
+                )),
+                "error" => Some((
+                    self.system.log.error.text.clone(),
+                    ColorCategory::from_str(&self.system.log.error.category),
+                )),
+                "warn" => Some((
+                    self.system.log.warn.text.clone(),
+                    ColorCategory::from_str(&self.system.log.warn.category),
+                )),
+                "debug" => Some((
+                    self.system.log.debug.text.clone(),
+                    ColorCategory::from_str(&self.system.log.debug.category),
+                )),
+                "trace" => Some((
+                    self.system.log.trace.text.clone(),
+                    ColorCategory::from_str(&self.system.log.trace.category),
+                )),
+                _ => None,
+            },
             _ => None,
         }
     }
 }
 
 fn load_translations(lang: &str) -> Result<TranslationConfig> {
-    let translation_str = langs::get_language_file(lang).unwrap_or_else(|| {
-        langs::get_language_file(DEFAULT_LANGUAGE).expect("Default language file not found")
-    });
+    let translation_str = match langs::get_language_file(lang) {
+        Some(content) => content,
+        None => {
+            langs::get_language_file(DEFAULT_LANGUAGE).expect("Default language file not found")
+        }
+    };
 
-    serde_json::from_str::<TranslationConfig>(translation_str)
-        .map_err(|e| AppError::Validation(format!("Übersetzungsfehler: {}", e)))
+    match serde_json::from_str::<TranslationConfig>(translation_str) {
+        Ok(config) => Ok(config),
+        Err(e) => Err(AppError::Validation(format!("Übersetzungsfehler: {}", e))),
+    }
 }
 
 pub fn get_translation(key: &str, params: &[&str]) -> String {
@@ -204,11 +298,11 @@ pub fn get_translation(key: &str, params: &[&str]) -> String {
     }
 
     let translated = match state.translations.get_template(key) {
-        Some(template) => {
+        Some((template, _category)) => {
             if let Some(param) = params.first() {
                 template.replace("{}", param)
             } else {
-                template.clone()
+                template
             }
         }
         None => format!("Translation key not found: {}", key),
@@ -221,13 +315,31 @@ pub fn get_translation(key: &str, params: &[&str]) -> String {
     translated
 }
 
+pub fn get_translation_details(key: &str) -> (String, ColorCategory) {
+    let state = TRANSLATION_STATE.read().unwrap();
+
+    match state.translations.get_template(key) {
+        Some((template, category)) => (template, category),
+        None => (
+            format!("Translation key not found: {}", key),
+            ColorCategory::Default,
+        ),
+    }
+}
+
 pub async fn init_language_silent() -> Result<()> {
-    if let Ok(config_handler) = ConfigHandler::new().await {
-        if let Some(saved_lang) = config_handler.get_setting("lang") {
-            return set_language_internal(&saved_lang.to_lowercase(), false);
+    match ConfigHandler::new().await {
+        Ok(config_handler) => {
+            if let Some(saved_lang) = config_handler.get_setting("lang") {
+                return set_language_internal(&saved_lang.to_lowercase(), false);
+            } else {
+                return set_language_internal(DEFAULT_LANGUAGE, false);
+            }
+        }
+        Err(_e) => {
+            return set_language_internal(DEFAULT_LANGUAGE, false);
         }
     }
-    Ok(())
 }
 
 fn set_language_internal(lang: &str, save_config: bool) -> Result<()> {
@@ -239,31 +351,35 @@ fn set_language_internal(lang: &str, save_config: bool) -> Result<()> {
         )));
     }
 
-    // Sprache aktualisieren
-    TRANSLATION_STATE
-        .write()
-        .unwrap()
-        .update_language(&lang_lower)?;
+    // Lade die Übersetzungen zuerst
+    let translations = match load_translations(&lang_lower) {
+        Ok(trans) => trans,
+        Err(e) => {
+            log::error!("Fehler beim Laden der Übersetzungen: {:?}", e);
+            return Err(e);
+        }
+    };
 
-    // Optional: Konfiguration speichern
-    if save_config {
-        tokio::spawn(async move {
-            if let Ok(mut config_handler) = ConfigHandler::new().await {
-                if let Err(e) = config_handler
-                    .set_setting("lang".to_string(), lang_lower)
-                    .await
-                {
-                    // Log-Nachricht auch übersetzen
-                    log::error!(
-                        "{}",
-                        get_translation("system.error.config_save", &[&e.to_string()])
-                    );
-                }
-            }
-        });
+    // Dann aktualisiere den State
+    match TRANSLATION_STATE.write() {
+        Ok(mut state) => {
+            state.current_language = lang_lower;
+            state.translations = translations;
+        }
+        Err(e) => {
+            return Err(AppError::Validation(format!(
+                "Translation State Error: {:?}",
+                e
+            )));
+        }
     }
 
-    Ok(()) // Hier fehlten die beiden Klammern
+    if save_config {
+        log::debug!("Überspringe Konfigurationsspeicherung");
+    }
+
+    ("Sprachinitialisierung abgeschlossen");
+    Ok(())
 }
 
 pub fn set_language(lang: &str) -> Result<()> {

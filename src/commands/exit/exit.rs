@@ -1,4 +1,6 @@
+// src/commands/exit/exit.rs
 use crate::prelude::*;
+use crate::ui::color::AppColor;
 
 pub struct ExitCommand;
 
@@ -7,10 +9,13 @@ impl ExitCommand {
         Self
     }
 
-    /// Führt den Exit-Befehl aus, gibt aber erst eine Rückfrage zurück
     pub fn execute(&self) -> Result<String> {
-        // Rückgabe einer Bestätigungsanfrage, die dann im Input-State verarbeitet wird
-        Ok("__CONFIRM_EXIT__Möchten Sie das Programm wirklich beenden? (j/n)".to_string())
+        let (msg, category) = get_translation_details("system.input.confirm_exit");
+        let color = AppColor::from_category(category);
+        Ok(format!(
+            "__CONFIRM_EXIT__{}",
+            color.format_message(&category.to_string(), &msg) // Kategorie aus der JSON
+        ))
     }
 
     pub fn matches(&self, command: &str) -> bool {

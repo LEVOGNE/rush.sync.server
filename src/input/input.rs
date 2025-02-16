@@ -35,19 +35,19 @@ impl<'a> InputState<'a> {
 
     pub fn validate_input(&self, input: &str) -> Result<()> {
         if input.trim().is_empty() {
-            return Err(AppError::Validation(
-                "Eingabe darf nicht leer sein".to_string(),
-            ));
+            return Err(AppError::Validation(get_translation(
+                "system.input.empty",
+                &[],
+            )));
         }
 
         let grapheme_count = input.graphemes(true).count();
-        // Erhöhe das Limit auf einen sinnvolleren Wert
-        let max_length = 1024; // Oder ein anderer sinnvoller Wert
+        let max_length = 1024;
 
         if grapheme_count > max_length {
-            return Err(AppError::Validation(format!(
-                "Eingabe zu lang (max {} Zeichen)",
-                max_length
+            return Err(AppError::Validation(get_translation(
+                "system.input.too_long",
+                &[&max_length.to_string()],
             )));
         }
 
@@ -112,19 +112,31 @@ impl<'a> InputState<'a> {
         match action {
             KeyAction::Submit => {
                 self.waiting_for_exit_confirmation = false;
+                let confirm_short = get_translation("system.input.confirm.short", &[]); // "j"
+                let cancel_short = get_translation("system.input.cancel.short", &[]); // "n"
+
                 match self.content.trim().to_lowercase().as_str() {
-                    "j" | "ja" | "y" | "yes" => {
+                    input if input == confirm_short => {
                         self.content.clear();
                         Some("__EXIT__".to_string())
                     }
+                    input if input == cancel_short => {
+                        self.clear_history_position();
+                        Some(get_translation("system.input.cancelled", &[]))
+                    }
                     _ => {
                         self.clear_history_position();
-                        Some("Vorgang abgebrochen".to_string())
+                        Some(get_translation("system.input.cancelled", &[]))
                     }
                 }
             }
             KeyAction::InsertChar(c) => {
-                if matches!(c.to_lowercase().to_string().as_str(), "j" | "n" | "y") {
+                let confirm_short = get_translation("system.input.confirm.short", &[]); // "j"
+                let cancel_short = get_translation("system.input.cancel.short", &[]); // "n"
+
+                if c.to_lowercase().to_string() == confirm_short
+                    || c.to_lowercase().to_string() == cancel_short
+                {
                     self.content.clear();
                     self.content.push(c);
                     self.cursor.update_text_length(&self.content);
@@ -138,6 +150,13 @@ impl<'a> InputState<'a> {
             }
             _ => None,
         }
+    }
+
+    pub fn execute(&self) -> Result<String> {
+        Ok(format!(
+            "__CONFIRM_EXIT__{}",
+            get_translation("system.input.confirm_exit", &[])
+        ))
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Option<String> {

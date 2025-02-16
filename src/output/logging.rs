@@ -1,12 +1,21 @@
 // src/logging.rs
-use crate::i18n::get_translation;
 use crate::prelude::*;
+use std::fmt;
 use std::sync::PoisonError;
 
 #[derive(Debug)]
 pub enum LoggingError {
     LockError(String),
     SetLoggerError(log::SetLoggerError),
+}
+
+impl fmt::Display for LoggingError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LoggingError::LockError(msg) => write!(f, "{}", msg),
+            LoggingError::SetLoggerError(err) => write!(f, "{}", err),
+        }
+    }
 }
 
 impl From<log::SetLoggerError> for LoggingError {
@@ -17,7 +26,7 @@ impl From<log::SetLoggerError> for LoggingError {
 
 impl<T> From<PoisonError<T>> for LoggingError {
     fn from(_: PoisonError<T>) -> Self {
-        LoggingError::LockError("Logger Mutex wurde vergiftet".to_string())
+        LoggingError::LockError(get_translation("system.logging.mutex_error", &[]))
     }
 }
 
@@ -42,12 +51,8 @@ impl LogMessage {
     }
 
     pub fn formatted(&self) -> String {
-        let color = AppColor::from_log_level(self.level);
-        let level_str = get_translation(
-            &format!("system.log.{}", self.level.to_string().to_lowercase()),
-            &[],
-        );
-        color.format_message(&level_str, &self.message)
+        // Hier KEINE Formatierung mit Level vornehmen
+        self.message.clone()
     }
 }
 
@@ -78,7 +83,10 @@ impl log::Log for AppLogger {
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
             if let Err(e) = Self::add_message(record.level(), record.args().to_string()) {
-                eprintln!("Fehler beim Logging: {:?}", e);
+                eprintln!(
+                    "{}",
+                    get_translation("system.logging.error", &[&e.to_string()])
+                );
             }
         }
     }

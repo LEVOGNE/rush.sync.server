@@ -1,3 +1,4 @@
+use crate::i18n;
 use crate::prelude::*;
 use std::str::FromStr;
 use strip_ansi_escapes::strip;
@@ -44,32 +45,54 @@ pub fn create_output_widget<'a>(
             stripped
         };
 
-        // Extrahiere den Level aus dem Text (z.B. "[DEBUG]", "[LANG]" etc.)
-        let level = if let Some(start) = text.find('[') {
-            if let Some(end) = text[start..].find(']') {
-                &text[start + 1..start + end]
+        let (level_text, color) =
+            if message.starts_with(&i18n::get_translation("system.commands.unknown", &[""])) {
+                let (_, category) = i18n::get_translation_details("system.commands.unknown");
+                // Für unbekannte Befehle holen wir uns den Fehler-Level-Text
+                let (error_text, _) = i18n::get_translation_details("system.log.error");
+                (
+                    format!("[{}] ", error_text),
+                    AppColor::from_category(category),
+                )
             } else {
-                ""
-            }
-        } else {
-            ""
-        };
+                // Extrahiere den Level aus dem Text
+                if let Some(start) = text.find('[') {
+                    if let Some(end) = text[start..].find(']') {
+                        let level = &text[start + 1..start + end];
+                        if ["DEBUG", "INFO", "WARN", "ERROR"].contains(&level) {
+                            match Level::from_str(level) {
+                                Ok(log_level) => (
+                                    format!(
+                                        "[{}] ",
+                                        i18n::get_translation(
+                                            &format!("system.log.{}", level.to_lowercase()),
+                                            &[]
+                                        )
+                                    ),
+                                    AppColor::from_log_level(log_level),
+                                ),
+                                Err(_) => ("".to_string(), AppColor::from_log_level(Level::Info)),
+                            }
+                        } else {
+                            ("".to_string(), AppColor::from_custom_level(level, None))
+                        }
+                    } else {
+                        ("".to_string(), config.theme.output_text)
+                    }
+                } else {
+                    ("".to_string(), config.theme.output_text)
+                }
+            };
 
-        // Nutze die zentrale Farblogik aus color.rs
-        let color = if level.is_empty() {
-            config.theme.output_text
-        } else if ["DEBUG", "INFO", "WARN", "ERROR"].contains(&level) {
-            // Wir parsen den Level-String und fallen auf Info zurück wenn es fehlschlägt
-            match Level::from_str(level) {
-                Ok(log_level) => AppColor::from_log_level(log_level),
-                Err(_) => AppColor::from_log_level(Level::Info),
-            }
+        // Text zusammenbauen, dabei Level-Text voranstellen wenn vorhanden
+        let display_text = if !level_text.is_empty() {
+            format!("{}{}", level_text, text)
         } else {
-            AppColor::from_custom_level(level)
+            text
         };
 
         lines.push(Line::from(vec![Span::styled(
-            text,
+            display_text,
             Style::default().fg(color.into()),
         )]));
     }

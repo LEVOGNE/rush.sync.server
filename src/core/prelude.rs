@@ -55,5 +55,8 @@ pub use crate::output::{message::MessageManager, output::create_output_widget};
 // Internal Imports - UI
 pub use crate::ui::{color::AppColor, terminal::TerminalManager, widget::Widget};
 
+// Internal Imports - i18n
+pub use crate::i18n::{get_translation, get_translation_details, TranslationError};
+
 // Type Aliases
 pub type TerminalBackend = Terminal<CrosstermBackend<Stdout>>;

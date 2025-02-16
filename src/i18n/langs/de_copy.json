@@ -3,7 +3,7 @@
     "startup": {
       "version": {
         "text": "Willkommen zu Rush Sync Version {}",
-        "category": "version"
+        "category": "warning"
       },
       "logger_init_error": {
         "text": "Logger konnte nicht initialisiert werden: {}",
@@ -36,10 +36,6 @@
           "text": "Verfügbare Sprachen: {}",
           "category": "info"
         }
-      },
-      "version": {
-        "text": "Rush Sync Version {}",
-        "category": "version"
       },
       "history": {
         "help": {
@@ -95,11 +91,9 @@
         "short": {
           "text": "j",
           "category": "info"
-        }
-      },
-      "cancel": {
-        "short": {
-          "text": "n",
+        },
+        "long": {
+          "text": "ja",
           "category": "info"
         }
       }

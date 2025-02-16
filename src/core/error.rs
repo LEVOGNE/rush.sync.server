@@ -1,5 +1,5 @@
 // src/error.rs
-use crate::i18n::TranslationError;
+use crate::prelude::*;
 use std::io;
 
 #[derive(Debug)]
@@ -16,12 +16,22 @@ impl From<io::Error> for AppError {
     }
 }
 
+// In src/error.rs
+
 impl std::fmt::Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AppError::Io(err) => write!(f, "IO-Fehler: {}", err),
-            AppError::Validation(msg) => write!(f, "Validierungsfehler: {}", msg),
-            AppError::Terminal(msg) => write!(f, "Terminal-Fehler: {}", msg),
+            AppError::Io(err) => write!(
+                f,
+                "{}",
+                get_translation("system.error.io", &[&err.to_string()])
+            ),
+            AppError::Validation(msg) => {
+                write!(f, "{}", get_translation("system.error.validation", &[msg]))
+            }
+            AppError::Terminal(msg) => {
+                write!(f, "{}", get_translation("system.error.terminal", &[msg]))
+            }
             AppError::Translation(err) => write!(f, "{}", err),
         }
     }

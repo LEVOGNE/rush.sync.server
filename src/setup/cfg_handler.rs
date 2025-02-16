@@ -21,16 +21,22 @@ impl ConfigHandler {
 
     async fn get_config_path() -> Result<PathBuf> {
         let exe_path = std::env::current_exe().map_err(|e| AppError::Io(e))?;
-        let base_dir = exe_path.parent().ok_or_else(|| {
-            AppError::Validation("Konnte Programmverzeichnis nicht ermitteln".to_string())
-        })?;
+        let base_dir = exe_path
+            .parent()
+            .ok_or_else(|| AppError::Validation(get_translation("system.config.dir_error", &[])))?;
 
         let config_dir = base_dir.join(".rss");
         if !config_dir.exists() {
             fs::create_dir_all(&config_dir)
                 .await
                 .map_err(|e| AppError::Io(e))?;
-            log::debug!("Konfigurationsverzeichnis erstellt: {:?}", config_dir);
+            log::debug!(
+                "{}",
+                get_translation(
+                    "system.config.dir_created",
+                    &[&config_dir.to_string_lossy()]
+                )
+            );
         }
 
         Ok(config_dir.join("rush.config"))
