@@ -1,7 +1,5 @@
-use crate::i18n;
 use crate::prelude::*;
 use crate::setup::cfg_handler::ConfigHandler;
-use crate::ui::color::AppColor;
 
 pub struct LanguageCommand {
     config_handler: Option<ConfigHandler>,
@@ -19,7 +17,6 @@ impl LanguageCommand {
     }
 
     pub async fn init(&mut self) {
-        // Initialisiere den ConfigHandler nur wenn nötig
         if self.config_handler.is_none() {
             self.config_handler = ConfigHandler::new().await.ok();
         }
@@ -28,37 +25,43 @@ impl LanguageCommand {
     pub fn execute(&self, args: &[&str]) -> Result<String> {
         match args.first() {
             None => {
-                let current_lang = i18n::get_current_language();
-                let available_langs = i18n::get_available_languages().join(", ");
+                let current_lang = get_current_language();
+                let available_langs = get_available_languages().join(", ");
 
-                let current = AppColor::from_custom_level("LANG", None).format_message(
-                    "LANG",
-                    &i18n::get_translation("system.commands.language.current", &[&current_lang]),
-                );
+                // Hole Übersetzungsdetails für aktuelle Sprache
+                let (_, lang_category) =
+                    get_translation_details("system.commands.language.current");
+                let (_, info_category) = get_translation_details("system.log.info");
 
-                let available = AppColor::from_custom_level("LANG", None).format_message(
-                    "LANG",
-                    &i18n::get_translation(
-                        "system.commands.language.available",
-                        &[&available_langs],
-                    ),
-                );
+                let lang_color = AppColor::from_category(lang_category);
+                let info_color = AppColor::from_category(info_category);
 
-                Ok(format!("{}\n {}", current, available))
+                // Separate Formatierung für jede Nachricht
+                let current = format!("[LANG] Aktuelle Sprache: {}", current_lang);
+                let available = format!("[INFO] Verfügbare Sprachen: {}", available_langs);
+
+                // Jede Nachricht mit eigenem ANSI-Code
+                let colored_current =
+                    format!("\x1B[{}m{}\x1B[0m", lang_color.to_ansi_code(), current);
+                let colored_available =
+                    format!("\x1B[{}m{}\x1B[0m", info_color.to_ansi_code(), available);
+
+                // Mit Zeilenumbruch getrennt
+                Ok(format!("{}\n{}", colored_current, colored_available))
             }
-            Some(&lang) => match i18n::set_language(lang) {
-                Ok(()) => {
-                    let msg = i18n::get_translation(
-                        "system.commands.language.changed",
-                        &[&lang.to_uppercase()],
-                    );
 
-                    Ok(AppColor::from_custom_level("LANG", None).format_message("LANG", &msg))
+            Some(&lang) => match set_language(lang) {
+                Ok(()) => {
+                    let (msg, category) =
+                        get_translation_details("system.commands.language.changed");
+                    let formatted_msg = msg.replace("{}", &lang.to_uppercase());
+                    Ok(AppColor::from_category(category)
+                        .format_message(&category.to_string(), &formatted_msg))
                 }
                 Err(e) => {
-                    let error_label = i18n::get_translation("system.log.error", &[]);
-                    Ok(AppColor::from_custom_level(&error_label, None)
-                        .format_message(&error_label, &e.to_string()))
+                    let (_, category) = get_translation_details("system.commands.language.invalid");
+                    Ok(AppColor::from_category(category)
+                        .format_message(&category.to_string(), &e.to_string()))
                 }
             },
         }

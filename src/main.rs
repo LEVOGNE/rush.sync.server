@@ -1,9 +1,5 @@
 // src/main.rs
-//use crate::i18n::get_translation;
-//use rush_sync::core::constants::VERSION;
-use rush_sync::i18n;
-//use rush_sync::ui::color::AppColor;
-use rush_sync::{error, run};
+use rush_sync::{error, i18n, run};
 
 #[tokio::main]
 async fn main() -> error::Result<()> {
@@ -12,9 +8,9 @@ async fn main() -> error::Result<()> {
         eprintln!("Logger-Initialisierung fehlgeschlagen: {}", e);
     }
 
-    // Sprache initialisieren mit Fallback
-    match i18n::init_language_silent().await {
-        Ok(_) => log::debug!("Sprache erfolgreich initialisiert"),
+    // Sprache initialisieren
+    match i18n::init().await {
+        Ok(_) => log::info!("Sprache erfolgreich initialisiert"),
         Err(e) => log::warn!("Sprachinitialisierung fehlgeschlagen: {}", e),
     }
 

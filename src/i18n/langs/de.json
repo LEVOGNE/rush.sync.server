@@ -144,6 +144,10 @@
       "trace": {
         "text": "TRACE",
         "category": "trace"
+      },
+      "language": {
+        "text": "SPRACHE",
+        "category": "language"
       }
     }
   }
