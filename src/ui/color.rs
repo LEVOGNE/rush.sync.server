@@ -35,7 +35,7 @@ impl ColorCategory {
             "info" => Self::Info,
             "debug" => Self::Debug,
             "trace" => Self::Trace,
-            "language" => Self::Language,
+            "lang" => Self::Language,
             "version" => Self::Version,
             _ => Self::Default,
         }

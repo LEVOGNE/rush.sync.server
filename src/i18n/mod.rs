@@ -57,14 +57,26 @@ fn set_language_internal(lang: &str, save_config: bool) -> Result<()> {
         )));
     }
 
-    let config = TranslationConfig::default(); // Temporär, bis load implementiert ist
+    let config = match TranslationConfig::load(&lang) {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            log::warn!("Fehler beim Laden der Sprachkonfiguration: {}", e);
+            TranslationConfig::default()
+        }
+    };
 
     let mut service = TranslationService::get_instance().write().unwrap();
-    service.current_language = lang;
+    service.current_language = lang.clone();
     service.config = config;
 
     if save_config {
-        // Implementierung der Konfigurationsspeicherung
+        tokio::spawn(async move {
+            if let Ok(mut config_handler) = ConfigHandler::new().await {
+                if let Err(e) = config_handler.set_setting("lang".to_string(), lang).await {
+                    log::error!("Fehler beim Speichern der Spracheinstellung: {}", e);
+                }
+            }
+        });
     }
 
     Ok(())

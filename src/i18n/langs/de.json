@@ -1,154 +1,66 @@
 {
-  "system": {
-    "startup": {
-      "version": {
-        "text": "Willkommen zu Rush Sync Version {}",
-        "category": "version"
-      },
-      "logger_init_error": {
-        "text": "Logger konnte nicht initialisiert werden: {}",
-        "category": "error"
-      },
-      "language_load_error": {
-        "text": "Fehler beim Laden der Spracheinstellung: {}",
-        "category": "warning"
-      }
-    },
-    "commands": {
-      "unknown": {
-        "text": "Befehl unbekannt: {}",
-        "category": "error"
-      },
-      "language": {
-        "current": {
-          "text": "Aktuelle Sprache: {}",
-          "category": "language"
-        },
-        "changed": {
-          "text": "Sprache wurde geändert zu: {}",
-          "category": "language"
-        },
-        "invalid": {
-          "text": "Ungültige Sprache: {}",
-          "category": "error"
-        },
-        "available": {
-          "text": "Verfügbare Sprachen: {}",
-          "category": "info"
-        }
-      },
-      "version": {
-        "text": "Rush Sync Version {}",
-        "category": "version"
-      },
-      "history": {
-        "help": {
-          "text": "Verfügbare History Befehle:\n  history -c, --clear    Löscht die History",
-          "category": "info"
-        },
-        "unknown": {
-          "text": "Unbekannter History Befehl. Nutze 'history -h' für Hilfe.",
-          "category": "error"
-        }
-      }
-    },
-    "error": {
-      "io": {
-        "text": "IO-Fehler: {}",
-        "category": "error"
-      },
-      "validation": {
-        "text": "Validierungsfehler: {}",
-        "category": "error"
-      },
-      "terminal": {
-        "text": "Terminal-Fehler: {}",
-        "category": "error"
-      },
-      "config_save": {
-        "text": "Fehler beim Speichern der Konfiguration: {}",
-        "category": "error"
-      }
-    },
-    "input": {
-      "empty": {
-        "text": "Eingabe darf nicht leer sein",
-        "category": "error"
-      },
-      "too_long": {
-        "text": "Eingabe zu lang (max {} Zeichen)",
-        "category": "error"
-      },
-      "cancelled": {
-        "text": "Vorgang abgebrochen",
-        "category": "info"
-      },
-      "history_cleared": {
-        "text": "History wurde gelöscht",
-        "category": "info"
-      },
-      "confirm_exit": {
-        "text": "Möchten Sie das Programm wirklich beenden? (j/n)",
-        "category": "warning"
-      },
-      "confirm": {
-        "short": {
-          "text": "j",
-          "category": "info"
-        }
-      },
-      "cancel": {
-        "short": {
-          "text": "n",
-          "category": "info"
-        }
-      }
-    },
-    "config": {
-      "dir_error": {
-        "text": "Konnte Programmverzeichnis nicht ermitteln",
-        "category": "error"
-      },
-      "dir_created": {
-        "text": "Konfigurationsverzeichnis erstellt: {}",
-        "category": "info"
-      }
-    },
-    "logging": {
-      "mutex_error": {
-        "text": "Logger Mutex wurde vergiftet",
-        "category": "error"
-      },
-      "error": {
-        "text": "Fehler beim Logging: {}",
-        "category": "error"
-      }
-    },
-    "log": {
-      "info": {
-        "text": "INFO",
-        "category": "info"
-      },
-      "error": {
-        "text": "FEHLER",
-        "category": "error"
-      },
-      "warn": {
-        "text": "WARNUNG",
-        "category": "warning"
-      },
-      "debug": {
-        "text": "DEBUG",
-        "category": "debug"
-      },
-      "trace": {
-        "text": "TRACE",
-        "category": "trace"
-      },
-      "language": {
-        "text": "SPRACHE",
-        "category": "language"
-      }
-    }
-  }
+  "system.startup.version.text": "Willkommen zu Rush Sync Version {}",
+  "system.startup.version.category": "version",
+  "system.startup.logger_init_error.text": "Logger konnte nicht initialisiert werden: {}",
+  "system.startup.logger_init_error.category": "error",
+  "system.startup.language_load_error.text": "Fehler beim Laden der Spracheinstellung: {}",
+  "system.startup.language_load_error.category": "warning",
+  "system.commands.unknown.text": "Befehl unbekannt: {}",
+  "system.commands.unknown.category": "error",
+  "system.commands.language.current.text": "Aktuelle Sprache: {}",
+  "system.commands.language.current.category": "lang",
+  "system.commands.language.changed.text": "Sprache wurde geändert zu: {}",
+  "system.commands.language.changed.category": "lang",
+  "system.commands.language.invalid.text": "Ungültige Sprache: {}",
+  "system.commands.language.invalid.category": "error",
+  "system.commands.language.available.text": "Verfügbare Sprachen: {}",
+  "system.commands.language.available.category": "info",
+  "system.commands.version.text": "Rush Sync Version {}",
+  "system.commands.version.category": "version",
+  "system.commands.history.help.text": "Verfügbare History Befehle:\n  history -c, --clear    Löscht die History",
+  "system.commands.history.help.category": "info",
+  "system.commands.history.unknown.text": "Unbekannter History Befehl. Nutze 'history -h' für Hilfe.",
+  "system.commands.history.unknown.category": "error",
+  "system.error.io.text": "IO-Fehler: {}",
+  "system.error.io.category": "error",
+  "system.error.validation.text": "Validierungsfehler: {}",
+  "system.error.validation.category": "error",
+  "system.error.terminal.text": "Terminal-Fehler: {}",
+  "system.error.terminal.category": "error",
+  "system.error.config_save.text": "Fehler beim Speichern der Konfiguration: {}",
+  "system.error.config_save.category": "error",
+  "system.input.empty.text": "Eingabe darf nicht leer sein",
+  "system.input.empty.category": "error",
+  "system.input.too_long.text": "Eingabe zu lang (max {} Zeichen)",
+  "system.input.too_long.category": "error",
+  "system.input.cancelled.text": "Vorgang abgebrochen",
+  "system.input.cancelled.category": "info",
+  "system.input.history_cleared.text": "History wurde gelöscht",
+  "system.input.history_cleared.category": "info",
+  "system.input.confirm_exit.text": "Möchten Sie das Programm wirklich beenden? (j/n)",
+  "system.input.confirm_exit.category": "warning",
+  "system.input.confirm.short.text": "j",
+  "system.input.confirm.short.category": "info",
+  "system.input.cancel.short.text": "n",
+  "system.input.cancel.short.category": "info",
+  "system.config.dir_error.text": "Konnte Programmverzeichnis nicht ermitteln",
+  "system.config.dir_error.category": "error",
+  "system.config.dir_created.text": "Konfigurationsverzeichnis erstellt: {}",
+  "system.config.dir_created.category": "info",
+  "system.logging.mutex_error.text": "Logger Mutex wurde vergiftet",
+  "system.logging.mutex_error.category": "error",
+  "system.logging.error.text": "Fehler beim Logging: {}",
+  "system.logging.error.category": "error",
+  "system.log.info.text": "INFO",
+  "system.log.info.category": "info",
+  "system.log.error.text": "FEHLER",
+  "system.log.error.category": "error",
+  "system.log.warn.text": "WARNUNG",
+  "system.log.warn.category": "warning",
+  "system.log.debug.text": "DEBUG",
+  "system.log.debug.category": "debug",
+  "system.log.trace.text": "TRACE",
+  "system.log.trace.category": "trace",
+  "system.log.language.text": "SPRACHE",
+  "system.log.language.category": "lang"
 }

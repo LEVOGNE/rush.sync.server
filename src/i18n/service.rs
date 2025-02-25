@@ -43,11 +43,13 @@ impl TranslationService {
 
     fn translate_key(&self, key: &str, params: &[&str]) -> (String, ColorCategory) {
         if let Some(entry) = self.config.get_entry(key) {
-            let text = if let Some(param) = params.first() {
-                entry.text.replace("{}", param)
-            } else {
-                entry.text.clone()
-            };
+            let mut text = entry.text.clone();
+
+            // Parameter ersetzen
+            for param in params.iter() {
+                text = text.replacen("{}", param, 1);
+            }
+
             (text, ColorCategory::from_str(&entry.category))
         } else {
             (

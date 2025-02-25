@@ -1,5 +1,7 @@
+// src/commands/lang/lang.rs
 use crate::prelude::*;
 use crate::setup::cfg_handler::ConfigHandler;
+use crate::ui::color::{AppColor, ColorCategory}; // Explizit importieren, um Konflikte zu vermeiden
 
 pub struct LanguageCommand {
     config_handler: Option<ConfigHandler>,
@@ -29,22 +31,22 @@ impl LanguageCommand {
                 let available_langs = get_available_languages().join(", ");
 
                 // Hole Übersetzungsdetails für aktuelle Sprache
-                let (_, lang_category) =
-                    get_translation_details("system.commands.language.current");
-                let (_, info_category) = get_translation_details("system.log.info");
+                let (current_text, _) = get_translation_details("system.commands.language.current");
+                let (available_text, available_category) =
+                    get_translation_details("system.commands.language.available");
 
-                let lang_color = AppColor::from_category(lang_category);
-                let info_color = AppColor::from_category(info_category);
+                // Ersetze Platzhalter in den Übersetzungen
+                let current = current_text.replace("{}", &current_lang);
+                let available = available_text.replace("{}", &available_langs);
 
-                // Separate Formatierung für jede Nachricht
-                let current = format!("[LANG] Aktuelle Sprache: {}", current_lang);
-                let available = format!("[INFO] Verfügbare Sprachen: {}", available_langs);
+                // Hole die korrekten Farben
+                let current_color = AppColor::from_category(ColorCategory::Language);
+                let available_color = AppColor::from_category(available_category);
 
-                // Jede Nachricht mit eigenem ANSI-Code
-                let colored_current =
-                    format!("\x1B[{}m{}\x1B[0m", lang_color.to_ansi_code(), current);
+                // Formatiere die Nachrichten mit den entsprechenden Farben
+                let colored_current = current_color.format_message("lang", &current);
                 let colored_available =
-                    format!("\x1B[{}m{}\x1B[0m", info_color.to_ansi_code(), available);
+                    available_color.format_message(&available_category.to_string(), &available);
 
                 // Mit Zeilenumbruch getrennt
                 Ok(format!("{}\n{}", colored_current, colored_available))
