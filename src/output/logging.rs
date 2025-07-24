@@ -51,8 +51,8 @@ impl LogMessage {
     }
 
     pub fn formatted(&self) -> String {
-        // Hier KEINE Formatierung mit Level vornehmen
-        self.message.clone()
+        let color = AppColor::from_log_level(self.level);
+        color.format_message(&self.level.to_string(), &self.message)
     }
 }
 

@@ -53,8 +53,11 @@ pub use crate::input::{
 pub use crate::output::{message::MessageManager, output::create_output_widget};
 
 // Internal Imports - UI
-pub use crate::ui::{color::AppColor, terminal::TerminalManager, widget::Widget};
-
+pub use crate::ui::{
+    color::{AppColor, ColorCategory},
+    terminal::TerminalManager,
+    widget::Widget,
+};
 // Internal Imports - i18n
 pub use crate::i18n::{
     get_available_languages,

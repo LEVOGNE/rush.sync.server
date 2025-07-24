@@ -68,40 +68,73 @@ impl Config {
         for path in crate::setup_toml::get_config_paths() {
             if path.exists() {
                 match Self::from_file(&path).await {
-                    Ok(config) => return Ok(config),
+                    Ok(config) => {
+                        // Hier keine Debug-Info setzen, wenn eine existierende Konfiguration geladen wird
+                        log::debug!("Bestehende Konfiguration geladen von: {}", path.display());
+                        return Ok(config);
+                    }
                     Err(e) => {
                         last_error = Some(e);
-                        continue;
+                        continue; // Mit der nächsten Datei fortfahren
                     }
                 }
             }
         }
 
         // Wenn keine Konfiguration gefunden wurde, erstelle eine neue im .rss Verzeichnis
-        log::info!("Keine existierende Konfiguration gefunden, erstelle Standard-Konfiguration");
+        log::info!(
+            "{}",
+            AppColor::from_category(ColorCategory::Info).format_message(
+                "INFO",
+                "Keine existierende Konfiguration gefunden, erstelle Standard-Konfiguration"
+            )
+        );
+
         match crate::setup_toml::ensure_config_exists().await {
             Ok(config_path) => match Self::from_file(&config_path).await {
                 Ok(mut config) => {
-                    config.debug_info = Some(format!(
+                    // Nur hier den debug_info setzen, weil wir tatsächlich eine neue Konfiguration erstellen
+                    let info_msg = format!(
                         "Neue Standard-Konfiguration erstellt in '{}'",
                         config_path.display()
-                    ));
+                    );
+                    let colored_msg = AppColor::from_category(ColorCategory::Info)
+                        .format_message("INFO", &info_msg);
+                    config.debug_info = Some(colored_msg);
                     Ok(config)
                 }
                 Err(e) => {
                     log::error!(
-                        "Fehler beim Laden der neu erstellten Konfiguration: {:?}",
-                        e
+                        "{}",
+                        AppColor::from_category(ColorCategory::Error).format_message(
+                            "ERROR",
+                            &format!(
+                                "Fehler beim Laden der neu erstellten Konfiguration: {:?}",
+                                e
+                            )
+                        )
                     );
                     Err(e)
                 }
             },
             Err(e) => {
-                log::error!("Fehler beim Erstellen der Standard-Konfiguration: {:?}", e);
+                log::error!(
+                    "{}",
+                    AppColor::from_category(ColorCategory::Error).format_message(
+                        "ERROR",
+                        &format!("Fehler beim Erstellen der Standard-Konfiguration: {:?}", e)
+                    )
+                );
                 if let Some(last_e) = last_error {
                     log::debug!(
-                        "Letzter Fehler beim Laden existierender Konfiguration: {:?}",
-                        last_e
+                        "{}",
+                        AppColor::from_category(ColorCategory::Debug).format_message(
+                            "DEBUG",
+                            &format!(
+                                "Letzter Fehler beim Laden existierender Konfiguration: {:?}",
+                                last_e
+                            )
+                        )
                     );
                 }
                 Err(e)

@@ -34,7 +34,13 @@ pub async fn ensure_config_exists() -> Result<PathBuf> {
         fs::create_dir_all(&config_dir)
             .await
             .map_err(|e| AppError::Io(e))?;
-        log::debug!("Konfigurationsverzeichnis erstellt: {:?}", config_dir);
+
+        // Direkte Formatierung ohne Translation-Key
+        let msg = format!("Konfigurationsverzeichnis erstellt: {:?}", config_dir);
+        log::debug!(
+            "{}",
+            AppColor::from_category(ColorCategory::Info).format_message("DEBUG", &msg)
+        );
     }
 
     // Pfad zur rush.toml im .rss Verzeichnis
@@ -45,7 +51,13 @@ pub async fn ensure_config_exists() -> Result<PathBuf> {
         fs::write(&config_path, DEFAULT_CONFIG)
             .await
             .map_err(|e| AppError::Io(e))?;
-        log::info!("Standard-Konfigurationsdatei erstellt: {:?}", config_path);
+
+        // Direkte Formatierung ohne Translation-Key
+        let msg = format!("Standard-Konfigurationsdatei erstellt: {:?}", config_path);
+        log::info!(
+            "{}",
+            AppColor::from_category(ColorCategory::Info).format_message("INFO", &msg)
+        );
     }
 
     Ok(config_path)

@@ -52,9 +52,10 @@ impl TranslationService {
 
             (text, ColorCategory::from_str(&entry.category))
         } else {
+            // Verbesserte Fehlerbehandlung mit farbiger Warnung
             (
-                format!("Translation key not found: {}", key),
-                ColorCategory::Default,
+                format!("⚠️ Translation key not found: {}", key),
+                ColorCategory::Warning,
             )
         }
     }

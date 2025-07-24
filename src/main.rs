@@ -1,17 +1,27 @@
 // src/main.rs
-use rush_sync::{error, i18n, run};
+use rush_sync::{
+    error, i18n, run,
+    ui::color::{AppColor, ColorCategory},
+};
 
 #[tokio::main]
 async fn main() -> error::Result<()> {
+    // Sprache initialisieren (vor dem Logging)
+    match i18n::init().await {
+        Ok(_) => {
+            let msg = "Sprache erfolgreich initialisiert";
+            let colored_msg =
+                AppColor::from_category(ColorCategory::Info).format_message("INFO", msg);
+            println!("{}", colored_msg); // Direkte Ausgabe ohne Logging zunächst
+        }
+        Err(e) => {
+            eprintln!("Sprachinitialisierung fehlgeschlagen: {}", e);
+        }
+    }
+
     // Logger initialisieren
     if let Err(e) = rush_sync::output::logging::init() {
         eprintln!("Logger-Initialisierung fehlgeschlagen: {}", e);
-    }
-
-    // Sprache initialisieren
-    match i18n::init().await {
-        Ok(_) => log::info!("Sprache erfolgreich initialisiert"),
-        Err(e) => log::warn!("Sprachinitialisierung fehlgeschlagen: {}", e),
     }
 
     // Starte die Anwendung
