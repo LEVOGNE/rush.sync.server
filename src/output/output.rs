@@ -1,7 +1,15 @@
+use crate::core::prelude::*;
 use crate::i18n;
-use crate::prelude::*;
+use crate::ui::color::AppColor;
+use log::Level;
+use ratatui::{
+    style::Style,
+    text::{Line, Span},
+    widgets::{Block, Borders, Paragraph, Wrap},
+};
 use std::str::FromStr;
 use strip_ansi_escapes::strip;
+use unicode_segmentation::UnicodeSegmentation;
 
 pub fn create_output_widget<'a>(
     messages: &'a [(&'a String, usize)],

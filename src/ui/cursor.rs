@@ -1,3 +1,4 @@
+//! Cursor state management for terminal input
 use std::time::{Duration, Instant};
 use unicode_segmentation::UnicodeSegmentation;
 

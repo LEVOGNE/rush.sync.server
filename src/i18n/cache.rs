@@ -1,5 +1,5 @@
 // src/i18n/cache.rs
-use crate::color::ColorCategory;
+use crate::ui::color::ColorCategory;
 use std::collections::HashMap;
 
 pub struct TranslationCache {

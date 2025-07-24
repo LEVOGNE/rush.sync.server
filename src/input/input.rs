@@ -1,10 +1,14 @@
-// ## FILE: ./src/input.rs
-// src/input/input.rs
 use crate::commands::handler::CommandHandler;
 use crate::core::prelude::*;
 use crate::input::keyboard::{KeyAction, KeyboardManager};
 use crate::ui::cursor::CursorState;
 use crate::ui::widget::{InputWidget, Widget};
+use ratatui::{
+    style::Style,
+    text::{Line, Span},
+    widgets::{Block, Borders, Padding, Paragraph},
+};
+use unicode_segmentation::UnicodeSegmentation;
 
 pub struct InputState<'a> {
     content: String,
@@ -33,7 +37,7 @@ impl<'a> InputState<'a> {
         }
     }
 
-    pub fn validate_input(&self, input: &str) -> Result<()> {
+    pub fn validate_input(&self, input: &str) -> crate::core::error::Result<()> {
         if input.trim().is_empty() {
             return Err(AppError::Validation(get_translation(
                 "system.input.empty",
@@ -152,7 +156,7 @@ impl<'a> InputState<'a> {
         }
     }
 
-    pub fn execute(&self) -> Result<String> {
+    pub fn execute(&self) -> crate::core::error::Result<String> {
         Ok(format!(
             "__CONFIRM_EXIT__{}",
             get_translation("system.input.confirm_exit", &[])
@@ -299,7 +303,7 @@ impl<'a> InputState<'a> {
     }
 }
 
-impl<'a> Widget for InputState<'a> {
+impl Widget for InputState<'_> {
     fn render(&self) -> Paragraph {
         let graphemes: Vec<&str> = self.content.graphemes(true).collect();
         let cursor_pos = self.cursor.get_position();
@@ -381,7 +385,7 @@ impl<'a> Widget for InputState<'a> {
     }
 }
 
-impl<'a> InputWidget for InputState<'a> {
+impl InputWidget for InputState<'_> {
     fn update_cursor_blink(&mut self) {
         self.cursor.update_blink();
     }

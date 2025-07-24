@@ -1,11 +1,11 @@
-// src/main.rs
 use rush_sync::{
-    error, i18n, run,
+    i18n, run,
     ui::color::{AppColor, ColorCategory},
+    Result,
 };
 
 #[tokio::main]
-async fn main() -> error::Result<()> {
+async fn main() -> Result<()> {
     // Sprache initialisieren (vor dem Logging)
     match i18n::init().await {
         Ok(_) => {

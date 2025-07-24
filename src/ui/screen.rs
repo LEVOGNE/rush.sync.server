@@ -1,6 +1,26 @@
 use crate::core::prelude::*;
-use crate::input::keyboard::{KeyAction, KeyboardManager};
-use crate::output::logging::{AppLogger, LogMessage};
+use crate::input::{
+    event::{AppEvent, EventHandler},
+    input::InputState,
+    keyboard::{KeyAction, KeyboardManager},
+};
+use crate::output::{
+    logging::{AppLogger, LogMessage},
+    message::MessageManager,
+    output::create_output_widget,
+};
+use crate::ui::{terminal::TerminalManager, widget::Widget};
+
+use log::Level;
+use ratatui::{
+    backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout},
+    Terminal,
+};
+use std::io::Stdout;
+
+// Type alias die vorher in prelude war
+pub type TerminalBackend = Terminal<CrosstermBackend<Stdout>>;
 
 pub struct ScreenManager<'a> {
     terminal: TerminalBackend,

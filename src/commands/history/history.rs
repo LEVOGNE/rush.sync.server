@@ -1,5 +1,4 @@
-// src/commands/history/history.rs
-use crate::prelude::*;
+use crate::core::prelude::*;
 
 pub struct HistoryCommand;
 
@@ -18,5 +17,11 @@ impl HistoryCommand {
             Some(&"-h" | &"--help") => Ok(get_translation("system.commands.history.help", &[])),
             _ => Ok(get_translation("system.commands.history.unknown", &[])),
         }
+    }
+}
+
+impl Default for HistoryCommand {
+    fn default() -> Self {
+        Self::new()
     }
 }

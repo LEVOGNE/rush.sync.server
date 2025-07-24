@@ -1,4 +1,5 @@
-use crate::prelude::*;
+use crate::core::prelude::*;
+use ratatui::widgets::Paragraph;
 
 pub trait Widget {
     fn render(&self) -> Paragraph;

@@ -1,10 +1,14 @@
-use crate::constants::APP_TITLE;
-use crate::prelude::*;
+use crate::core::constants::APP_TITLE;
+use crate::core::prelude::*;
 use crossterm::{
     cursor, execute,
     style::ResetColor,
-    terminal::{self, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{
+        self, disable_raw_mode, enable_raw_mode, ClearType, EnterAlternateScreen,
+        LeaveAlternateScreen,
+    },
 };
+use std::io::Stdout;
 
 pub struct TerminalManager {
     stdout: Stdout,
@@ -27,12 +31,6 @@ impl TerminalManager {
             terminal::SetTitle(APP_TITLE),
             cursor::Hide
         )?;
-
-        /* if crossterm::tty::IsTty::is_tty(&self.stdout) {
-            log::debug!("Terminal unterstützt ANSI-Farben");
-        } else {
-            log::warn!("Terminal unterstützt möglicherweise keine ANSI-Farben!");
-        } */
 
         Ok(())
     }

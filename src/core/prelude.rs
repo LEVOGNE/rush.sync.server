@@ -1,74 +1,20 @@
-// src/core/prelude.rs
+// src/core/prelude.rs - VEREINFACHT (mit i18n)
 
-// Standard Library Imports
-pub use std::{
-    fs,
-    io::{self, Stdout, Write},
-    path::Path,
-    sync::Mutex,
-    time::{Duration, Instant},
-};
+// Core essentials - ÜBERALL gebraucht
+pub use crate::core::config::Config;
+pub use crate::core::error::{AppError, Result};
 
-// Crossterm Imports
-pub use crossterm::{
-    cursor,
-    event::{self, Event, KeyCode, KeyEvent},
-    execute,
-    style::ResetColor,
-    terminal::{
-        self, disable_raw_mode, enable_raw_mode, ClearType, EnterAlternateScreen,
-        LeaveAlternateScreen,
-    },
-};
+// Standard library essentials
+pub use std::io::{self, Write};
+pub use std::time::{Duration, Instant};
 
-// Ratatui Imports
-pub use ratatui::{
-    backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Padding, Paragraph, Wrap},
-    Terminal,
-};
+// Crossterm basics (nur die wichtigsten)
+pub use crossterm::event::{KeyCode, KeyEvent};
 
-// External Library Imports
-pub use lazy_static::lazy_static;
-pub use log::{Level, LevelFilter, Metadata, Record};
-pub use serde::{Deserialize, Serialize};
-pub use unicode_segmentation::UnicodeSegmentation;
+// Ratatui basics
+pub use ratatui::style::Color;
 
-// Internal Imports - Core
-pub use crate::core::{
-    config::Config,
-    error::{AppError, Result},
-};
+// i18n - da mehrsprachig gewünscht
+pub use crate::i18n::{get_translation, get_translation_details, set_language, TranslationError};
 
-// Internal Imports - Input
-pub use crate::input::{
-    event::{AppEvent, EventHandler},
-    input::InputState,
-};
-
-// Internal Imports - Output
-pub use crate::output::{message::MessageManager, output::create_output_widget};
-
-// Internal Imports - UI
-pub use crate::ui::{
-    color::{AppColor, ColorCategory},
-    terminal::TerminalManager,
-    widget::Widget,
-};
-// Internal Imports - i18n
-pub use crate::i18n::{
-    get_available_languages,
-    get_current_language,
-    get_translation,
-    get_translation_details,
-    set_language,
-    TranslationConfig, // Neu
-    TranslationEntry,  // Neu
-    TranslationError,
-};
-
-// Type Aliases
-pub type TerminalBackend = Terminal<CrosstermBackend<Stdout>>;
+// Das war's! Alles andere wird spezifisch importiert wo es gebraucht wird.

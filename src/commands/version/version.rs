@@ -1,6 +1,6 @@
-// src/commands/version/version.rs
 use crate::core::constants::VERSION;
-use crate::prelude::*;
+use crate::core::prelude::*;
+use crate::ui::color::AppColor;
 
 pub struct VersionCommand;
 
@@ -17,5 +17,11 @@ impl VersionCommand {
         let (msg, category) = get_translation_details("system.commands.version");
         let color = AppColor::from_category(category);
         Ok(color.format_message(&category.to_string(), &msg.replace("{}", VERSION)))
+    }
+}
+
+impl Default for VersionCommand {
+    fn default() -> Self {
+        Self::new()
     }
 }

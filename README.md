@@ -1,207 +1,154 @@
 # Rush Sync
 
-Rush Sync ist eine moderne Terminal-basierte Benutzeroberfläche, die in Rust entwickelt wurde. Sie bietet ein interaktives UI mit Logging-Funktionalität, Typewriter-Effekten, scrollbarem Output und anpassbarem Design.
+**Rush Sync** ist eine moderne, modulare Terminal-Anwendung in **Rust**, mit interaktiver TUI, internationalisierter Oberfläche, farbcodiertem Logging und flexibler Konfiguration.  
+Ideal für Entwickler, die eine anpassbare, skriptfähige Terminal-UI benötigen.
 
-## Features
+---
 
-- Interaktive Terminal-Benutzeroberfläche
-- Farbcodierte Log-Ausgaben (ERROR, WARN, INFO, DEBUG)
-- Scrollbare Nachrichtenhistorie mit Auto-Scroll
-- Typewriter-Effekt für neue Nachrichten
-- Eingabehistorie mit Pfeiltasten-Navigation
-- Vollständig anpassbares Design über TOML-Konfiguration
-- Hintergrund- und Vordergrundfarben für Input/Output
-- Unicode-Unterstützung
-- Erweiterte Cursor-Navigation und -Bearbeitung
-- Automatische Konfigurationserstellung
+## ✅ Features
 
-## Tastenkombinationen
+- **Interaktive Terminal-UI** mit modernem Design  
+- **Farbcodierte Log-Ausgaben** (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`)  
+- **Typewriter-Effekt** für neue Nachrichten  
+- **Scrollbare Nachrichtenhistorie** mit Auto-Scroll  
+- **Eingabehistorie** & erweiterte Cursor-Navigation  
+- **Konfigurierbares Design** via TOML (Farben, Prompt, Layout)  
+- **Automatische Konfigurationserstellung**  
+- **Mehrsprachigkeit (i18n)** integriert  
+- **Unicode-Support (Grapheme-basiert)**
 
-- `↑/↓`: Durch Eingabehistorie navigieren
-- `←/→`: Cursor im Text bewegen
-- `Home/End`: Zum Anfang/Ende der Zeile springen
-- `Shift + ↑/↓`: Eine Zeile scrollen
-- `Page Up/Down`: Seitenweise scrollen
-- `Enter`: Eingabe bestätigen
-- `ESC` (doppelt): Programm beenden
-- `Backspace/Delete`: Text löschen
+---
 
-## Konfiguration
+## ⌨️ Tastenkombinationen
 
-Die Konfiguration erfolgt über eine `rush.toml` Datei. Diese wird automatisch im `.rss` Verzeichnis neben der ausführbaren Datei erstellt.
+| Taste | Funktion |
+|-------|---------|
+| `↑/↓` | Eingabehistorie navigieren |
+| `←/→` | Cursor im Text bewegen |
+| `Home / End` | Zum Anfang / Ende springen |
+| `Shift + ↑/↓` | Zeilenweise scrollen |
+| `Page Up / Down` | Seitenweise scrollen |
+| `Enter` | Eingabe bestätigen |
+| `ESC` (doppelt) | Programm beenden |
+| `Backspace / Delete` | Zeichen löschen |
 
-### Standard-Konfiguration
+---
+
+## ⚙️ Konfiguration
+
+Die **`rush.toml`** wird beim ersten Start automatisch im `.rss`-Verzeichnis erstellt.
+
+### Standard-Config
 
 ```toml
 [general]
-max_messages = 100      # Maximale Anzahl gespeicherter Nachrichten
-typewriter_delay = 30   # Verzögerung des Typewriter-Effekts (ms)
-input_max_length = 100  # Maximale Eingabelänge
-max_history = 30        # Größe der Eingabehistorie
-poll_rate = 16         # Event-Poll-Rate (ms)
+max_messages = 100
+typewriter_delay = 30
+input_max_length = 100
+max_history = 30
+poll_rate = 16
 
 [theme]
-input_text = "Black"    # Farbe des Eingabetexts
-input_bg = "White"     # Hintergrundfarbe des Eingabebereichs
-cursor = "Black"       # Cursor-Farbe
-output_text = "DarkGray" # Farbe des Ausgabetexts
-output_bg = "Black"    # Hintergrundfarbe des Ausgabebereichs
+input_text = "Black"
+input_bg = "White"
+cursor = "Black"
+output_text = "DarkGray"
+output_bg = "Black"
 
 [prompt]
-text = "/// "          # Eingabeaufforderung
-color = "Black"        # Farbe der Eingabeaufforderung
+text = "/// "
+color = "Black"
 ```
 
-### Verfügbare Farben
+### Farben
 
-- Standard: `Black`, `White`, `Gray`, `DarkGray`
-- Primärfarben: `Red`, `Green`, `Blue`, `Yellow`, `Magenta`, `Cyan`
-- Helle Varianten: `LightRed`, `LightGreen`, `LightBlue`, `LightYellow`, `LightMagenta`, `LightCyan`
+`Black`, `White`, `Gray`, `DarkGray`, `Red`, `Green`, `Blue`, `Yellow`,  
+`Magenta`, `Cyan`, `LightRed`, `LightGreen`, `LightBlue`, `LightYellow`,  
+`LightMagenta`, `LightCyan`
 
-## Installation
+---
+
+## 🚀 Installation
 
 ### Voraussetzungen
 
-- Rust/Cargo (neueste stabile Version)
-- Git (optional, für Entwicklung)
+- **Rust** (2021 Edition, stabile Version)  
+- **Cargo** (automatisch bei Rust enthalten)  
+- Git (optional)
 
-### Build von Source
+### Build & Run
 
 ```bash
-# Repository klonen (optional)
 git clone https://github.com/username/rush_sync.git
 cd rush_sync
-
-# Build
 cargo build --release
-
-# Ausführen
 cargo run --release
 ```
 
-## Projektstruktur
+---
+
+## 🗂 Projektstruktur (vereinfacht)
 
 ```
 src/
-├── core/           # Kernfunktionalität
-│   ├── config.rs   # Konfigurationshandling
-│   ├── constants.rs # Konstanten
-│   ├── error.rs    # Fehlertypen
-│   └── prelude.rs  # Common Imports
-├── ui/            # UI-Komponenten
-│   ├── widget.rs   # Widget-Traits
-│   ├── color.rs    # Farbhandling
-│   ├── cursor.rs   # Cursor-Logik
-│   └── screen.rs   # Hauptscreen-Rendering
-├── input/         # Eingabeverarbeitung
-│   ├── event.rs    # Event-Handling
-│   ├── keyboard.rs # Tastatur-Input
-│   └── input.rs    # Eingabe-Widget
-├── output/        # Ausgabeformatierung
-│   ├── message.rs  # Nachrichtenhandling
-│   ├── logging.rs  # Logging-System
-│   └── scroll.rs   # Scroll-Logik
-└── setup/         # Konfiguration & Setup
-    └── setup_toml.rs # TOML Setup
+├── core/        # Kernlogik (Config, Error, Constants, Prelude)
+├── ui/          # Terminal-UI (ScreenManager, TerminalManager, Widgets)
+├── input/       # Eingabe-Handling (Keyboard, EventLoop)
+├── output/      # Logging & Scrolling
+├── commands/    # Integrierte Commands (exit, clear, history, lang, version)
+└── setup/       # TOML-Setup & Autokonfiguration
 ```
 
-## Technische Details
+---
 
-### Architektur
+## 🛠 Technische Details
 
-- **Event Loop**: Asynchrone Event-Verarbeitung mit Tokio
-- **Terminal Handling**: Cross-Platform mit Crossterm
-- **UI Rendering**: Modernes TUI-Framework Ratatui
-- **Konfiguration**: TOML-basiert mit Serde
-- **Logging**: Flexibles Logging-System mit verschiedenen Levels
-- **Unicode**: Volle Unicode-Unterstützung mit Grapheme-Clusters
+- **Event Loop**: Tokio (async)  
+- **Terminal**: Crossterm + Ratatui  
+- **Logging**: Eigenes asynchrones Logging-System  
+- **Config**: Serde + TOML  
+- **Unicode**: Voller Grapheme-Support  
+- **Commands**: Modulares Trait-basiertes System
 
-### Hauptkomponenten
+---
 
-- **ScreenManager**: Zentrale UI-Komponente
-- **MessageManager**: Nachrichtenverwaltung und Scrolling
-- **InputState**: Eingabeverarbeitung und Historie
-- **ScrollState**: Scroll-Position und Auto-Scroll
-- **AppLogger**: Asynchrones Logging-System
-
-## Performance
-
-- Effizientes Memory-Management durch Ringpuffer
-- Optimierte Render-Zyklen
-- Asynchrone Event-Verarbeitung
-- Minimaler CPU-Verbrauch im Idle
-
-## Dependencies
-
-```toml
-[dependencies]
-crossterm = "0.27"
-ratatui = "0.24"
-unicode-segmentation = "1.10"
-serde = { version = "1.0", features = ["derive"] }
-toml = "0.8"
-env_logger = "0.10"
-log = "0.4"
-lazy_static = "1.4"
-strip-ansi-escapes = "0.1.1"
-tokio = { version = "1.36", features = ["full"] }
-futures = "0.3"
-dirs = "5.0"
-```
-
-## Entwicklung
-
-### Code-Konventionen
-
-- Rust 2021 Edition
-- Volle Dokumentation aller öffentlichen APIs
-- Fehlerbehandlung mit eigenen Error-Typen
-- Modulare Struktur mit klaren Zuständigkeiten
-
-### Testing
+## 🧪 Testing & Debugging
 
 ```bash
-# Unit Tests ausführen
 cargo test
-
-# Integration Tests
-cargo test --test '*'
-
-# Mit Logging
 RUST_LOG=debug cargo test
 ```
 
-### Debugging
+---
 
-- Integriertes Debug-Logging
-- Konfigurierbare Log-Level
-- Detaillierte Cursor-Operation-Logs
+## ⚠ Bekannte Einschränkungen
 
-## Bekannte Einschränkungen
+- Min. Terminalgröße: **20x10** Zeichen  
+- Keine Mausunterstützung (geplant)  
+- Kein RTL-Support
 
-- Minimale Terminalgrößen-Anforderung: 20x10 Zeichen
-- Keine Mausunterstützung
-- Keine RTL-Sprachen-Unterstützung
+---
 
-## Roadmap
+## 🗺 Roadmap
 
-- [ ] Mausunterstützung
-- [ ] Split-Screen-Modus
-- [ ] Syntax-Highlighting
-- [ ] Plugin-System
-- [ ] Konfiguration über UI
-- [ ] Verbesserte Unicode-Unterstützung
+- [ ] Mausunterstützung  
+- [ ] Split-Screen & Tabs  
+- [ ] Syntax-Highlighting  
+- [ ] Plugin-System  
+- [ ] Konfiguration direkt aus der UI  
+- [ ] Erweiterte Unicode-Unterstützung
 
-## Lizenz
+---
 
-MIT License - Siehe [LICENSE](LICENSE) Datei
+## 📜 Lizenz
 
-## Beiträge
+MIT License – siehe [LICENSE](LICENSE)
 
-Beiträge sind willkommen! Bitte beachten Sie:
+---
 
-1. Fork des Repositories
-2. Feature Branch erstellen
-3. Änderungen committen
-4. Tests hinzufügen/anpassen
-5. Pull Request erstellen
+## 🤝 Beiträge
+
+1. Fork erstellen  
+2. Feature-Branch anlegen  
+3. Änderungen + Tests committen  
+4. Pull Request erstellen

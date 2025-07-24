@@ -12,24 +12,15 @@ serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
 
 env_logger = "0.10"
-log = "0.4" 
+log = "0.4"
 lazy_static = "1.4"
 strip-ansi-escapes = "0.1.1"
 
 tokio = { version = "1.36", features = ["full"] }
-futures = "0.3"
-
-dirs = "5.0" 
 
 serde_json = "1.0"
 
 rust-embed = "6.8"
 
-
-# Optional aber nützlich
-#anyhow = "1.0"           # Fehlerbehandlung
-#thiserror = "1.0"        # Eigene Fehlertypen
-
-#[features]
-#default = ["input"]       # Standard-Features
-#input = []               # Feature für Input-Funktionalität
+[lints.clippy]
+module_inception = "allow"

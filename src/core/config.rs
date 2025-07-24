@@ -1,8 +1,9 @@
 use crate::core::constants::{DEFAULT_BUFFER_SIZE, DEFAULT_POLL_RATE};
 use crate::core::prelude::*;
-use std::path::PathBuf;
+use crate::ui::color::{AppColor, ColorCategory};
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
-// Interne Struktur für Serialisierung/Deserialisierung
 #[derive(Debug, Serialize, Deserialize)]
 struct ConfigFile {
     general: GeneralConfig,
@@ -65,7 +66,7 @@ impl Config {
         let mut last_error = None;
 
         // Prüfe zuerst die Standard-Pfade
-        for path in crate::setup_toml::get_config_paths() {
+        for path in crate::setup::setup_toml::get_config_paths() {
             if path.exists() {
                 match Self::from_file(&path).await {
                     Ok(config) => {
@@ -90,7 +91,7 @@ impl Config {
             )
         );
 
-        match crate::setup_toml::ensure_config_exists().await {
+        match crate::setup::setup_toml::ensure_config_exists().await {
             Ok(config_path) => match Self::from_file(&config_path).await {
                 Ok(mut config) => {
                     // Nur hier den debug_info setzen, weil wir tatsächlich eine neue Konfiguration erstellen
@@ -145,7 +146,7 @@ impl Config {
     pub async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let content = tokio::fs::read_to_string(&path)
             .await
-            .map_err(|e| AppError::Io(e))?;
+            .map_err(AppError::Io)?;
 
         let config_file: ConfigFile = toml::from_str(&content)
             .map_err(|e| AppError::Validation(format!("Ungültiges TOML-Format: {}", e)))?;
@@ -194,13 +195,13 @@ impl Config {
                 if !parent.exists() {
                     tokio::fs::create_dir_all(parent)
                         .await
-                        .map_err(|e| AppError::Io(e))?;
+                        .map_err(AppError::Io)?;
                 }
             }
 
             tokio::fs::write(path, content)
                 .await
-                .map_err(|e| AppError::Io(e))?;
+                .map_err(AppError::Io)?;
         }
         Ok(())
     }

@@ -1,5 +1,6 @@
 // src/i18n/types.rs
-use crate::i18n::{AppError, TranslationError};
+use crate::core::error::{AppError, Result};
+use crate::i18n::error::TranslationError;
 use crate::ui::color::{AppColor, ColorCategory};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -12,7 +13,7 @@ pub struct TranslationEntry {
 
 impl TranslationEntry {
     pub fn get_color(&self) -> AppColor {
-        AppColor::from_category(ColorCategory::from_str(&self.category))
+        AppColor::from_category(ColorCategory::from_str_or_default(&self.category))
     }
 
     pub fn format(&self, params: &[&str]) -> (String, AppColor) {
@@ -37,7 +38,7 @@ pub struct TranslationConfig {
 }
 
 impl TranslationConfig {
-    pub fn load(lang: &str) -> Result<Self, AppError> {
+    pub fn load(lang: &str) -> Result<Self> {
         let translation_str = crate::i18n::langs::get_language_file(lang).ok_or_else(|| {
             AppError::Translation(TranslationError::LoadError(format!(
                 "Sprachdatei für '{}' nicht gefunden",

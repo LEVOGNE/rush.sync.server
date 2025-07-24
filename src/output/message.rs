@@ -1,8 +1,7 @@
-// ## FILE: ./src/message.rs
-// src/output/message.rs
 use crate::core::prelude::*;
 use crate::input::keyboard::KeyAction;
 use crate::output::scroll::ScrollState;
+use unicode_segmentation::UnicodeSegmentation;
 
 pub struct Message {
     pub content: String,

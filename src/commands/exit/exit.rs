@@ -1,5 +1,4 @@
-// src/commands/exit/exit.rs
-use crate::prelude::*;
+use crate::core::prelude::*;
 use crate::ui::color::AppColor;
 
 pub struct ExitCommand;
@@ -20,5 +19,11 @@ impl ExitCommand {
 
     pub fn matches(&self, command: &str) -> bool {
         matches!(command.trim().to_lowercase().as_str(), "exit" | "q")
+    }
+}
+
+impl Default for ExitCommand {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -50,7 +50,7 @@ impl TranslationService {
                 text = text.replacen("{}", param, 1);
             }
 
-            (text, ColorCategory::from_str(&entry.category))
+            (text, ColorCategory::from_str_or_default(&entry.category))
         } else {
             // Verbesserte Fehlerbehandlung mit farbiger Warnung
             (

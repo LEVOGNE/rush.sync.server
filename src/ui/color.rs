@@ -1,5 +1,6 @@
 // src/ui/color.rs
-use crate::prelude::*;
+use crate::core::prelude::*;
+use log::Level;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -28,7 +29,7 @@ impl ColorCategory {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_str_or_default(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "error" => Self::Error,
             "warning" => Self::Warning,
@@ -39,6 +40,14 @@ impl ColorCategory {
             "version" => Self::Version,
             _ => Self::Default,
         }
+    }
+}
+
+impl std::str::FromStr for ColorCategory {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(Self::from_str_or_default(s)) // Ruft unsere eigene from_str Methode auf
     }
 }
 
@@ -108,7 +117,7 @@ impl AppColor {
         }
     }
 
-    pub fn from_string(color_str: &str) -> Result<Self> {
+    pub fn from_string(color_str: &str) -> crate::core::error::Result<Self> {
         let color = match color_str {
             "Black" => Color::Black,
             "Red" => Color::Red,
@@ -149,7 +158,7 @@ impl AppColor {
 
     pub fn from_custom_level(level: &str, _fallback_color: Option<u8>) -> Self {
         // Konvertiere den Level-String in eine ColorCategory
-        Self::from_category(ColorCategory::from_str(level))
+        Self::from_category(ColorCategory::from_str_or_default(level))
     }
 }
 
@@ -187,5 +196,11 @@ impl fmt::Display for ColorCategory {
                 ColorCategory::Default => "INFO",
             }
         )
+    }
+}
+
+impl From<&AppColor> for Color {
+    fn from(app_color: &AppColor) -> Self {
+        app_color.0
     }
 }

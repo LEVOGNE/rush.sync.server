@@ -1,5 +1,6 @@
-use crate::constants::DOUBLE_ESC_THRESHOLD;
-use crate::prelude::*;
+use crate::core::constants::DOUBLE_ESC_THRESHOLD;
+use crate::core::prelude::*;
+use crossterm::event::KeyModifiers;
 
 // Zentrale Enum für alle Tastaturaktionen
 #[derive(Debug, Clone, PartialEq)]
@@ -72,51 +73,51 @@ impl KeyboardManager {
     fn setup_default_bindings(&mut self) {
         // Standard-Tastenbelegungen
         self.add_binding(
-            KeyEvent::new(KeyCode::Left, event::KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
             KeyAction::MoveLeft,
             "Cursor nach links bewegen",
         );
         self.add_binding(
-            KeyEvent::new(KeyCode::Right, event::KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
             KeyAction::MoveRight,
             "Cursor nach rechts bewegen",
         );
         self.add_binding(
-            KeyEvent::new(KeyCode::Home, event::KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
             KeyAction::MoveToStart,
             "Zum Zeilenanfang springen",
         );
         self.add_binding(
-            KeyEvent::new(KeyCode::End, event::KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::End, KeyModifiers::NONE),
             KeyAction::MoveToEnd,
             "Zum Zeilenende springen",
         );
         self.add_binding(
-            KeyEvent::new(KeyCode::Enter, event::KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
             KeyAction::Submit,
             "Eingabe bestätigen",
         );
 
         // Alt + Pfeiltasten für Scrollen
         self.add_binding(
-            KeyEvent::new(KeyCode::Up, event::KeyModifiers::SHIFT),
+            KeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT),
             KeyAction::ScrollUp,
             "Eine Zeile nach oben scrollen",
         );
         self.add_binding(
-            KeyEvent::new(KeyCode::Down, event::KeyModifiers::SHIFT),
+            KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT),
             KeyAction::ScrollDown,
             "Eine Zeile nach unten scrollen",
         );
 
         // PageUp/PageDown für seitenweises Scrollen
         self.add_binding(
-            KeyEvent::new(KeyCode::PageUp, event::KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
             KeyAction::PageUp,
             "Eine Seite nach oben scrollen",
         );
         self.add_binding(
-            KeyEvent::new(KeyCode::PageDown, event::KeyModifiers::NONE),
+            KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
             KeyAction::PageDown,
             "Eine Seite nach unten scrollen",
         );
@@ -134,7 +135,8 @@ impl KeyboardManager {
         // Spezielle Behandlung für ESC
         if key.code == KeyCode::Esc {
             let now = Instant::now();
-            let mut last_press = LAST_ESC_PRESS.lock().unwrap();
+            let mut last_press: std::sync::MutexGuard<Option<Instant>> =
+                LAST_ESC_PRESS.lock().unwrap();
 
             if let Some(prev_press) = *last_press {
                 if now.duration_since(prev_press) <= self.double_press_threshold {
@@ -170,18 +172,6 @@ impl KeyboardManager {
     pub fn get_all_bindings(&self) -> Vec<&KeyBinding> {
         self.bindings.iter().collect()
     }
-    /*
-    // Optional: Konfiguration aus einer Datei laden
-    pub fn load_config(&mut self, config_path: &str) -> Result<()> {
-        // TODO: Implementierung zum Laden von benutzerdefinierten Tastenbelegungen
-        Ok(())
-    }
-
-    // Optional: Konfiguration in eine Datei speichern
-    pub fn save_config(&self, config_path: &str) -> Result<()> {
-        // TODO: Implementierung zum Speichern von benutzerdefinierten Tastenbelegungen
-        Ok(())
-    } */
 }
 
 // Implementierung für benutzerdefinierte Tastenkombinationen
@@ -196,5 +186,11 @@ impl KeyBinding {
 
     pub fn matches(&self, key: &KeyEvent) -> bool {
         self.key.code == key.code && self.key.modifiers == key.modifiers
+    }
+}
+
+impl Default for KeyboardManager {
+    fn default() -> Self {
+        Self::new()
     }
 }

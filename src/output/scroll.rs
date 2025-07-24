@@ -79,3 +79,9 @@ impl ScrollState {
         self.auto_scroll
     }
 }
+
+impl Default for ScrollState {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -1,4 +1,5 @@
 use crate::core::prelude::*;
+use crate::ui::color::{AppColor, ColorCategory};
 use std::path::PathBuf;
 use tokio::fs;
 
@@ -23,7 +24,7 @@ color = "Black"
 
 pub async fn ensure_config_exists() -> Result<PathBuf> {
     // Hole den Pfad der ausführbaren Datei
-    let exe_path = std::env::current_exe().map_err(|e| AppError::Io(e))?;
+    let exe_path = std::env::current_exe().map_err(AppError::Io)?;
     let base_dir = exe_path.parent().ok_or_else(|| {
         AppError::Validation("Konnte Programmverzeichnis nicht ermitteln".to_string())
     })?;
@@ -33,10 +34,13 @@ pub async fn ensure_config_exists() -> Result<PathBuf> {
     if !config_dir.exists() {
         fs::create_dir_all(&config_dir)
             .await
-            .map_err(|e| AppError::Io(e))?;
+            .map_err(AppError::Io)?;
 
         // Direkte Formatierung ohne Translation-Key
-        let msg = format!("Konfigurationsverzeichnis erstellt: {:?}", config_dir);
+        let msg = get_translation(
+            "system.setup.config_dir_created",
+            &[&config_dir.display().to_string()],
+        );
         log::debug!(
             "{}",
             AppColor::from_category(ColorCategory::Info).format_message("DEBUG", &msg)
@@ -50,10 +54,14 @@ pub async fn ensure_config_exists() -> Result<PathBuf> {
     if !config_path.exists() {
         fs::write(&config_path, DEFAULT_CONFIG)
             .await
-            .map_err(|e| AppError::Io(e))?;
+            .map_err(AppError::Io)?;
 
         // Direkte Formatierung ohne Translation-Key
-        let msg = format!("Standard-Konfigurationsdatei erstellt: {:?}", config_path);
+        let msg = get_translation(
+            "system.setup.default_config_created",
+            &[&config_path.display().to_string()],
+        );
+
         log::info!(
             "{}",
             AppColor::from_category(ColorCategory::Info).format_message("INFO", &msg)

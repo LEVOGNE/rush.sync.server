@@ -119,3 +119,9 @@ impl CommandHandler {
         }
     }
 }
+
+impl Default for CommandHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}

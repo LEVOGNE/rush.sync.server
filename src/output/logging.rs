@@ -1,7 +1,9 @@
-// src/logging.rs
-use crate::prelude::*;
+use crate::core::prelude::*;
+use crate::ui::color::AppColor;
+use lazy_static::lazy_static;
+use log::{Level, LevelFilter, Metadata, Record};
 use std::fmt;
-use std::sync::PoisonError;
+use std::sync::{Mutex, PoisonError};
 
 #[derive(Debug)]
 pub enum LoggingError {
@@ -99,4 +101,10 @@ pub fn init() -> std::result::Result<(), log::SetLoggerError> {
     log::set_boxed_logger(logger)?;
     log::set_max_level(LevelFilter::Debug);
     Ok(())
+}
+
+impl Default for AppLogger {
+    fn default() -> Self {
+        Self::new()
+    }
 }
