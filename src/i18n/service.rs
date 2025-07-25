@@ -1,8 +1,8 @@
-// src/i18n/service.rs
+// i18n/service.rs - VOLLSTÄNDIG
 use super::DEFAULT_LANGUAGE;
 use crate::i18n::cache::TranslationCache;
 use crate::i18n::types::TranslationConfig;
-use crate::ui::color::ColorCategory;
+use crate::ui::color::AppColor;
 use lazy_static::lazy_static;
 use std::sync::RwLock;
 
@@ -29,35 +29,26 @@ impl TranslationService {
         &INSTANCE
     }
 
-    pub fn get_translation(&mut self, key: &str, params: &[&str]) -> (String, ColorCategory) {
+    // ✅ DIREKTE String + AppColor Rückgabe
+    pub fn get_translation(&mut self, key: &str, params: &[&str]) -> (String, AppColor) {
         let cache_key = self.build_cache_key(key, params);
 
         if let Some(cached) = self.cache.get(&cache_key) {
             return cached;
         }
 
-        let (text, category) = self.translate_key(key, params);
-        self.cache.insert(cache_key, (text.clone(), category));
-        (text, category)
-    }
-
-    fn translate_key(&self, key: &str, params: &[&str]) -> (String, ColorCategory) {
-        if let Some(entry) = self.config.get_entry(key) {
-            let mut text = entry.text.clone();
-
-            // Parameter ersetzen
-            for param in params.iter() {
-                text = text.replacen("{}", param, 1);
-            }
-
-            (text, ColorCategory::from_str_or_default(&entry.category))
+        let (text, color) = if let Some(entry) = self.config.get_entry(key) {
+            entry.format(params)
         } else {
-            // Verbesserte Fehlerbehandlung mit farbiger Warnung
+            // Fallback mit Warning-Farbe
             (
                 format!("⚠️ Translation key not found: {}", key),
-                ColorCategory::Warning,
+                AppColor::from_category_str("warning"),
             )
-        }
+        };
+
+        self.cache.insert(cache_key, (text.clone(), color));
+        (text, color)
     }
 
     fn build_cache_key(&self, key: &str, params: &[&str]) -> String {

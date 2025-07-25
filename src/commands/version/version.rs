@@ -1,6 +1,6 @@
 use crate::core::constants::VERSION;
 use crate::core::prelude::*;
-use crate::ui::color::AppColor;
+use crate::i18n::get_command_translation;
 
 pub struct VersionCommand;
 
@@ -14,9 +14,11 @@ impl VersionCommand {
     }
 
     pub fn execute(&self) -> Result<String> {
-        let (msg, category) = get_translation_details("system.commands.version");
-        let color = AppColor::from_category(category);
-        Ok(color.format_message(&category.to_string(), &msg.replace("{}", VERSION)))
+        // ✅ RICHTIG: get_command_translation - gibt ASCII-Marker zurück
+        Ok(get_command_translation(
+            "system.commands.version",
+            &[VERSION],
+        ))
     }
 }
 

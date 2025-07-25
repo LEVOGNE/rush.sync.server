@@ -1,55 +1,7 @@
-// src/ui/color.rs
+// ui/color.rs - PRAGMATISCH VEREINFACHT
 use crate::core::prelude::*;
 use log::Level;
 use std::fmt;
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ColorCategory {
-    Error,
-    Warning,
-    Info,
-    Debug,
-    Trace,
-    Language,
-    Version,
-    Default,
-}
-
-impl ColorCategory {
-    pub fn to_color(&self) -> Color {
-        match self {
-            ColorCategory::Error => Color::Red,
-            ColorCategory::Warning => Color::Yellow,
-            ColorCategory::Info => Color::Green,
-            ColorCategory::Debug => Color::Blue,
-            ColorCategory::Trace => Color::DarkGray,
-            ColorCategory::Language => Color::Cyan,
-            ColorCategory::Version => Color::LightBlue,
-            ColorCategory::Default => Color::Gray,
-        }
-    }
-
-    pub fn from_str_or_default(s: &str) -> Self {
-        match s.to_lowercase().as_str() {
-            "error" => Self::Error,
-            "warning" => Self::Warning,
-            "info" => Self::Info,
-            "debug" => Self::Debug,
-            "trace" => Self::Trace,
-            "lang" => Self::Language,
-            "version" => Self::Version,
-            _ => Self::Default,
-        }
-    }
-}
-
-impl std::str::FromStr for ColorCategory {
-    type Err = ();
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        Ok(Self::from_str_or_default(s)) // Ruft unsere eigene from_str Methode auf
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AppColor(Color);
@@ -59,62 +11,35 @@ impl AppColor {
         Self(color)
     }
 
-    // Neue Methode für Kategorie-Konvertierung
-    pub fn from_category(category: ColorCategory) -> Self {
-        Self(category.to_color())
+    // ✅ DIREKTE String-zu-Color Konvertierung - keine Enum-Zwischenschicht
+    pub fn from_category_str(category: &str) -> Self {
+        let color = match category {
+            "error" => Color::Red,
+            "warning" => Color::Yellow,
+            "info" => Color::Green,
+            "debug" => Color::Blue,
+            "trace" => Color::DarkGray,
+            "lang" => Color::Cyan,
+            "version" => Color::LightBlue,
+            _ => Color::Gray,
+        };
+        Self(color)
     }
 
-    pub fn to_name(&self) -> &'static str {
-        match self.0 {
-            Color::Black => "Black",
-            Color::Red => "Red",
-            Color::Green => "Green",
-            Color::Yellow => "Yellow",
-            Color::Blue => "Blue",
-            Color::Magenta => "Magenta",
-            Color::Cyan => "Cyan",
-            Color::Gray => "Gray",
-            Color::DarkGray => "DarkGray",
-            Color::LightRed => "LightRed",
-            Color::LightGreen => "LightGreen",
-            Color::LightYellow => "LightYellow",
-            Color::LightBlue => "LightBlue",
-            Color::LightMagenta => "LightMagenta",
-            Color::LightCyan => "LightCyan",
-            Color::White => "White",
-            _ => "Gray",
-        }
+    // ✅ ALIAS für Kompatibilität falls noch verwendet
+    pub fn from_custom_level(level: &str, _fallback_color: Option<u8>) -> Self {
+        Self::from_category_str(level)
     }
 
-    pub fn format_message(&self, level: &str, message: &str) -> String {
-        format!(
-            "\x1B[{}m[{}] {}\x1B[0m",
-            self.to_ansi_code(),
-            level,
-            message
-        )
-    }
-
-    pub fn to_ansi_code(&self) -> u8 {
-        match self.0 {
-            Color::Black => 30,
-            Color::Red => 31,
-            Color::Green => 32,
-            Color::Yellow => 33,
-            Color::Blue => 34,
-            Color::Magenta => 35,
-            Color::Cyan => 36,
-            Color::Gray => 37,
-            Color::DarkGray => 90,
-            Color::LightRed => 91,
-            Color::LightGreen => 92,
-            Color::LightYellow => 93,
-            Color::LightBlue => 94,
-            Color::LightMagenta => 95,
-            Color::LightCyan => 96,
-            Color::White => 97,
-            _ => 37,
-        }
+    pub fn from_log_level(level: Level) -> Self {
+        let color = match level {
+            Level::Error => Color::Red,
+            Level::Warn => Color::Yellow,
+            Level::Info => Color::Green,
+            Level::Debug => Color::Blue,
+            Level::Trace => Color::DarkGray,
+        };
+        Self(color)
     }
 
     pub fn from_string(color_str: &str) -> crate::core::error::Result<Self> {
@@ -145,20 +70,61 @@ impl AppColor {
         Ok(Self(color))
     }
 
-    pub fn from_log_level(level: Level) -> Self {
-        let category = match level {
-            Level::Error => ColorCategory::Error,
-            Level::Warn => ColorCategory::Warning,
-            Level::Info => ColorCategory::Info,
-            Level::Debug => ColorCategory::Debug,
-            Level::Trace => ColorCategory::Trace,
-        };
-        Self::from_category(category)
+    pub fn format_message(&self, level: &str, message: &str) -> String {
+        if level.is_empty() {
+            format!("\x1B[{}m{}\x1B[0m", self.to_ansi_code(), message)
+        } else {
+            format!(
+                "\x1B[{}m[{}] {}\x1B[0m",
+                self.to_ansi_code(),
+                level,
+                message
+            )
+        }
     }
 
-    pub fn from_custom_level(level: &str, _fallback_color: Option<u8>) -> Self {
-        // Konvertiere den Level-String in eine ColorCategory
-        Self::from_category(ColorCategory::from_str_or_default(level))
+    pub fn to_ansi_code(&self) -> u8 {
+        match self.0 {
+            Color::Black => 30,
+            Color::Red => 31,
+            Color::Green => 32,
+            Color::Yellow => 33,
+            Color::Blue => 34,
+            Color::Magenta => 35,
+            Color::Cyan => 36,
+            Color::Gray => 37,
+            Color::DarkGray => 90,
+            Color::LightRed => 91,
+            Color::LightGreen => 92,
+            Color::LightYellow => 93,
+            Color::LightBlue => 94,
+            Color::LightMagenta => 95,
+            Color::LightCyan => 96,
+            Color::White => 97,
+            _ => 37,
+        }
+    }
+
+    pub fn to_name(&self) -> &'static str {
+        match self.0 {
+            Color::Black => "Black",
+            Color::Red => "Red",
+            Color::Green => "Green",
+            Color::Yellow => "Yellow",
+            Color::Blue => "Blue",
+            Color::Magenta => "Magenta",
+            Color::Cyan => "Cyan",
+            Color::Gray => "Gray",
+            Color::DarkGray => "DarkGray",
+            Color::LightRed => "LightRed",
+            Color::LightGreen => "LightGreen",
+            Color::LightYellow => "LightYellow",
+            Color::LightBlue => "LightBlue",
+            Color::LightMagenta => "LightMagenta",
+            Color::LightCyan => "LightCyan",
+            Color::White => "White",
+            _ => "Gray",
+        }
     }
 }
 
@@ -174,33 +140,14 @@ impl From<AppColor> for Color {
     }
 }
 
-impl Default for AppColor {
-    fn default() -> Self {
-        Self(Color::Gray)
-    }
-}
-
-impl fmt::Display for ColorCategory {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                ColorCategory::Error => "ERROR",
-                ColorCategory::Warning => "WARNING",
-                ColorCategory::Info => "INFO",
-                ColorCategory::Debug => "DEBUG",
-                ColorCategory::Trace => "TRACE",
-                ColorCategory::Language => "LANG",
-                ColorCategory::Version => "VERSION",
-                ColorCategory::Default => "INFO",
-            }
-        )
-    }
-}
-
 impl From<&AppColor> for Color {
     fn from(app_color: &AppColor) -> Self {
         app_color.0
+    }
+}
+
+impl Default for AppColor {
+    fn default() -> Self {
+        Self(Color::Gray)
     }
 }

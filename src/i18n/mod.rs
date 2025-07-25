@@ -1,4 +1,4 @@
-// src/i18n/mod.rs
+// src/i18n/mod.rs - MIT ASCII-MARKERN
 mod cache;
 mod error;
 mod langs;
@@ -6,7 +6,7 @@ mod service;
 mod types;
 
 use crate::core::prelude::*;
-use crate::ui::color::ColorCategory;
+use crate::ui::color::AppColor;
 
 pub use error::TranslationError;
 pub(crate) use langs::{AVAILABLE_LANGUAGES, DEFAULT_LANGUAGE};
@@ -14,11 +14,8 @@ pub use types::{TranslationConfig, TranslationEntry};
 
 use service::TranslationService;
 
-// src/i18n/mod.rs - CONFIGHANDLER ENTFERNEN
-// Ersetze die init() Funktion:
-
+// ✅ INIT-FUNKTION
 pub async fn init() -> Result<()> {
-    // Setze einfach die Standardsprache
     set_language_internal(DEFAULT_LANGUAGE, false)
 }
 
@@ -43,29 +40,53 @@ fn set_language_internal(lang: &str, _save_config: bool) -> Result<()> {
     service.current_language = lang.clone();
     service.config = config;
 
-    // ConfigHandler-Teil entfernt - später über normales Config-System lösbar
     Ok(())
 }
 
-pub fn get_translation(key: &str, params: &[&str]) -> String {
+// ✅ HAUPTFUNKTION: Text + Farbe in einem Aufruf
+pub fn get_translation_with_color(key: &str, params: &[&str]) -> (String, AppColor) {
     TranslationService::get_instance()
         .write()
         .unwrap()
         .get_translation(key, params)
-        .0
 }
 
-pub fn get_translation_details(key: &str) -> (String, ColorCategory) {
-    TranslationService::get_instance()
-        .write()
-        .unwrap()
-        .get_translation(key, &[])
+// ✅ NUR TEXT (für normale Verwendung)
+pub fn get_translation(key: &str, params: &[&str]) -> String {
+    get_translation_with_color(key, params).0
 }
 
+// ✅ NUR FARBE (falls mal getrennt gebraucht)
+pub fn get_translation_color(key: &str) -> AppColor {
+    get_translation_with_color(key, &[]).1
+}
+
+// ✅ FERTIG FORMATIERTE NACHRICHT (für Logging)
+pub fn get_colored_translation(key: &str, params: &[&str]) -> String {
+    let (text, color) = get_translation_with_color(key, params);
+    color.format_message("", &text)
+}
+
+// ✅ COMMAND-SYSTEM MIT ASCII-MARKERN - CRASH-SAFE!
+pub fn get_command_translation(key: &str, params: &[&str]) -> String {
+    let service = TranslationService::get_instance().write().unwrap();
+
+    if let Some(entry) = service.config.get_entry(key) {
+        let (text, _color) = entry.format(params);
+        // ✅ ASCII-MARKER - Kein Unicode-Crash!
+        format!("[{}] {}", entry.category, text)
+    } else {
+        // Fallback mit Warning-Marker
+        format!("[warning] ⚠️ Translation key not found: {}", key)
+    }
+}
+
+// ✅ SPRACHE SETZEN
 pub fn set_language(lang: &str) -> Result<()> {
     set_language_internal(lang, true)
 }
 
+// ✅ HILFSFUNKTIONEN
 fn is_language_available(lang: &str) -> bool {
     AVAILABLE_LANGUAGES.iter().any(|&l| l == lang)
 }
@@ -91,4 +112,12 @@ pub fn get_translation_stats() -> (usize, usize) {
         .unwrap()
         .cache
         .stats()
+}
+
+pub fn clear_translation_cache() {
+    TranslationService::get_instance()
+        .write()
+        .unwrap()
+        .cache
+        .clear();
 }

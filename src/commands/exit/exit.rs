@@ -1,5 +1,5 @@
 use crate::core::prelude::*;
-use crate::ui::color::AppColor;
+use crate::i18n::get_command_translation;
 
 pub struct ExitCommand;
 
@@ -9,12 +9,9 @@ impl ExitCommand {
     }
 
     pub fn execute(&self) -> Result<String> {
-        let (msg, category) = get_translation_details("system.input.confirm_exit");
-        let color = AppColor::from_category(category);
-        Ok(format!(
-            "__CONFIRM_EXIT__{}",
-            color.format_message(&category.to_string(), &msg) // Kategorie aus der JSON
-        ))
+        // ✅ RICHTIG: get_command_translation - gibt ASCII-Marker zurück
+        let msg = get_command_translation("system.input.confirm_exit", &[]);
+        Ok(format!("__CONFIRM_EXIT__{}", msg))
     }
 
     pub fn matches(&self, command: &str) -> bool {

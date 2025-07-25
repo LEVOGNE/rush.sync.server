@@ -1,6 +1,8 @@
+// main.rs - KORRIGIERT
 use rush_sync::{
-    i18n, run,
-    ui::color::{AppColor, ColorCategory},
+    i18n,
+    run,
+    ui::color::AppColor, // ✅ ColorCategory entfernt
     Result,
 };
 
@@ -10,9 +12,9 @@ async fn main() -> Result<()> {
     match i18n::init().await {
         Ok(_) => {
             let msg = "Sprache erfolgreich initialisiert";
-            let colored_msg =
-                AppColor::from_category(ColorCategory::Info).format_message("INFO", msg);
-            println!("{}", colored_msg); // Direkte Ausgabe ohne Logging zunächst
+            // ✅ Direkte String-zu-Farbe Konvertierung
+            let colored_msg = AppColor::from_category_str("info").format_message("INFO", msg);
+            println!("{}", colored_msg);
         }
         Err(e) => {
             eprintln!("Sprachinitialisierung fehlgeschlagen: {}", e);

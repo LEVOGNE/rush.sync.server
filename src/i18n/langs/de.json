@@ -47,9 +47,8 @@
   "system.config.dir_error.category": "error",
   "system.config.dir_created.text": "Konfigurationsverzeichnis erstellt: {}",
   "system.config.dir_created.category": "info",
-
   "system.config.file_created.text": "Standard-Konfigurationsdatei erstellt: {}",
-
+  "system.config.file_created.category": "info",
   "system.logging.mutex_error.text": "Logger Mutex wurde vergiftet",
   "system.logging.mutex_error.category": "error",
   "system.logging.error.text": "Fehler beim Logging: {}",
