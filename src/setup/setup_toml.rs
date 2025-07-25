@@ -1,5 +1,4 @@
 use crate::core::prelude::*;
-use crate::ui::color::{AppColor, ColorCategory};
 use std::path::PathBuf;
 use tokio::fs;
 
@@ -23,89 +22,44 @@ color = "Black"
 "#;
 
 pub async fn ensure_config_exists() -> Result<PathBuf> {
-    // Hole den Pfad der ausführbaren Datei
     let exe_path = std::env::current_exe().map_err(AppError::Io)?;
     let base_dir = exe_path.parent().ok_or_else(|| {
         AppError::Validation("Konnte Programmverzeichnis nicht ermitteln".to_string())
     })?;
 
-    // Erstelle .rss Verzeichnis neben der ausführbaren Datei
     let config_dir = base_dir.join(".rss");
     if !config_dir.exists() {
         fs::create_dir_all(&config_dir)
             .await
             .map_err(AppError::Io)?;
-
-        // Direkte Formatierung ohne Translation-Key
-        let msg = get_translation(
-            "system.setup.config_dir_created",
-            &[&config_dir.display().to_string()],
-        );
-        log::debug!(
-            "{}",
-            AppColor::from_category(ColorCategory::Info).format_message("DEBUG", &msg)
-        );
+        log::debug!("Konfig-Verzeichnis erstellt: {}", config_dir.display());
     }
 
-    // Pfad zur rush.toml im .rss Verzeichnis
     let config_path = config_dir.join("rush.toml");
-
-    // Erstelle rush.toml falls sie nicht existiert
     if !config_path.exists() {
         fs::write(&config_path, DEFAULT_CONFIG)
             .await
             .map_err(AppError::Io)?;
-
-        // Direkte Formatierung ohne Translation-Key
-        let msg = get_translation(
-            "system.setup.default_config_created",
-            &[&config_path.display().to_string()],
-        );
-
-        log::info!(
-            "{}",
-            AppColor::from_category(ColorCategory::Info).format_message("INFO", &msg)
-        );
+        log::info!("Default rush.toml erstellt: {}", config_path.display());
     }
 
     Ok(config_path)
 }
 
 pub fn get_config_paths() -> Vec<PathBuf> {
+    // unverändert
     let mut paths = Vec::new();
-
-    // Versuche den Executable-Pfad zu bekommen
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(base_dir) = exe_path.parent() {
-            // Konfigurationsdatei im .rss Verzeichnis neben der Executable
             paths.push(base_dir.join(".rss/rush.toml"));
-
-            // Weitere mögliche Pfade relativ zur Executable
             paths.push(base_dir.join("rush.toml"));
             paths.push(base_dir.join("config/rush.toml"));
         }
     }
-
-    // Fallback für Entwicklungsumgebung
     #[cfg(debug_assertions)]
     {
         paths.push(PathBuf::from("rush.toml"));
         paths.push(PathBuf::from("src/rush.toml"));
     }
-
     paths
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_config_paths() {
-        let paths = get_config_paths();
-        assert!(
-            !paths.is_empty(),
-            "Konfigurationspfade sollten nicht leer sein"
-        );
-    }
 }

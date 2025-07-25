@@ -44,6 +44,7 @@ pub struct LogMessage {
 }
 
 impl LogMessage {
+    /// ✅ Wichtig: bleibt für alle bisherigen Aufrufe!
     pub fn new(level: Level, message: String) -> Self {
         Self {
             level,
@@ -52,9 +53,19 @@ impl LogMessage {
         }
     }
 
+    /// ✅ Doppeltes [INFO]/[DEBUG] verhindern
     pub fn formatted(&self) -> String {
         let color = AppColor::from_log_level(self.level);
-        color.format_message(&self.level.to_string(), &self.message)
+
+        let msg = self.message.trim_start();
+        let level_str = format!("[{}]", self.level);
+
+        if msg.starts_with(&level_str) {
+            // Schon Level enthalten → nur einfärben
+            color.format_message("", msg)
+        } else {
+            color.format_message(&self.level.to_string(), msg)
+        }
     }
 }
 

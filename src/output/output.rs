@@ -93,7 +93,10 @@ pub fn create_output_widget<'a>(
             };
 
         // Text zusammenbauen, dabei Level-Text voranstellen wenn vorhanden
-        let display_text = if !level_text.is_empty() {
+        let display_text = if text.trim_start().starts_with('[') {
+            // Level schon vorhanden → nicht nochmal
+            text
+        } else if !level_text.is_empty() {
             format!("{}{}", level_text, text)
         } else {
             text

@@ -61,10 +61,6 @@ impl<'a> ScreenManager<'a> {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        if let Some(debug_info) = &self.config.debug_info {
-            self.message_manager.add_message(debug_info.clone());
-        }
-
         let result = loop {
             if let Some(event) = self.events.next().await {
                 match event {

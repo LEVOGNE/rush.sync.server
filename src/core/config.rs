@@ -1,6 +1,6 @@
 use crate::core::constants::{DEFAULT_BUFFER_SIZE, DEFAULT_POLL_RATE};
 use crate::core::prelude::*;
-use crate::ui::color::{AppColor, ColorCategory};
+use crate::ui::color::AppColor;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -35,7 +35,6 @@ struct PromptConfig {
     color: String,
 }
 
-// Öffentliche Strukturen
 pub struct Config {
     config_path: Option<String>,
     pub max_messages: usize,
@@ -65,78 +64,44 @@ impl Config {
     pub async fn load() -> Result<Self> {
         let mut last_error = None;
 
-        // Prüfe zuerst die Standard-Pfade
         for path in crate::setup::setup_toml::get_config_paths() {
             if path.exists() {
                 match Self::from_file(&path).await {
                     Ok(config) => {
-                        // Hier keine Debug-Info setzen, wenn eine existierende Konfiguration geladen wird
-                        log::debug!("Bestehende Konfiguration geladen von: {}", path.display());
+                        log::debug!("Konfiguration geladen: {}", path.display());
                         return Ok(config);
                     }
                     Err(e) => {
                         last_error = Some(e);
-                        continue; // Mit der nächsten Datei fortfahren
+                        continue;
                     }
                 }
             }
         }
 
-        // Wenn keine Konfiguration gefunden wurde, erstelle eine neue im .rss Verzeichnis
-        log::info!(
-            "{}",
-            AppColor::from_category(ColorCategory::Info).format_message(
-                "INFO",
-                "Keine existierende Konfiguration gefunden, erstelle Standard-Konfiguration"
-            )
-        );
+        log::info!("Keine existierende Konfiguration, erstelle Standard");
 
         match crate::setup::setup_toml::ensure_config_exists().await {
             Ok(config_path) => match Self::from_file(&config_path).await {
                 Ok(mut config) => {
-                    // Nur hier den debug_info setzen, weil wir tatsächlich eine neue Konfiguration erstellen
-                    let info_msg = format!(
-                        "Neue Standard-Konfiguration erstellt in '{}'",
-                        config_path.display()
-                    );
-                    let colored_msg = AppColor::from_category(ColorCategory::Info)
-                        .format_message("INFO", &info_msg);
-                    config.debug_info = Some(colored_msg);
+                    // Nur 1x loggen!
+                    let plain_msg =
+                        format!("Neue Standard-Konfiguration in '{}'", config_path.display());
+                    log::info!("{}", plain_msg);
+
+                    // Nur zur internen Anzeige gespeichert, nicht nochmal geloggt
+                    config.debug_info = Some(plain_msg);
                     Ok(config)
                 }
                 Err(e) => {
-                    log::error!(
-                        "{}",
-                        AppColor::from_category(ColorCategory::Error).format_message(
-                            "ERROR",
-                            &format!(
-                                "Fehler beim Laden der neu erstellten Konfiguration: {:?}",
-                                e
-                            )
-                        )
-                    );
+                    log::error!("Fehler beim Laden neuer Konfiguration: {:?}", e);
                     Err(e)
                 }
             },
             Err(e) => {
-                log::error!(
-                    "{}",
-                    AppColor::from_category(ColorCategory::Error).format_message(
-                        "ERROR",
-                        &format!("Fehler beim Erstellen der Standard-Konfiguration: {:?}", e)
-                    )
-                );
+                log::error!("Standard-Konfiguration fehlgeschlagen: {:?}", e);
                 if let Some(last_e) = last_error {
-                    log::debug!(
-                        "{}",
-                        AppColor::from_category(ColorCategory::Debug).format_message(
-                            "DEBUG",
-                            &format!(
-                                "Letzter Fehler beim Laden existierender Konfiguration: {:?}",
-                                last_e
-                            )
-                        )
-                    );
+                    log::debug!("Letzter Fehler: {:?}", last_e);
                 }
                 Err(e)
             }
