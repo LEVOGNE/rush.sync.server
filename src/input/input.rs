@@ -112,12 +112,24 @@ impl<'a> InputState<'a> {
         self.cursor.move_to_start();
     }
 
+    // ✅ NEUE METHODE: Reset für Sprachwechsel
+    pub fn reset_for_language_change(&mut self) {
+        self.waiting_for_exit_confirmation = false;
+        self.content.clear();
+        self.history_position = None;
+        self.cursor.move_to_start();
+        log::debug!("InputState reset for language change");
+    }
+
+    // ✅ VERBESSERTE handle_exit_confirmation mit aktuellen Übersetzungen
     fn handle_exit_confirmation(&mut self, action: KeyAction) -> Option<String> {
         match action {
             KeyAction::Submit => {
                 self.waiting_for_exit_confirmation = false;
-                let confirm_short = get_translation("system.input.confirm.short", &[]);
-                let cancel_short = get_translation("system.input.cancel.short", &[]);
+
+                // ✅ IMMER AKTUELLE Übersetzungen abrufen
+                let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
+                let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
 
                 match self.content.trim().to_lowercase().as_str() {
                     input if input == confirm_short.to_lowercase() => {
@@ -126,17 +138,18 @@ impl<'a> InputState<'a> {
                     }
                     input if input == cancel_short.to_lowercase() => {
                         self.clear_history_position();
-                        Some(get_translation("system.input.cancelled", &[]))
+                        Some(crate::i18n::get_translation("system.input.cancelled", &[]))
                     }
                     _ => {
                         self.clear_history_position();
-                        Some(get_translation("system.input.cancelled", &[]))
+                        Some(crate::i18n::get_translation("system.input.cancelled", &[]))
                     }
                 }
             }
             KeyAction::InsertChar(c) => {
-                let confirm_short = get_translation("system.input.confirm.short", &[]);
-                let cancel_short = get_translation("system.input.cancel.short", &[]);
+                // ✅ IMMER AKTUELLE Übersetzungen abrufen
+                let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
+                let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
 
                 if c.to_lowercase().to_string() == confirm_short.to_lowercase()
                     || c.to_lowercase().to_string() == cancel_short.to_lowercase()

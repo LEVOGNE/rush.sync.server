@@ -1,3 +1,5 @@
+// ui/widget.rs - ERWEITERT FÜR LANGUAGE RESET
+
 use crate::core::prelude::*;
 use ratatui::widgets::Paragraph;
 

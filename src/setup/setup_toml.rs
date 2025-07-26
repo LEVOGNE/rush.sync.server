@@ -1,3 +1,4 @@
+// setup/setup_toml.rs - KOMPLETT INTERNATIONALISIERT
 use crate::core::prelude::*;
 use std::path::PathBuf;
 use tokio::fs;
@@ -19,12 +20,16 @@ output_bg = "Black"
 [prompt]
 text = "/// "
 color = "Black"
+
+[language]
+current = "de"
 "#;
 
 pub async fn ensure_config_exists() -> Result<PathBuf> {
     let exe_path = std::env::current_exe().map_err(AppError::Io)?;
     let base_dir = exe_path.parent().ok_or_else(|| {
-        AppError::Validation("Konnte Programmverzeichnis nicht ermitteln".to_string())
+        // ✅ i18n: Directory error message
+        AppError::Validation(get_translation("system.config.dir_error", &[]))
     })?;
 
     let config_dir = base_dir.join(".rss");
@@ -32,7 +37,14 @@ pub async fn ensure_config_exists() -> Result<PathBuf> {
         fs::create_dir_all(&config_dir)
             .await
             .map_err(AppError::Io)?;
-        log::debug!("Konfig-Verzeichnis erstellt: {}", config_dir.display());
+        // ✅ i18n: Config directory created
+        log::debug!(
+            "{}",
+            get_translation(
+                "system.config.dir_created",
+                &[&config_dir.display().to_string()]
+            )
+        );
     }
 
     let config_path = config_dir.join("rush.toml");
@@ -40,14 +52,20 @@ pub async fn ensure_config_exists() -> Result<PathBuf> {
         fs::write(&config_path, DEFAULT_CONFIG)
             .await
             .map_err(AppError::Io)?;
-        log::info!("Default rush.toml erstellt: {}", config_path.display());
+        // ✅ i18n: Config file created
+        log::info!(
+            "{}",
+            get_translation(
+                "system.config.file_created",
+                &[&config_path.display().to_string()]
+            )
+        );
     }
 
     Ok(config_path)
 }
 
 pub fn get_config_paths() -> Vec<PathBuf> {
-    // unverändert
     let mut paths = Vec::new();
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(base_dir) = exe_path.parent() {

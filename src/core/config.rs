@@ -1,3 +1,4 @@
+// core/config.rs - KOMPLETT INTERNATIONALISIERT
 use crate::core::constants::{DEFAULT_BUFFER_SIZE, DEFAULT_POLL_RATE};
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
@@ -9,6 +10,7 @@ struct ConfigFile {
     general: GeneralConfig,
     theme: ThemeConfig,
     prompt: PromptConfig,
+    language: LanguageConfig,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -35,6 +37,11 @@ struct PromptConfig {
     color: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct LanguageConfig {
+    current: String,
+}
+
 pub struct Config {
     config_path: Option<String>,
     pub max_messages: usize,
@@ -44,6 +51,7 @@ pub struct Config {
     pub poll_rate: Duration,
     pub theme: Theme,
     pub prompt: Prompt,
+    pub language: String,
     pub debug_info: Option<String>,
 }
 
@@ -62,13 +70,51 @@ pub struct Prompt {
 
 impl Config {
     pub async fn load() -> Result<Self> {
+        Self::load_with_messages(true).await
+    }
+
+    // ✅ NEUE METHODE: Load mit/ohne Messages
+    pub async fn load_with_messages(show_messages: bool) -> Result<Self> {
         let mut last_error = None;
 
         for path in crate::setup::setup_toml::get_config_paths() {
             if path.exists() {
                 match Self::from_file(&path).await {
                     Ok(config) => {
-                        log::debug!("Konfiguration geladen: {}", path.display());
+                        // ✅ SPRACHE ZUERST SETZEN
+                        if let Err(e) = crate::i18n::set_language(&config.language) {
+                            // ✅ i18n: Language set failed warning
+                            if show_messages {
+                                log::warn!(
+                                    "{}",
+                                    get_translation(
+                                        "system.config.language_set_failed",
+                                        &[&e.to_string()]
+                                    )
+                                );
+                            }
+                        }
+
+                        // ✅ DANN Debug-Message in korrekter Sprache (nur wenn gewünscht)
+                        if show_messages {
+                            log::debug!(
+                                "{}",
+                                get_translation(
+                                    "system.config.loaded",
+                                    &[&path.display().to_string()]
+                                )
+                            );
+
+                            // ✅ WILLKOMMEN-MESSAGE nach Sprach-Setup (nur wenn gewünscht)
+                            log::info!(
+                                "{}",
+                                crate::i18n::get_command_translation(
+                                    "system.startup.version",
+                                    &[crate::core::constants::VERSION]
+                                )
+                            );
+                        }
+
                         return Ok(config);
                     }
                     Err(e) => {
@@ -79,29 +125,66 @@ impl Config {
             }
         }
 
-        log::info!("Keine existierende Konfiguration, erstelle Standard");
+        // ✅ i18n: No existing config message (nur wenn gewünscht)
+        if show_messages {
+            log::info!("{}", get_translation("system.config.no_existing", &[]));
+        }
 
         match crate::setup::setup_toml::ensure_config_exists().await {
             Ok(config_path) => match Self::from_file(&config_path).await {
                 Ok(mut config) => {
-                    // Nur 1x loggen!
-                    let plain_msg =
-                        format!("Neue Standard-Konfiguration in '{}'", config_path.display());
-                    log::info!("{}", plain_msg);
+                    // ✅ i18n: New default config message (nur wenn gewünscht)
+                    if show_messages {
+                        let plain_msg = get_translation(
+                            "system.config.new_default",
+                            &[&config_path.display().to_string()],
+                        );
+                        log::info!("{}", plain_msg);
+                        config.debug_info = Some(plain_msg);
 
-                    // Nur zur internen Anzeige gespeichert, nicht nochmal geloggt
-                    config.debug_info = Some(plain_msg);
+                        // ✅ WILLKOMMEN-MESSAGE nach Sprach-Setup (nur wenn gewünscht)
+                        log::info!(
+                            "{}",
+                            crate::i18n::get_command_translation(
+                                "system.startup.version",
+                                &[crate::core::constants::VERSION]
+                            )
+                        );
+                    }
+
+                    // ✅ SPRACHE SETZEN
+                    let _ = crate::i18n::set_language(&config.language);
+
                     Ok(config)
                 }
                 Err(e) => {
-                    log::error!("Fehler beim Laden neuer Konfiguration: {:?}", e);
+                    // ✅ i18n: Config load error (nur wenn gewünscht)
+                    if show_messages {
+                        log::error!(
+                            "{}",
+                            get_translation("system.config.load_error", &[&format!("{:?}", e)])
+                        );
+                    }
                     Err(e)
                 }
             },
             Err(e) => {
-                log::error!("Standard-Konfiguration fehlgeschlagen: {:?}", e);
-                if let Some(last_e) = last_error {
-                    log::debug!("Letzter Fehler: {:?}", last_e);
+                // ✅ i18n: Setup failed error (nur wenn gewünscht)
+                if show_messages {
+                    log::error!(
+                        "{}",
+                        get_translation("system.config.setup_failed", &[&format!("{:?}", e)])
+                    );
+                    if let Some(last_e) = last_error {
+                        // ✅ i18n: Last error debug (nur wenn gewünscht)
+                        log::debug!(
+                            "{}",
+                            get_translation(
+                                "system.config.last_error",
+                                &[&format!("{:?}", last_e)]
+                            )
+                        );
+                    }
                 }
                 Err(e)
             }
@@ -125,8 +208,14 @@ impl Config {
             poll_rate: Duration::from_millis(config_file.general.poll_rate),
             theme: Theme::from_config(&config_file.theme)?,
             prompt: Prompt::from_config(&config_file.prompt)?,
+            language: config_file.language.current,
             debug_info: None,
         })
+    }
+
+    pub async fn set_language(&mut self, lang: &str) -> Result<()> {
+        self.language = lang.to_lowercase();
+        self.save().await
     }
 
     pub async fn save(&self) -> Result<()> {
@@ -150,12 +239,14 @@ impl Config {
                     text: self.prompt.text.clone(),
                     color: self.prompt.color.to_string(),
                 },
+                language: LanguageConfig {
+                    current: self.language.clone(),
+                },
             };
 
             let content = toml::to_string_pretty(&config_file)
                 .map_err(|e| AppError::Validation(format!("Serialisierungsfehler: {}", e)))?;
 
-            // Stelle sicher, dass das Verzeichnis existiert
             if let Some(parent) = PathBuf::from(path).parent() {
                 if !parent.exists() {
                     tokio::fs::create_dir_all(parent)
@@ -193,7 +284,6 @@ impl Prompt {
     }
 }
 
-// Default-Implementierungen bleiben unverändert
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -205,6 +295,7 @@ impl Default for Config {
             poll_rate: Duration::from_millis(DEFAULT_POLL_RATE),
             theme: Theme::default(),
             prompt: Prompt::default(),
+            language: crate::i18n::DEFAULT_LANGUAGE.to_string(),
             debug_info: None,
         }
     }

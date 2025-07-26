@@ -40,6 +40,15 @@ fn set_language_internal(lang: &str, _save_config: bool) -> Result<()> {
     service.current_language = lang.clone();
     service.config = config;
 
+    // ✅ DAS IST DER FIX: Cache leeren beim Sprachwechsel!
+    if let Ok(mut cache) = service.cache.lock() {
+        cache.clear();
+        log::debug!(
+            "Translation cache cleared for language change to: {}",
+            lang.to_uppercase()
+        );
+    }
+
     Ok(())
 }
 

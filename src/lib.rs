@@ -1,4 +1,4 @@
-// src/lib.rs - OPTIMIERT
+// src/lib.rs - CONFIG OWNERSHIP UPDATE
 //! Rush Sync Terminal Application
 //!
 //! A modular terminal application with internationalization support
@@ -20,6 +20,7 @@ pub use core::error::{AppError, Result};
 /// Initializes and runs the terminal application
 pub async fn run() -> Result<()> {
     let config = core::config::Config::load().await?;
+    // ✅ REFERENZ wie ursprünglich
     let mut screen = ui::screen::ScreenManager::new(&config).await?;
     screen.run().await
 }

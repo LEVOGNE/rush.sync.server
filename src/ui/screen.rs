@@ -60,6 +60,88 @@ impl<'a> ScreenManager<'a> {
         })
     }
 
+    // ✅ EINFACHE LÖSUNG: Nur diese Methode hinzufügen/ersetzen
+    async fn handle_language_save(&mut self, message: &str) -> Option<String> {
+        if message.starts_with("__SAVE_LANGUAGE__") {
+            let parts: Vec<&str> = message.split("__MESSAGE__").collect();
+            if parts.len() == 2 {
+                let lang_part = parts[0].replace("__SAVE_LANGUAGE__", "");
+                let display_message = parts[1];
+
+                // ✅ DIREKTE SPRACH-AKTUALISIERUNG
+                if let Err(e) = crate::i18n::set_language(&lang_part) {
+                    return Some(format!("Fehler beim Setzen der Sprache: {}", e));
+                }
+
+                // ✅ KRITISCH: Cache leeren - das löst das Problem!
+                crate::i18n::clear_translation_cache();
+
+                // ✅ CONFIG SILENT SPEICHERN
+                if let Err(e) = self.save_language_to_file_simple(&lang_part).await {
+                    log::error!("Failed to save language config: {}", e);
+                }
+
+                return Some(display_message.to_string());
+            }
+        }
+        None
+    }
+
+    // ✅ METHOD von ScreenManager
+    async fn save_language_to_file_simple(&self, lang: &str) -> Result<()> {
+        let config_paths = crate::setup::setup_toml::get_config_paths();
+
+        for path in config_paths {
+            if path.exists() {
+                let content = tokio::fs::read_to_string(&path)
+                    .await
+                    .map_err(AppError::Io)?;
+
+                // ✅ SIMPLE LINE-BY-LINE UPDATE mit owned strings
+                let lines: Vec<&str> = content.lines().collect();
+                let mut new_lines: Vec<String> = Vec::new(); // ✅ Vec<String> statt Vec<&str>
+                let mut in_language_section = false;
+                let mut found_current = false;
+
+                for line in lines {
+                    if line.trim() == "[language]" {
+                        in_language_section = true;
+                        new_lines.push(line.to_string());
+                    } else if line.starts_with('[')
+                        && line.ends_with(']')
+                        && line.trim() != "[language]"
+                    {
+                        in_language_section = false;
+                        new_lines.push(line.to_string());
+                    } else if in_language_section && line.trim().starts_with("current =") {
+                        new_lines.push(format!("current = \"{}\"", lang)); // ✅ Owned string
+                        found_current = true;
+                    } else {
+                        new_lines.push(line.to_string());
+                    }
+                }
+
+                // Falls language section nicht existiert, hinzufügen
+                if !found_current {
+                    new_lines.push("".to_string());
+                    new_lines.push("[language]".to_string());
+                    new_lines.push(format!("current = \"{}\"", lang)); // ✅ Owned string
+                }
+
+                let new_content = new_lines.join("\n");
+                tokio::fs::write(&path, new_content)
+                    .await
+                    .map_err(AppError::Io)?;
+
+                log::debug!("Language '{}' saved to config", lang.to_uppercase());
+                return Ok(());
+            }
+        }
+
+        Ok(())
+    }
+
+    // ✅ BESTEHENDE run() METHODE ERWEITERN:
     pub async fn run(&mut self) -> Result<()> {
         let result = loop {
             if let Some(event) = self.events.next().await {
@@ -77,13 +159,20 @@ impl<'a> ScreenManager<'a> {
                             KeyAction::NoAction => {}
                             KeyAction::Submit => {
                                 if let Some(new_input) = self.input_state.handle_input(key) {
-                                    //self.events.pause_ticks().await;
+                                    // ✅ PRÜFE AUF LANGUAGE-SAVE MESSAGE
+                                    if let Some(processed_message) =
+                                        self.handle_language_save(&new_input).await
+                                    {
+                                        self.message_manager.add_message(processed_message);
+                                        continue;
+                                    }
+
+                                    // ✅ NORMALE MESSAGE-VERARBEITUNG
                                     self.message_manager.add_message(new_input.clone());
-                                    //self.events.resume_ticks().await;
 
                                     if new_input.starts_with("__CLEAR__") {
                                         self.message_manager.clear_messages();
-                                        continue; // Überspringe das Hinzufügen der Clear-Kommando-Nachricht
+                                        continue;
                                     } else if new_input.starts_with("__EXIT__") {
                                         self.events.shutdown().await;
                                         break Ok(());
@@ -96,6 +185,13 @@ impl<'a> ScreenManager<'a> {
                             }
                             _ => {
                                 if let Some(new_input) = self.input_state.handle_input(key) {
+                                    // ✅ AUCH HIER PRÜFEN
+                                    if let Some(processed_message) =
+                                        self.handle_language_save(&new_input).await
+                                    {
+                                        self.message_manager.add_message(processed_message);
+                                        continue;
+                                    }
                                     self.message_manager.add_message(new_input);
                                 }
                             }
@@ -112,7 +208,7 @@ impl<'a> ScreenManager<'a> {
                     AppEvent::Tick => {
                         self.message_manager.update_typewriter();
                         if let Some(input_state) = self.input_state.as_input_state() {
-                            input_state.update_cursor_blink(); // Hier rufen wir direkt die Methode auf
+                            input_state.update_cursor_blink();
                         }
                     }
                 }

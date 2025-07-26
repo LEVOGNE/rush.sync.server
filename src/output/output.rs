@@ -1,4 +1,4 @@
-// output/output.rs - KOMPLETT NEU UND SAUBER
+// output/output.rs - TYPEWRITER MIT KORREKTEN FARBEN VON ANFANG AN
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
 use ratatui::{
@@ -9,100 +9,86 @@ use ratatui::{
 use strip_ansi_escapes::strip;
 use unicode_segmentation::UnicodeSegmentation;
 
-/// ✅ HAUPTFUNKTION: Bestimmt Farbe basierend auf Message-Inhalt
-fn get_message_color(message: &str, config: &Config) -> AppColor {
+/// ✅ ALLE MARKER UND TEXTE IN EINER NACHRICHT FINDEN
+fn parse_message_parts(message: &str) -> Vec<(String, bool)> {
     let clean_message = clean_ansi_codes(message);
+    let mut parts = Vec::new();
+    let mut current_pos = 0;
 
-    // 1. Command-Category Marker: [category] (alle Categories, dann Mapping)
-    if let Some(display_category) = extract_any_category_marker(&clean_message) {
-        // ✅ Hole color_category aus JSON-Mapping
-        let color_category = crate::i18n::get_color_category_for_display(&display_category);
+    while current_pos < clean_message.len() {
+        if let Some(marker_start) = clean_message[current_pos..].find('[') {
+            let absolute_start = current_pos + marker_start;
+
+            // Text vor dem Marker hinzufügen (falls vorhanden)
+            if marker_start > 0 {
+                let text_before = clean_message[current_pos..absolute_start].to_string();
+                if !text_before.trim().is_empty() {
+                    parts.push((text_before, false)); // false = kein Marker
+                }
+            }
+
+            // Suche nach Ende des Markers
+            if let Some(marker_end) = clean_message[absolute_start..].find(']') {
+                let absolute_end = absolute_start + marker_end + 1;
+                let marker = clean_message[absolute_start..absolute_end].to_string();
+                parts.push((marker, true)); // true = ist Marker
+                current_pos = absolute_end;
+            } else {
+                // Keine schließende Klammer - Rest als Text behandeln
+                let remaining = clean_message[absolute_start..].to_string();
+                parts.push((remaining, false));
+                break;
+            }
+        } else {
+            // Kein weiterer Marker - Rest als Text
+            let remaining = clean_message[current_pos..].to_string();
+            if !remaining.trim().is_empty() {
+                parts.push((remaining, false));
+            }
+            break;
+        }
+    }
+
+    // Falls nichts gefunden wurde, ganze Nachricht als Text
+    if parts.is_empty() {
+        parts.push((clean_message, false));
+    }
+
+    parts
+}
+
+/// ✅ MARKER-FARBE BESTIMMEN
+fn get_marker_color(marker: &str) -> AppColor {
+    let category = marker
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .to_lowercase();
+
+    if let Some(cat) = category.strip_prefix("cat:") {
+        let color_category = crate::i18n::get_color_category_for_display(cat);
         return AppColor::from_category_str(&color_category);
     }
 
-    // 2. Standard Log-Level: [DEBUG], [INFO], [WARN], [ERROR], [TRACE]
-    if let Some(level_str) = extract_log_level_marker(&clean_message) {
-        return match level_str.as_str() {
-            "DEBUG" => AppColor::from_category_str("debug"),
-            "INFO" => AppColor::from_category_str("info"),
-            "WARN" => AppColor::from_category_str("warning"),
-            "ERROR" => AppColor::from_category_str("error"),
-            "TRACE" => AppColor::from_category_str("trace"),
-            _ => config.theme.output_text,
-        };
+    if matches!(
+        category.as_str(),
+        "debug" | "info" | "warn" | "error" | "trace"
+    ) {
+        return AppColor::from_category_str(&category);
     }
 
-    // 3. Spezielle Nachrichten
-    if clean_message.contains("Translation key not found") {
-        return AppColor::from_category_str("warning");
-    }
-
-    if clean_message.contains("Unknown command") || clean_message.contains("Unbekannter Befehl") {
-        return AppColor::from_category_str("error");
-    }
-
-    // 4. Fallback: Theme-Standard
-    config.theme.output_text
+    let color_category = crate::i18n::get_color_category_for_display(&category);
+    AppColor::from_category_str(&color_category)
 }
 
-/// ✅ HILFSFUNKTION: ANSI-Codes entfernen
+/// ✅ ANSI-CODES ENTFERNEN
 fn clean_ansi_codes(message: &str) -> String {
     String::from_utf8_lossy(&strip(message.as_bytes()).unwrap_or_default()).into_owned()
 }
 
-/// ✅ HILFSFUNKTION: Alle Category-Marker extrahieren (für JSON-Mapping)
-fn extract_any_category_marker(message: &str) -> Option<String> {
-    // Format: [CAT:category]
-    if let Some(start) = message.find("[CAT:") {
-        if let Some(end) = message[start..].find(']') {
-            let category = &message[start + 5..start + end];
-            return Some(category.to_lowercase());
-        }
-    }
-
-    // Format: [category] - alle Categories akzeptieren
-    if let Some(start) = message.find('[') {
-        if let Some(end) = message[start..].find(']') {
-            let potential_category = &message[start + 1..start + end];
-
-            // ✅ Ignoriere nur Standard-Log-Level (die werden separat behandelt)
-            let upper_cat = potential_category.to_uppercase();
-            if !matches!(
-                upper_cat.as_str(),
-                "DEBUG" | "INFO" | "WARN" | "ERROR" | "TRACE"
-            ) {
-                return Some(potential_category.to_lowercase());
-            }
-        }
-    }
-
-    None
-}
-
-/// ✅ HILFSFUNKTION: Log-Level Marker extrahieren
-fn extract_log_level_marker(message: &str) -> Option<String> {
-    if let Some(start) = message.find('[') {
-        if let Some(end) = message[start..].find(']') {
-            let level_str = &message[start + 1..start + end];
-
-            // Standard-Log-Level akzeptieren (case-insensitive, return uppercase)
-            if matches!(
-                level_str.to_uppercase().as_str(),
-                "DEBUG" | "INFO" | "WARN" | "ERROR" | "TRACE"
-            ) {
-                return Some(level_str.to_uppercase());
-            }
-        }
-    }
-
-    None
-}
-
-/// ✅ HILFSFUNKTION: Message für Anzeige bereinigen
+/// ✅ MESSAGE BEREINIGEN
 fn clean_message_for_display(message: &str) -> String {
     let mut clean = clean_ansi_codes(message);
 
-    // Entferne spezielle Prefixes
     if clean.starts_with("__CONFIRM_EXIT__") {
         clean = clean.replace("__CONFIRM_EXIT__", "");
     }
@@ -141,30 +127,70 @@ pub fn create_output_widget<'a>(
     };
     let visible_messages = &messages[start_idx..];
 
-    // Verarbeite jede Nachricht
+    // ✅ VERARBEITE JEDE NACHRICHT MIT KORREKTEN FARBEN
     for (idx, (message, current_length)) in visible_messages.iter().enumerate() {
         let is_last_message = idx == visible_messages.len() - 1;
         let clean_message = clean_message_for_display(message);
 
-        // Typewriter-Effekt nur für letzte Nachricht
-        let display_text = if is_last_message {
-            let graphemes: Vec<&str> = clean_message.graphemes(true).collect();
-            graphemes
-                .iter()
-                .take(*current_length)
-                .copied()
-                .collect::<String>()
+        // ✅ PARSE: Alle Marker und Texte finden
+        let message_parts = parse_message_parts(&clean_message);
+
+        // ✅ BAUE KOMPLETTE MESSAGE MIT KORREKTEN FARBEN
+        let mut styled_parts = Vec::new();
+        let mut total_chars = 0;
+
+        for (part_text, is_marker) in message_parts {
+            let part_chars = part_text.graphemes(true).count();
+            let part_style = if is_marker {
+                Style::default().fg(get_marker_color(&part_text).into())
+            } else {
+                Style::default().fg(config.theme.output_text.into())
+            };
+
+            styled_parts.push((part_text, part_style, part_chars));
+            total_chars += part_chars;
+        }
+
+        // ✅ TYPEWRITER-EFFEKT: Character-Anzahl begrenzen, aber Farben beibehalten
+        let visible_chars = if is_last_message {
+            (*current_length).min(total_chars)
         } else {
-            clean_message
+            total_chars // Komplette Nachricht für alte Messages
         };
 
-        // Bestimme Farbe basierend auf Original-Message
-        let color = get_message_color(message, config);
+        let mut spans = Vec::new();
+        let mut chars_used = 0;
 
-        lines.push(Line::from(vec![Span::styled(
-            display_text,
-            Style::default().fg(color.into()),
-        )]));
+        for (part_text, part_style, part_char_count) in styled_parts {
+            if chars_used >= visible_chars {
+                break;
+            }
+
+            let chars_needed = visible_chars - chars_used;
+
+            if chars_needed >= part_char_count {
+                // Kompletter Teil ist sichtbar
+                spans.push(Span::styled(part_text, part_style));
+                chars_used += part_char_count;
+            } else {
+                // Nur Teil ist sichtbar
+                let graphemes: Vec<&str> = part_text.graphemes(true).collect();
+                let partial_text = graphemes
+                    .iter()
+                    .take(chars_needed)
+                    .copied()
+                    .collect::<String>();
+                spans.push(Span::styled(partial_text, part_style));
+                break;
+            }
+        }
+
+        // Falls nichts sichtbar ist, leeren Span hinzufügen
+        if spans.is_empty() {
+            spans.push(Span::raw(""));
+        }
+
+        lines.push(Line::from(spans));
     }
 
     // Fülle verbleibenden Platz
