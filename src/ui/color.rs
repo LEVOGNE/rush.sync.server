@@ -1,4 +1,3 @@
-// ui/color.rs - VEREINHEITLICHT UND PRAGMATISCH
 use crate::core::prelude::*;
 use log::Level;
 use std::fmt;
@@ -7,61 +6,36 @@ use std::fmt;
 pub struct AppColor(Color);
 
 impl AppColor {
+    pub fn from_any<T: Into<String>>(source: T) -> Self {
+        Self::from_category(&source.into())
+    }
+
     pub fn new(color: Color) -> Self {
         Self(color)
     }
 
-    /// ✅ DIREKTE String-zu-Color Konvertierung - KEIN ENUM
     pub fn from_category_str(category: &str) -> Self {
-        let color = match category.to_lowercase().as_str() {
-            "error" => Color::Red,
-            "warning" => Color::Yellow,
-            "info" => Color::Green,
-            "debug" => Color::Blue,
-            "trace" => Color::DarkGray,
-            "lang" => Color::Cyan,
-            "version" => Color::LightBlue,
-            _ => Color::Gray,
-        };
-        Self(color)
+        Self::from_category(category)
     }
 
-    /// ✅ ALIAS für Kompatibilität mit altem Code
-    pub fn from_custom_level(level: &str, _fallback_color: Option<u8>) -> Self {
-        Self::from_category_str(level)
-    }
-
-    /// ✅ Standard Log-Level Support
-    pub fn from_log_level(level: Level) -> Self {
-        let color = match level {
-            Level::Error => Color::Red,
-            Level::Warn => Color::Yellow,
-            Level::Info => Color::Green,
-            Level::Debug => Color::Blue,
-            Level::Trace => Color::DarkGray,
-        };
-        Self(color)
-    }
-
-    /// ✅ String-Parsing für Config-Dateien
     pub fn from_string(color_str: &str) -> crate::core::error::Result<Self> {
-        let color = match color_str {
-            "Black" => Color::Black,
-            "Red" => Color::Red,
-            "Green" => Color::Green,
-            "Yellow" => Color::Yellow,
-            "Blue" => Color::Blue,
-            "Magenta" => Color::Magenta,
-            "Cyan" => Color::Cyan,
-            "Gray" => Color::Gray,
-            "DarkGray" => Color::DarkGray,
-            "LightRed" => Color::LightRed,
-            "LightGreen" => Color::LightGreen,
-            "LightYellow" => Color::LightYellow,
-            "LightBlue" => Color::LightBlue,
-            "LightMagenta" => Color::LightMagenta,
-            "LightCyan" => Color::LightCyan,
-            "White" => Color::White,
+        let color = match color_str.to_lowercase().as_str() {
+            "black" => Color::Black,
+            "red" => Color::Red,
+            "green" => Color::Green,
+            "yellow" => Color::Yellow,
+            "blue" => Color::Blue,
+            "magenta" => Color::Magenta,
+            "cyan" => Color::Cyan,
+            "gray" => Color::Gray,
+            "darkgray" => Color::DarkGray,
+            "lightred" => Color::LightRed,
+            "lightgreen" => Color::LightGreen,
+            "lightyellow" => Color::LightYellow,
+            "lightblue" => Color::LightBlue,
+            "lightmagenta" => Color::LightMagenta,
+            "lightcyan" => Color::LightCyan,
+            "white" => Color::White,
             _ => {
                 return Err(AppError::Validation(format!(
                     "Ungültige Farbe: {}",
@@ -72,7 +46,25 @@ impl AppColor {
         Ok(Self(color))
     }
 
-    /// ✅ ANSI-Formatierung für Terminal-Ausgabe
+    pub fn from_log_level(level: Level) -> Self {
+        Self::from_category(&level.to_string().to_lowercase())
+    }
+
+    // ✅ ZENTRALE Kategorisierung - NUR COLOR_CATEGORIES!
+    fn from_category(category: &str) -> Self {
+        let color = match category.to_lowercase().as_str() {
+            "error" => Color::Red,
+            "warning" | "warn" => Color::Yellow,
+            "info" => Color::Green,
+            "debug" => Color::Blue,
+            "trace" => Color::DarkGray,
+            "lang" => Color::Cyan, // ✅ NUR EINE COLOR-CATEGORY!
+            "version" => Color::LightBlue,
+            _ => Color::Gray,
+        };
+        Self(color)
+    }
+
     pub fn format_message(&self, level: &str, message: &str) -> String {
         if level.is_empty() {
             format!("\x1B[{}m{}\x1B[0m", self.to_ansi_code(), message)
@@ -86,7 +78,6 @@ impl AppColor {
         }
     }
 
-    /// ✅ ANSI-Color-Codes
     pub fn to_ansi_code(&self) -> u8 {
         match self.0 {
             Color::Black => 30,
@@ -105,11 +96,10 @@ impl AppColor {
             Color::LightMagenta => 95,
             Color::LightCyan => 96,
             Color::White => 97,
-            _ => 37, // Fallback: Gray
+            _ => 37,
         }
     }
 
-    /// ✅ String-Representation für Config-Export
     pub fn to_name(&self) -> &'static str {
         match self.0 {
             Color::Black => "Black",
@@ -133,7 +123,6 @@ impl AppColor {
     }
 }
 
-// ✅ TRAIT-IMPLEMENTIERUNGEN
 impl fmt::Display for AppColor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_name())

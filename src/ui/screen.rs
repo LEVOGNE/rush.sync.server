@@ -68,15 +68,12 @@ impl<'a> ScreenManager<'a> {
                 let lang_part = parts[0].replace("__SAVE_LANGUAGE__", "");
                 let display_message = parts[1];
 
-                // ✅ DIREKTE SPRACH-AKTUALISIERUNG
+                // ✅ NUR DAS NÖTIGE - Cache wird automatisch in set_language geleert
                 if let Err(e) = crate::i18n::set_language(&lang_part) {
                     return Some(format!("Fehler beim Setzen der Sprache: {}", e));
                 }
 
-                // ✅ KRITISCH: Cache leeren - das löst das Problem!
-                crate::i18n::clear_translation_cache();
-
-                // ✅ CONFIG SILENT SPEICHERN
+                // ✅ CONFIG SPEICHERN
                 if let Err(e) = self.save_language_to_file_simple(&lang_part).await {
                     log::error!("Failed to save language config: {}", e);
                 }
@@ -97,47 +94,32 @@ impl<'a> ScreenManager<'a> {
                     .await
                     .map_err(AppError::Io)?;
 
-                // ✅ SIMPLE LINE-BY-LINE UPDATE mit owned strings
-                let lines: Vec<&str> = content.lines().collect();
-                let mut new_lines: Vec<String> = Vec::new(); // ✅ Vec<String> statt Vec<&str>
-                let mut in_language_section = false;
-                let mut found_current = false;
+                // ✅ INTELLIGENT: Regex für saubere Ersetzung
+                let updated_content = if content.contains("[language]") {
+                    // Bestehende current = Zeile ersetzen
+                    content
+                        .lines()
+                        .map(|line| {
+                            if line.trim_start().starts_with("current =") {
+                                format!("current = \"{}\"", lang)
+                            } else {
+                                line.to_string()
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                } else {
+                    // Language section hinzufügen
+                    format!("{}\n\n[language]\ncurrent = \"{}\"", content.trim(), lang)
+                };
 
-                for line in lines {
-                    if line.trim() == "[language]" {
-                        in_language_section = true;
-                        new_lines.push(line.to_string());
-                    } else if line.starts_with('[')
-                        && line.ends_with(']')
-                        && line.trim() != "[language]"
-                    {
-                        in_language_section = false;
-                        new_lines.push(line.to_string());
-                    } else if in_language_section && line.trim().starts_with("current =") {
-                        new_lines.push(format!("current = \"{}\"", lang)); // ✅ Owned string
-                        found_current = true;
-                    } else {
-                        new_lines.push(line.to_string());
-                    }
-                }
-
-                // Falls language section nicht existiert, hinzufügen
-                if !found_current {
-                    new_lines.push("".to_string());
-                    new_lines.push("[language]".to_string());
-                    new_lines.push(format!("current = \"{}\"", lang)); // ✅ Owned string
-                }
-
-                let new_content = new_lines.join("\n");
-                tokio::fs::write(&path, new_content)
+                tokio::fs::write(&path, updated_content)
                     .await
                     .map_err(AppError::Io)?;
-
                 log::debug!("Language '{}' saved to config", lang.to_uppercase());
                 return Ok(());
             }
         }
-
         Ok(())
     }
 

@@ -1,4 +1,3 @@
-// output/logging.rs - VEREINFACHT UND REPARIERT
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
 use lazy_static::lazy_static;
@@ -53,18 +52,13 @@ impl LogMessage {
         }
     }
 
-    /// ✅ VEREINFACHT: Kein doppeltes Level mehr!
     pub fn formatted(&self) -> String {
         let color = AppColor::from_log_level(self.level);
-
-        // Prüfe ob Level bereits im Message enthalten ist
         let level_prefix = format!("[{}]", self.level);
 
         if self.message.starts_with(&level_prefix) {
-            // Schon formatiert -> nur einfärben
             color.format_message("", &self.message)
         } else {
-            // Level hinzufügen
             color.format_message(&self.level.to_string(), &self.message)
         }
     }
@@ -73,10 +67,6 @@ impl LogMessage {
 pub struct AppLogger;
 
 impl AppLogger {
-    pub fn new() -> Self {
-        Self
-    }
-
     pub fn get_messages() -> std::result::Result<Vec<LogMessage>, LoggingError> {
         let mut messages = LOG_MESSAGES.lock().map_err(LoggingError::from)?;
         Ok(messages.drain(..).collect())
@@ -96,7 +86,6 @@ impl log::Log for AppLogger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            // ✅ WICHTIG: Hier wird NUR die reine Message übertragen
             let clean_message = record.args().to_string();
 
             if let Err(e) = Self::add_message(record.level(), clean_message) {
@@ -112,14 +101,8 @@ impl log::Log for AppLogger {
 }
 
 pub fn init() -> std::result::Result<(), log::SetLoggerError> {
-    let logger = Box::new(AppLogger::new());
+    let logger = Box::new(AppLogger);
     log::set_boxed_logger(logger)?;
     log::set_max_level(LevelFilter::Debug);
     Ok(())
-}
-
-impl Default for AppLogger {
-    fn default() -> Self {
-        Self::new()
-    }
 }

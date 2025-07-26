@@ -1,4 +1,3 @@
-// output/output.rs - TYPEWRITER MIT KORREKTEN FARBEN VON ANFANG AN
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
 use ratatui::{
@@ -9,7 +8,6 @@ use ratatui::{
 use strip_ansi_escapes::strip;
 use unicode_segmentation::UnicodeSegmentation;
 
-/// ✅ ALLE MARKER UND TEXTE IN EINER NACHRICHT FINDEN
 fn parse_message_parts(message: &str) -> Vec<(String, bool)> {
     let clean_message = clean_ansi_codes(message);
     let mut parts = Vec::new();
@@ -19,28 +17,24 @@ fn parse_message_parts(message: &str) -> Vec<(String, bool)> {
         if let Some(marker_start) = clean_message[current_pos..].find('[') {
             let absolute_start = current_pos + marker_start;
 
-            // Text vor dem Marker hinzufügen (falls vorhanden)
             if marker_start > 0 {
                 let text_before = clean_message[current_pos..absolute_start].to_string();
                 if !text_before.trim().is_empty() {
-                    parts.push((text_before, false)); // false = kein Marker
+                    parts.push((text_before, false));
                 }
             }
 
-            // Suche nach Ende des Markers
             if let Some(marker_end) = clean_message[absolute_start..].find(']') {
                 let absolute_end = absolute_start + marker_end + 1;
                 let marker = clean_message[absolute_start..absolute_end].to_string();
-                parts.push((marker, true)); // true = ist Marker
+                parts.push((marker, true));
                 current_pos = absolute_end;
             } else {
-                // Keine schließende Klammer - Rest als Text behandeln
                 let remaining = clean_message[absolute_start..].to_string();
                 parts.push((remaining, false));
                 break;
             }
         } else {
-            // Kein weiterer Marker - Rest als Text
             let remaining = clean_message[current_pos..].to_string();
             if !remaining.trim().is_empty() {
                 parts.push((remaining, false));
@@ -49,7 +43,6 @@ fn parse_message_parts(message: &str) -> Vec<(String, bool)> {
         }
     }
 
-    // Falls nichts gefunden wurde, ganze Nachricht als Text
     if parts.is_empty() {
         parts.push((clean_message, false));
     }
@@ -57,35 +50,27 @@ fn parse_message_parts(message: &str) -> Vec<(String, bool)> {
     parts
 }
 
-/// ✅ MARKER-FARBE BESTIMMEN
+// ✅ SMART & SKALIERBAR: Dynamisches Mapping mit Fallback
 fn get_marker_color(marker: &str) -> AppColor {
-    let category = marker
+    let display_category = marker
         .trim_start_matches('[')
         .trim_end_matches(']')
         .to_lowercase();
 
-    if let Some(cat) = category.strip_prefix("cat:") {
+    if let Some(cat) = display_category.strip_prefix("cat:") {
         let color_category = crate::i18n::get_color_category_for_display(cat);
         return AppColor::from_category_str(&color_category);
     }
 
-    if matches!(
-        category.as_str(),
-        "debug" | "info" | "warn" | "error" | "trace"
-    ) {
-        return AppColor::from_category_str(&category);
-    }
-
-    let color_category = crate::i18n::get_color_category_for_display(&category);
+    // ✅ SMART: Verwende das erweiterte i18n-System
+    let color_category = crate::i18n::get_color_category_for_display(&display_category);
     AppColor::from_category_str(&color_category)
 }
 
-/// ✅ ANSI-CODES ENTFERNEN
 fn clean_ansi_codes(message: &str) -> String {
     String::from_utf8_lossy(&strip(message.as_bytes()).unwrap_or_default()).into_owned()
 }
 
-/// ✅ MESSAGE BEREINIGEN
 fn clean_message_for_display(message: &str) -> String {
     let mut clean = clean_ansi_codes(message);
 
@@ -99,7 +84,6 @@ fn clean_message_for_display(message: &str) -> String {
     clean.trim().to_string()
 }
 
-/// ✅ HAUPTFUNKTION: Widget erstellen
 pub fn create_output_widget<'a>(
     messages: &'a [(&'a String, usize)],
     available_height: u16,
@@ -119,7 +103,6 @@ pub fn create_output_widget<'a>(
             .wrap(Wrap { trim: true });
     }
 
-    // Berechne sichtbare Nachrichten
     let start_idx = if messages.len() > max_visible_messages {
         messages.len() - max_visible_messages
     } else {
@@ -127,15 +110,11 @@ pub fn create_output_widget<'a>(
     };
     let visible_messages = &messages[start_idx..];
 
-    // ✅ VERARBEITE JEDE NACHRICHT MIT KORREKTEN FARBEN
     for (idx, (message, current_length)) in visible_messages.iter().enumerate() {
         let is_last_message = idx == visible_messages.len() - 1;
         let clean_message = clean_message_for_display(message);
-
-        // ✅ PARSE: Alle Marker und Texte finden
         let message_parts = parse_message_parts(&clean_message);
 
-        // ✅ BAUE KOMPLETTE MESSAGE MIT KORREKTEN FARBEN
         let mut styled_parts = Vec::new();
         let mut total_chars = 0;
 
@@ -151,11 +130,10 @@ pub fn create_output_widget<'a>(
             total_chars += part_chars;
         }
 
-        // ✅ TYPEWRITER-EFFEKT: Character-Anzahl begrenzen, aber Farben beibehalten
         let visible_chars = if is_last_message {
             (*current_length).min(total_chars)
         } else {
-            total_chars // Komplette Nachricht für alte Messages
+            total_chars
         };
 
         let mut spans = Vec::new();
@@ -169,11 +147,9 @@ pub fn create_output_widget<'a>(
             let chars_needed = visible_chars - chars_used;
 
             if chars_needed >= part_char_count {
-                // Kompletter Teil ist sichtbar
                 spans.push(Span::styled(part_text, part_style));
                 chars_used += part_char_count;
             } else {
-                // Nur Teil ist sichtbar
                 let graphemes: Vec<&str> = part_text.graphemes(true).collect();
                 let partial_text = graphemes
                     .iter()
@@ -185,7 +161,6 @@ pub fn create_output_widget<'a>(
             }
         }
 
-        // Falls nichts sichtbar ist, leeren Span hinzufügen
         if spans.is_empty() {
             spans.push(Span::raw(""));
         }
@@ -193,7 +168,6 @@ pub fn create_output_widget<'a>(
         lines.push(Line::from(spans));
     }
 
-    // Fülle verbleibenden Platz
     let remaining_space = max_visible_messages.saturating_sub(lines.len());
     for _ in 0..remaining_space {
         lines.push(Line::from(vec![Span::raw("")]));

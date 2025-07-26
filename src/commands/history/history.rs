@@ -3,10 +3,6 @@ use crate::core::prelude::*;
 pub struct HistoryCommand;
 
 impl HistoryCommand {
-    pub fn new() -> Self {
-        Self
-    }
-
     pub fn matches(&self, command: &str) -> bool {
         command.trim().starts_with("history")
     }
@@ -17,11 +13,5 @@ impl HistoryCommand {
             Some(&"-h" | &"--help") => Ok(get_translation("system.commands.history.help", &[])),
             _ => Ok(get_translation("system.commands.history.unknown", &[])),
         }
-    }
-}
-
-impl Default for HistoryCommand {
-    fn default() -> Self {
-        Self::new()
     }
 }

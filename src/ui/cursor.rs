@@ -1,4 +1,5 @@
-//! Cursor state management for terminal input
+// ## FILE: ui/cursor.rs - MINIMAL OPTIMIERT
+// ## BEGIN ##
 use std::time::{Duration, Instant};
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -17,14 +18,13 @@ impl CursorState {
             text_length: 0,
             visible: true,
             last_blink: Instant::now(),
-            blink_interval: Duration::from_millis(530), // Standard Blink-Interval
+            blink_interval: Duration::from_millis(530),
         }
     }
 
     pub fn get_position(&self) -> usize {
         self.position
     }
-
     pub fn is_visible(&self) -> bool {
         self.visible
     }
@@ -44,7 +44,7 @@ impl CursorState {
     pub fn update_text_length(&mut self, text: &str) {
         self.text_length = text.graphemes(true).count();
         self.position = self.position.min(self.text_length);
-        self.show_cursor(); // Cursor bei Texteingabe sichtbar machen
+        self.show_cursor();
     }
 
     pub fn move_left(&mut self) {
@@ -80,12 +80,10 @@ impl CursorState {
     }
 
     pub fn get_byte_position(&self, text: &str) -> usize {
-        // Wenn text leer ist oder Position 0, gib 0 zurück
         if text.is_empty() || self.position == 0 {
             return 0;
         }
 
-        // Wir nehmen das Graphem VOR der aktuellen Position
         text.grapheme_indices(true)
             .nth(self.position.saturating_sub(1))
             .map(|(pos, grapheme)| pos + grapheme.len())
@@ -93,12 +91,10 @@ impl CursorState {
     }
 
     pub fn get_prev_byte_position(&self, text: &str) -> usize {
-        // Wenn text leer ist oder Position <= 1, gib 0 zurück
         if text.is_empty() || self.position <= 1 {
             return 0;
         }
 
-        // Wir nehmen das Graphem ZWEI Positionen zurück
         text.grapheme_indices(true)
             .nth(self.position.saturating_sub(2))
             .map(|(pos, grapheme)| pos + grapheme.len())
@@ -111,3 +107,4 @@ impl Default for CursorState {
         Self::new()
     }
 }
+// ## END ##

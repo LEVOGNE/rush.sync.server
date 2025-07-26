@@ -1,5 +1,5 @@
-// ui/widget.rs - ERWEITERT FÜR LANGUAGE RESET
-
+// ## FILE: ui/widget.rs - UNVERÄNDERT
+// ## BEGIN ##
 use crate::core::prelude::*;
 use ratatui::widgets::Paragraph;
 
@@ -14,3 +14,4 @@ pub trait Widget {
 pub trait InputWidget {
     fn update_cursor_blink(&mut self);
 }
+// ## END ##

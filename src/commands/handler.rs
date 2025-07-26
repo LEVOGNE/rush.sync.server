@@ -1,4 +1,3 @@
-// src/commands/handler.rs - UNKNOWN COMMAND FIX
 use crate::commands::clear::ClearCommand;
 use crate::commands::exit::exit::ExitCommand;
 use crate::commands::history::HistoryCommand;
@@ -24,11 +23,11 @@ pub struct CommandHandler {
 impl CommandHandler {
     pub fn new() -> Self {
         Self {
-            exit_command: ExitCommand::new(),
-            language_command: LanguageCommand::new(),
-            clear_command: ClearCommand::new(),
-            version_command: VersionCommand::new(),
-            history_command: HistoryCommand::new(),
+            exit_command: ExitCommand,
+            language_command: LanguageCommand,
+            clear_command: ClearCommand,
+            version_command: VersionCommand,
+            history_command: HistoryCommand,
         }
     }
 
@@ -44,7 +43,6 @@ impl CommandHandler {
             };
         }
 
-        // History-Command hinzufügen
         if self.history_command.matches(parts[0]) {
             match self.history_command.execute(&parts[1..]) {
                 Ok(msg) => CommandResult {
@@ -111,7 +109,6 @@ impl CommandHandler {
                 },
             }
         } else {
-            // ✅ FIX: Verwende get_command_translation für [ERROR] Prefix
             CommandResult {
                 message: i18n::get_command_translation("system.commands.unknown", &[input]),
                 success: false,

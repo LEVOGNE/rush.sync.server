@@ -22,7 +22,7 @@ text = "/// "
 color = "Black"
 
 [language]
-current = "de"
+current = "en"
 "#;
 
 pub async fn ensure_config_exists() -> Result<PathBuf> {

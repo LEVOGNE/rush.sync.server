@@ -1,113 +1,299 @@
-// src/i18n/mod.rs - CLIPPY WARNING BEHOBEN
-mod cache;
-mod error;
-mod langs;
-mod service;
-mod types;
-
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
+use lazy_static::lazy_static;
+use rust_embed::RustEmbed;
+use std::collections::HashMap;
+use std::sync::{Mutex, RwLock};
 
-pub use error::TranslationError;
-pub(crate) use langs::{AVAILABLE_LANGUAGES, DEFAULT_LANGUAGE};
-pub use types::{TranslationConfig, TranslationEntry};
+pub const AVAILABLE_LANGUAGES: &[&str] = &["de", "en"];
+pub const DEFAULT_LANGUAGE: &str = "en";
 
-use service::TranslationService;
+#[derive(Debug)]
+pub enum TranslationError {
+    InvalidLanguage(String),
+    LoadError(String),
+    ConfigError(String),
+}
 
-// ✅ INIT-FUNKTION
+impl std::fmt::Display for TranslationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidLanguage(lang) => write!(f, "Ungültige Sprache: {}", lang),
+            Self::LoadError(msg) => write!(f, "Ladefehler: {}", msg),
+            Self::ConfigError(msg) => write!(f, "Konfigurationsfehler: {}", msg),
+        }
+    }
+}
+
+#[derive(RustEmbed)]
+#[folder = "src/i18n/langs/"]
+pub struct Langs;
+
+fn get_language_file(lang: &str) -> Option<&'static str> {
+    match lang {
+        "de" => Some(include_str!("langs/de.json")),
+        "en" => Some(include_str!("langs/en.json")),
+        _ => None,
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TranslationEntry {
+    pub text: String,
+    pub color_category: String,
+    pub display_category: String,
+}
+
+impl TranslationEntry {
+    pub fn get_color(&self) -> AppColor {
+        AppColor::from_any(&self.color_category)
+    }
+
+    pub fn format(&self, params: &[&str]) -> (String, AppColor) {
+        let mut text = self.text.clone();
+        for param in params {
+            text = text.replacen("{}", param, 1);
+        }
+        (text, self.get_color())
+    }
+
+    pub fn format_for_command(&self, params: &[&str]) -> String {
+        let (text, _) = self.format(params);
+        format!("[{}] {}", self.display_category.to_uppercase(), text)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct TranslationConfig {
+    entries: HashMap<String, TranslationEntry>,
+    // ✅ GLOBALES Display-Mapping - wird ERWEITERT statt ersetzt
+    global_display_to_color_map: HashMap<String, String>,
+}
+
+impl TranslationConfig {
+    fn load(lang: &str) -> Result<Self> {
+        let translation_str = get_language_file(lang).ok_or_else(|| {
+            AppError::Translation(TranslationError::LoadError(format!(
+                "Language file for '{}' not found",
+                lang
+            )))
+        })?;
+
+        let raw_entries: HashMap<String, String> =
+            serde_json::from_str(translation_str).map_err(|e| {
+                AppError::Translation(TranslationError::LoadError(format!(
+                    "Error parsing language file: {}",
+                    e
+                )))
+            })?;
+
+        let mut entries = HashMap::new();
+        let mut new_display_mappings = HashMap::new();
+
+        for (key, value) in raw_entries.iter() {
+            if key.ends_with(".text") {
+                let base_key = &key[0..key.len() - 5];
+                let color_category = raw_entries
+                    .get(&format!("{}.category", base_key))
+                    .cloned()
+                    .unwrap_or_else(|| "info".to_string());
+                let display_category = raw_entries
+                    .get(&format!("{}.display_category", base_key))
+                    .cloned()
+                    .unwrap_or_else(|| color_category.clone());
+
+                entries.insert(
+                    base_key.to_string(),
+                    TranslationEntry {
+                        text: value.clone(),
+                        color_category: color_category.clone(),
+                        display_category: display_category.clone(),
+                    },
+                );
+
+                // ✅ SAMMLE neue Display-Mappings
+                new_display_mappings.insert(
+                    display_category.to_lowercase(),
+                    color_category.to_lowercase(),
+                );
+            }
+        }
+
+        Ok(Self {
+            entries,
+            global_display_to_color_map: new_display_mappings,
+        })
+    }
+
+    fn get_entry(&self, key: &str) -> Option<&TranslationEntry> {
+        self.entries.get(key)
+    }
+
+    fn get_color_category_for_display(&self, display_category: &str) -> String {
+        self.global_display_to_color_map
+            .get(&display_category.to_lowercase())
+            .cloned()
+            .unwrap_or_else(|| {
+                // ✅ SMART FALLBACK: Versuche ähnliche Display-Categories zu finden
+                self.find_similar_color_category(display_category)
+            })
+    }
+
+    // ✅ SMART FALLBACK: Finde ähnliche Color-Categories
+    fn find_similar_color_category(&self, display_category: &str) -> String {
+        let display_lower = display_category.to_lowercase();
+
+        // Versuche bekannte Patterns
+        if display_lower.contains("error") || display_lower.contains("fehler") {
+            return "error".to_string();
+        }
+        if display_lower.contains("warn") || display_lower.contains("warnung") {
+            return "warning".to_string();
+        }
+        if display_lower.contains("info") {
+            return "info".to_string();
+        }
+        if display_lower.contains("debug") {
+            return "debug".to_string();
+        }
+        if display_lower.contains("lang")
+            || display_lower.contains("sprache")
+            || display_lower.contains("language")
+        {
+            return "lang".to_string();
+        }
+        if display_lower.contains("version") {
+            return "version".to_string();
+        }
+
+        // Fallback
+        "info".to_string()
+    }
+
+    // ✅ MERGE neue Display-Mappings mit bestehenden
+    fn merge_display_mappings(&mut self, new_mappings: HashMap<String, String>) {
+        for (display, color) in new_mappings {
+            self.global_display_to_color_map.insert(display, color);
+        }
+    }
+}
+
+struct TranslationService {
+    current_language: String,
+    config: TranslationConfig,
+    cache: Mutex<HashMap<String, (String, AppColor)>>,
+}
+
+impl TranslationService {
+    fn new() -> Self {
+        Self {
+            current_language: DEFAULT_LANGUAGE.to_string(),
+            config: TranslationConfig::default(),
+            cache: Mutex::new(HashMap::new()),
+        }
+    }
+
+    fn get_translation_readonly(&self, key: &str, params: &[&str]) -> (String, AppColor) {
+        let cache_key = if params.is_empty() {
+            key.to_string()
+        } else {
+            format!("{}:{}", key, params.join(":"))
+        };
+
+        if let Ok(cache) = self.cache.lock() {
+            if let Some(cached) = cache.get(&cache_key) {
+                return cached.clone();
+            }
+        }
+
+        let (text, color) = if let Some(entry) = self.config.get_entry(key) {
+            entry.format(params)
+        } else {
+            (
+                format!("⚠️ Translation key not found: {}", key),
+                AppColor::from_any("warning"),
+            )
+        };
+
+        if let Ok(mut cache) = self.cache.lock() {
+            if cache.len() >= 1000 {
+                cache.clear();
+            }
+            cache.insert(cache_key, (text.clone(), color));
+        }
+
+        (text, color)
+    }
+
+    fn clear_cache(&self) {
+        if let Ok(mut cache) = self.cache.lock() {
+            cache.clear();
+        }
+    }
+
+    // ✅ NEUE METHODE: Merge Display-Mappings statt ersetzen
+    fn update_language(&mut self, new_config: TranslationConfig) {
+        // ✅ MERGE alte + neue Display-Mappings
+        self.config
+            .merge_display_mappings(new_config.global_display_to_color_map.clone());
+
+        // Update entries
+        self.config.entries = new_config.entries;
+
+        // NUR Text-Cache leeren, Display-Mapping bleibt
+        self.clear_cache();
+    }
+}
+
+lazy_static! {
+    static ref INSTANCE: RwLock<TranslationService> = RwLock::new(TranslationService::new());
+}
+
 pub async fn init() -> Result<()> {
     set_language_internal(DEFAULT_LANGUAGE, false)
 }
 
+pub fn set_language(lang: &str) -> Result<()> {
+    set_language_internal(lang, true)
+}
+
 fn set_language_internal(lang: &str, _save_config: bool) -> Result<()> {
     let lang = lang.to_lowercase();
-
-    if !is_language_available(&lang) {
+    if !AVAILABLE_LANGUAGES.iter().any(|&l| l == lang) {
         return Err(AppError::Translation(TranslationError::InvalidLanguage(
             lang.to_uppercase(),
         )));
     }
 
-    let config = match TranslationConfig::load(&lang) {
-        Ok(cfg) => cfg,
-        Err(e) => {
-            log::warn!("Fehler beim Laden der Sprachkonfiguration: {}", e);
-            TranslationConfig::default()
-        }
-    };
+    let config = TranslationConfig::load(&lang).unwrap_or_default();
+    let mut service = INSTANCE.write().unwrap();
+    service.current_language = lang;
 
-    let mut service = TranslationService::get_instance().write().unwrap();
-    service.current_language = lang.clone();
-    service.config = config;
-
-    // ✅ DAS IST DER FIX: Cache leeren beim Sprachwechsel!
-    if let Ok(mut cache) = service.cache.lock() {
-        cache.clear();
-        log::debug!(
-            "Translation cache cleared for language change to: {}",
-            lang.to_uppercase()
-        );
-    }
+    // ✅ SMART UPDATE: Merge statt Replace
+    service.update_language(config);
 
     Ok(())
 }
 
-// ✅ HAUPTFUNKTION: Text + Farbe in einem Aufruf
-pub fn get_translation_with_color(key: &str, params: &[&str]) -> (String, AppColor) {
-    // ✅ CLIPPY FIX: read() statt write() für read-only Operation
-    TranslationService::get_instance()
+pub fn get_translation(key: &str, params: &[&str]) -> String {
+    INSTANCE
         .read()
         .unwrap()
         .get_translation_readonly(key, params)
+        .0
 }
 
-// ✅ NUR TEXT (für normale Verwendung)
-pub fn get_translation(key: &str, params: &[&str]) -> String {
-    get_translation_with_color(key, params).0
-}
-
-// ✅ NUR FARBE (falls mal getrennt gebraucht)
-pub fn get_translation_color(key: &str) -> AppColor {
-    get_translation_with_color(key, &[]).1
-}
-
-// ✅ FERTIG FORMATIERTE NACHRICHT (für Logging)
-pub fn get_colored_translation(key: &str, params: &[&str]) -> String {
-    let (text, color) = get_translation_with_color(key, params);
-    color.format_message("", &text)
-}
-
-// ✅ COMMAND-SYSTEM MIT ASCII-MARKERN - ENHANCED I18N!
 pub fn get_command_translation(key: &str, params: &[&str]) -> String {
-    // ✅ CLIPPY FIX: read() statt write() für read-only Operation
-    let service = TranslationService::get_instance().read().unwrap();
-
+    let service = INSTANCE.read().unwrap();
     if let Some(entry) = service.config.get_entry(key) {
-        // ✅ NEUE METHODE: Verwendet display_category (übersetzt)
         entry.format_for_command(params)
     } else {
-        // Fallback mit Warning-Marker (auch uppercase)
         format!("[WARNING] ⚠️ Translation key not found: {}", key)
     }
 }
 
-// ✅ SPRACHE SETZEN
-pub fn set_language(lang: &str) -> Result<()> {
-    set_language_internal(lang, true)
-}
-
-// ✅ HILFSFUNKTIONEN - READ-ONLY OPERATIONEN
-fn is_language_available(lang: &str) -> bool {
-    AVAILABLE_LANGUAGES.iter().any(|&l| l == lang)
-}
-
 pub fn get_current_language() -> String {
-    // ✅ CLIPPY FIX: read() für read-only
-    TranslationService::get_instance()
-        .read()
-        .unwrap()
-        .current_language
-        .to_uppercase()
+    INSTANCE.read().unwrap().current_language.to_uppercase()
 }
 
 pub fn get_available_languages() -> Vec<String> {
@@ -117,23 +303,14 @@ pub fn get_available_languages() -> Vec<String> {
         .collect()
 }
 
-pub fn get_translation_stats() -> (usize, usize) {
-    // ✅ LIFETIME FIX: Werte sofort extrahieren
-    let service = TranslationService::get_instance().read().unwrap();
-    let stats = service.cache.lock().unwrap().stats();
-    stats
+pub fn get_color_category_for_display(display_category: &str) -> String {
+    INSTANCE
+        .read()
+        .unwrap()
+        .config
+        .get_color_category_for_display(display_category)
 }
 
 pub fn clear_translation_cache() {
-    // ✅ Cache clearing über read lock + cache mutex
-    let service = TranslationService::get_instance().read().unwrap();
-    service.cache.lock().unwrap().clear();
-}
-
-/// ✅ REVERSE-MAPPING: display_category → color_category (für Output-Widget)
-pub fn get_color_category_for_display(display_category: &str) -> String {
-    let service = TranslationService::get_instance().read().unwrap();
-    service
-        .config
-        .get_color_category_for_display(display_category)
+    INSTANCE.read().unwrap().clear_cache();
 }
