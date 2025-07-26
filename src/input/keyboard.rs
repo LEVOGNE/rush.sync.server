@@ -1,5 +1,7 @@
-// ## FILE: input/keyboard.rs - NUR KeyBinding struct entfernt
-// ## BEGIN ##
+// =====================================================
+// FILE: input/keyboard.rs - KOMPLETT BEREINIGT
+// =====================================================
+
 use crate::core::constants::DOUBLE_ESC_THRESHOLD;
 use crate::core::prelude::*;
 use crossterm::event::KeyModifiers;
@@ -13,8 +15,7 @@ pub enum KeyAction {
     InsertChar(char),
     Backspace,
     Delete,
-    HistoryPrevious,
-    HistoryNext,
+    // ✅ KOMPLETT ENTFERNT: HistoryPrevious und HistoryNext
     Submit,
     Cancel,
     Quit,
@@ -64,7 +65,7 @@ impl KeyboardManager {
             return KeyAction::NoAction;
         }
 
-        // ✅ DIREKTE Mappings - kein KeyBinding overhead
+        // ✅ BEREINIGT: Keine History-Mappings mehr
         match (key.code, key.modifiers) {
             (KeyCode::Left, KeyModifiers::NONE) => KeyAction::MoveLeft,
             (KeyCode::Right, KeyModifiers::NONE) => KeyAction::MoveRight,
@@ -78,8 +79,8 @@ impl KeyboardManager {
             (KeyCode::Char(c), KeyModifiers::NONE) => KeyAction::InsertChar(c),
             (KeyCode::Backspace, KeyModifiers::NONE) => KeyAction::Backspace,
             (KeyCode::Delete, KeyModifiers::NONE) => KeyAction::Delete,
-            (KeyCode::Up, KeyModifiers::NONE) => KeyAction::HistoryPrevious,
-            (KeyCode::Down, KeyModifiers::NONE) => KeyAction::HistoryNext,
+            // ✅ KOMPLETT ENTFERNT: Up/Down Mappings für History
+            // Jetzt werden Up/Down von HistoryKeyboardHandler abgefangen
             _ => KeyAction::NoAction,
         }
     }
@@ -90,4 +91,3 @@ impl Default for KeyboardManager {
         Self::new()
     }
 }
-// ## END ##

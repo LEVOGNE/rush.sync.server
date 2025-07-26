@@ -1,3 +1,9 @@
+// =====================================================
+// FILE: ui/screen.rs - FINAL VERSION (ohne Debug)
+// =====================================================
+
+use crate::commands::history::HistoryKeyboardHandler;
+use crate::commands::lang::LanguageManager;
 use crate::core::prelude::*;
 use crate::input::{
     event::{AppEvent, EventHandler},
@@ -19,7 +25,6 @@ use ratatui::{
 };
 use std::io::Stdout;
 
-// Type alias die vorher in prelude war
 pub type TerminalBackend = Terminal<CrosstermBackend<Stdout>>;
 
 pub struct ScreenManager<'a> {
@@ -31,6 +36,7 @@ pub struct ScreenManager<'a> {
     terminal_mgr: TerminalManager,
     events: EventHandler,
 }
+
 impl<'a> ScreenManager<'a> {
     pub async fn new(config: &'a Config) -> Result<Self> {
         let mut terminal_mgr = TerminalManager::new().await?;
@@ -40,11 +46,9 @@ impl<'a> ScreenManager<'a> {
         let terminal = Terminal::new(backend)?;
         let size = terminal.size()?;
 
-        // Berechne initiale Fensterhöhe
-        let initial_height = size.height.saturating_sub(4) as usize; // -4 für Margins und Input
+        let initial_height = size.height.saturating_sub(4) as usize;
         let mut message_manager = MessageManager::new(config);
 
-        // Setze initiale Fensterhöhe
         message_manager
             .scroll_state
             .update_dimensions(initial_height, 0);
@@ -60,75 +64,38 @@ impl<'a> ScreenManager<'a> {
         })
     }
 
-    // ✅ EINFACHE LÖSUNG: Nur diese Methode hinzufügen/ersetzen
-    async fn handle_language_save(&mut self, message: &str) -> Option<String> {
-        if message.starts_with("__SAVE_LANGUAGE__") {
-            let parts: Vec<&str> = message.split("__MESSAGE__").collect();
-            if parts.len() == 2 {
-                let lang_part = parts[0].replace("__SAVE_LANGUAGE__", "");
-                let display_message = parts[1];
-
-                // ✅ NUR DAS NÖTIGE - Cache wird automatisch in set_language geleert
-                if let Err(e) = crate::i18n::set_language(&lang_part) {
-                    return Some(format!("Fehler beim Setzen der Sprache: {}", e));
-                }
-
-                // ✅ CONFIG SPEICHERN
-                if let Err(e) = self.save_language_to_file_simple(&lang_part).await {
-                    log::error!("Failed to save language config: {}", e);
-                }
-
-                return Some(display_message.to_string());
-            }
-        }
-        None
-    }
-
-    // ✅ METHOD von ScreenManager
-    async fn save_language_to_file_simple(&self, lang: &str) -> Result<()> {
-        let config_paths = crate::setup::setup_toml::get_config_paths();
-
-        for path in config_paths {
-            if path.exists() {
-                let content = tokio::fs::read_to_string(&path)
-                    .await
-                    .map_err(AppError::Io)?;
-
-                // ✅ INTELLIGENT: Regex für saubere Ersetzung
-                let updated_content = if content.contains("[language]") {
-                    // Bestehende current = Zeile ersetzen
-                    content
-                        .lines()
-                        .map(|line| {
-                            if line.trim_start().starts_with("current =") {
-                                format!("current = \"{}\"", lang)
-                            } else {
-                                line.to_string()
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                } else {
-                    // Language section hinzufügen
-                    format!("{}\n\n[language]\ncurrent = \"{}\"", content.trim(), lang)
-                };
-
-                tokio::fs::write(&path, updated_content)
-                    .await
-                    .map_err(AppError::Io)?;
-                log::debug!("Language '{}' saved to config", lang.to_uppercase());
-                return Ok(());
-            }
-        }
-        Ok(())
-    }
-
-    // ✅ BESTEHENDE run() METHODE ERWEITERN:
     pub async fn run(&mut self) -> Result<()> {
         let result = loop {
             if let Some(event) = self.events.next().await {
                 match event {
                     AppEvent::Input(key) => {
+                        // ✅ 1. ZUERST: Prüfe ob es History-Keys sind (Up/Down ohne Modifier)
+                        if let Some(_history_action) =
+                            HistoryKeyboardHandler::get_history_action(&key)
+                        {
+                            // ✅ DIREKT an input_state weiterleiten
+                            if let Some(new_input) = self.input_state.handle_input(key) {
+                                if let Some(processed_message) =
+                                    LanguageManager::process_save_message(&new_input).await
+                                {
+                                    self.message_manager.add_message(processed_message);
+                                    continue;
+                                }
+
+                                self.message_manager.add_message(new_input.clone());
+
+                                if new_input.starts_with("__CLEAR__") {
+                                    self.message_manager.clear_messages();
+                                    continue;
+                                } else if new_input.starts_with("__EXIT__") {
+                                    self.events.shutdown().await;
+                                    break Ok(());
+                                }
+                            }
+                            continue; // ✅ WICHTIG: Keine weitere Verarbeitung!
+                        }
+
+                        // ✅ 2. NORMAL: Andere Keys normal verarbeiten
                         let mut keyboard_manager = KeyboardManager::new();
                         match keyboard_manager.get_action(&key) {
                             action @ (KeyAction::ScrollUp
@@ -138,18 +105,26 @@ impl<'a> ScreenManager<'a> {
                                 let window_height = self.get_content_height();
                                 self.message_manager.handle_scroll(action, window_height);
                             }
-                            KeyAction::NoAction => {}
+                            KeyAction::NoAction => {
+                                if let Some(new_input) = self.input_state.handle_input(key) {
+                                    if let Some(processed_message) =
+                                        LanguageManager::process_save_message(&new_input).await
+                                    {
+                                        self.message_manager.add_message(processed_message);
+                                        continue;
+                                    }
+                                    self.message_manager.add_message(new_input);
+                                }
+                            }
                             KeyAction::Submit => {
                                 if let Some(new_input) = self.input_state.handle_input(key) {
-                                    // ✅ PRÜFE AUF LANGUAGE-SAVE MESSAGE
                                     if let Some(processed_message) =
-                                        self.handle_language_save(&new_input).await
+                                        LanguageManager::process_save_message(&new_input).await
                                     {
                                         self.message_manager.add_message(processed_message);
                                         continue;
                                     }
 
-                                    // ✅ NORMALE MESSAGE-VERARBEITUNG
                                     self.message_manager.add_message(new_input.clone());
 
                                     if new_input.starts_with("__CLEAR__") {
@@ -167,9 +142,8 @@ impl<'a> ScreenManager<'a> {
                             }
                             _ => {
                                 if let Some(new_input) = self.input_state.handle_input(key) {
-                                    // ✅ AUCH HIER PRÜFEN
                                     if let Some(processed_message) =
-                                        self.handle_language_save(&new_input).await
+                                        LanguageManager::process_save_message(&new_input).await
                                     {
                                         self.message_manager.add_message(processed_message);
                                         continue;
@@ -204,9 +178,8 @@ impl<'a> ScreenManager<'a> {
         result
     }
 
-    // Neue Hilfsmethode zur Berechnung der verfügbaren Höhe
     fn get_content_height(&self) -> usize {
-        self.terminal_size.1.saturating_sub(4) as usize // -4 für Margins und Input-Bereich
+        self.terminal_size.1.saturating_sub(4) as usize
     }
 
     async fn process_pending_logs(&mut self) {
@@ -227,7 +200,6 @@ impl<'a> ScreenManager<'a> {
         self.terminal.draw(|frame| {
             let size = frame.size();
 
-            // Prüfe minimale Größe
             if size.width < 20 || size.height < 10 {
                 return;
             }
@@ -240,7 +212,6 @@ impl<'a> ScreenManager<'a> {
 
             let available_height = chunks[0].height as usize;
 
-            // Aktualisiere ScrollState vor dem Rendering
             self.message_manager
                 .scroll_state
                 .update_dimensions(available_height, self.message_manager.get_content_height());

@@ -1,4 +1,12 @@
+// =====================================================
+// FILE: input/input.rs - FINAL VERSION (ohne Debug)
+// =====================================================
+
 use crate::commands::handler::CommandHandler;
+use crate::commands::history::{
+    HistoryAction, HistoryConfig, HistoryEvent, HistoryEventHandler, HistoryKeyboardHandler,
+    HistoryManager,
+};
 use crate::core::prelude::*;
 use crate::input::keyboard::{KeyAction, KeyboardManager};
 use crate::ui::cursor::CursorState;
@@ -14,8 +22,7 @@ pub struct InputState<'a> {
     content: String,
     cursor: CursorState,
     prompt: String,
-    history: Vec<String>,
-    history_position: Option<usize>,
+    history_manager: HistoryManager,
     config: &'a Config,
     command_handler: CommandHandler,
     keyboard_manager: KeyboardManager,
@@ -24,12 +31,13 @@ pub struct InputState<'a> {
 
 impl<'a> InputState<'a> {
     pub fn new(prompt: &str, config: &'a Config) -> Self {
+        let history_config = HistoryConfig::from_main_config(config);
+
         Self {
             content: String::with_capacity(100),
             cursor: CursorState::new(),
             prompt: prompt.to_string(),
-            history: Vec::with_capacity(config.max_history),
-            history_position: None,
+            history_manager: HistoryManager::new(history_config.max_entries),
             config,
             command_handler: CommandHandler::new(),
             keyboard_manager: KeyboardManager::new(),
@@ -58,76 +66,19 @@ impl<'a> InputState<'a> {
         Ok(())
     }
 
-    pub fn add_to_history(&mut self, entry: String) {
-        // Ignoriere leere Einträge oder Duplikate
-        if entry.trim().is_empty() || self.history.contains(&entry) {
-            return;
-        }
-
-        // Wenn wir das Limit erreichen, entferne den ältesten Eintrag
-        if self.history.len() >= self.config.max_history {
-            self.history.remove(0);
-        }
-
-        self.history.push(entry);
-    }
-
-    /*    fn handle_history_navigation(&mut self, action: KeyAction) -> Option<String> {
-           match action {
-               KeyAction::HistoryPrevious => {
-                   if let Some(pos) = self.history_position {
-                       if pos > 0 {
-                           self.update_history_position(pos - 1);
-                       }
-                   } else if !self.history.is_empty() {
-                       self.update_history_position(self.history.len() - 1);
-                   }
-               }
-               KeyAction::HistoryNext => {
-                   if let Some(pos) = self.history_position {
-                       if pos < self.history.len() - 1 {
-                           self.update_history_position(pos + 1);
-                       } else {
-                           self.clear_history_position();
-                       }
-                   }
-               }
-               _ => {}
-           }
-           None
-       }
-
-       fn update_history_position(&mut self, pos: usize) {
-           if let Some(entry) = self.history.get(pos) {
-               self.content = entry.clone();
-               self.cursor.update_text_length(&self.content);
-               self.cursor.move_to_end();
-               self.history_position = Some(pos);
-           }
-       }
-    */
-    fn clear_history_position(&mut self) {
-        self.history_position = None;
-        self.content.clear();
-        self.cursor.move_to_start();
-    }
-
-    // ✅ NEUE METHODE: Reset für Sprachwechsel
     pub fn reset_for_language_change(&mut self) {
         self.waiting_for_exit_confirmation = false;
         self.content.clear();
-        self.history_position = None;
+        self.history_manager.reset_position();
         self.cursor.move_to_start();
         log::debug!("InputState reset for language change");
     }
 
-    // ✅ VERBESSERTE handle_exit_confirmation mit aktuellen Übersetzungen
     fn handle_exit_confirmation(&mut self, action: KeyAction) -> Option<String> {
         match action {
             KeyAction::Submit => {
                 self.waiting_for_exit_confirmation = false;
 
-                // ✅ IMMER AKTUELLE Übersetzungen abrufen
                 let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
                 let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
 
@@ -137,17 +88,16 @@ impl<'a> InputState<'a> {
                         Some("__EXIT__".to_string())
                     }
                     input if input == cancel_short.to_lowercase() => {
-                        self.clear_history_position();
+                        self.clear_input();
                         Some(crate::i18n::get_translation("system.input.cancelled", &[]))
                     }
                     _ => {
-                        self.clear_history_position();
+                        self.clear_input();
                         Some(crate::i18n::get_translation("system.input.cancelled", &[]))
                     }
                 }
             }
             KeyAction::InsertChar(c) => {
-                // ✅ IMMER AKTUELLE Übersetzungen abrufen
                 let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
                 let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
 
@@ -162,10 +112,50 @@ impl<'a> InputState<'a> {
                 None
             }
             KeyAction::Backspace | KeyAction::Delete | KeyAction::ClearLine => {
-                self.clear_history_position();
+                self.clear_input();
                 None
             }
             _ => None,
+        }
+    }
+
+    fn clear_input(&mut self) {
+        self.content.clear();
+        self.history_manager.reset_position();
+        self.cursor.move_to_start();
+    }
+
+    fn handle_history_action(&mut self, action: HistoryAction) -> Option<String> {
+        match action {
+            HistoryAction::NavigatePrevious => {
+                if let Some(entry) = self.history_manager.navigate_previous() {
+                    self.content = entry;
+                    self.cursor.update_text_length(&self.content);
+                    self.cursor.move_to_end();
+                }
+            }
+            HistoryAction::NavigateNext => {
+                if let Some(entry) = self.history_manager.navigate_next() {
+                    self.content = entry;
+                    self.cursor.update_text_length(&self.content);
+                    self.cursor.move_to_end();
+                }
+            }
+        }
+        None
+    }
+
+    fn handle_history_event(&mut self, event: HistoryEvent) -> String {
+        match event {
+            HistoryEvent::Clear => {
+                self.history_manager.clear();
+                HistoryEventHandler::create_clear_response()
+            }
+            HistoryEvent::Add(entry) => {
+                self.history_manager.add_entry(entry);
+                String::new()
+            }
+            _ => String::new(),
         }
     }
 
@@ -177,13 +167,19 @@ impl<'a> InputState<'a> {
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Option<String> {
+        // ✅ 1. PRÜFE ZUERST auf History-Actions
+        if let Some(history_action) = HistoryKeyboardHandler::get_history_action(&key) {
+            return self.handle_history_action(history_action);
+        }
+
+        // ✅ 2. NORMALE Keyboard-Actions
         let action = self.keyboard_manager.get_action(&key);
 
         if self.waiting_for_exit_confirmation {
             return self.handle_exit_confirmation(action);
         }
 
-        // Normale Eingabeverarbeitung
+        // ✅ 3. NORMALE Eingabeverarbeitung
         match action {
             KeyAction::Submit => {
                 if self.content.is_empty() {
@@ -191,17 +187,17 @@ impl<'a> InputState<'a> {
                 }
                 if self.validate_input(&self.content).is_ok() {
                     let content = std::mem::take(&mut self.content);
-                    self.add_to_history(content.clone());
+
+                    // ✅ HISTORY: Add to manager
+                    self.history_manager.add_entry(content.clone());
                     self.cursor.move_to_start();
-                    self.history_position = None;
 
                     let result = self.command_handler.handle_input(&content);
 
-                    // Prüfe auf History-Clear Befehl
-                    if result.message == "__CLEAR_HISTORY__" {
-                        self.history.clear();
-                        self.history_position = None;
-                        return Some("History wurde gelöscht".to_string());
+                    // ✅ PRÜFE auf History-Events
+                    if let Some(event) = HistoryEventHandler::handle_command_result(&result.message)
+                    {
+                        return Some(self.handle_history_event(event));
                     }
 
                     if result.message.starts_with("__CONFIRM_EXIT__") {
@@ -239,43 +235,6 @@ impl<'a> InputState<'a> {
             }
             KeyAction::MoveToEnd => {
                 self.cursor.move_to_end();
-                None
-            }
-            KeyAction::HistoryPrevious => {
-                if let Some(pos) = self.history_position {
-                    if pos > 0 {
-                        self.history_position = Some(pos - 1);
-                        if let Some(entry) = self.history.get(pos - 1) {
-                            self.content = entry.clone();
-                            self.cursor.update_text_length(&self.content);
-                            self.cursor.move_to_end();
-                        }
-                    }
-                } else if !self.history.is_empty() {
-                    self.history_position = Some(self.history.len() - 1);
-                    if let Some(entry) = self.history.last() {
-                        self.content = entry.clone();
-                        self.cursor.update_text_length(&self.content);
-                        self.cursor.move_to_end();
-                    }
-                }
-                None
-            }
-            KeyAction::HistoryNext => {
-                if let Some(pos) = self.history_position {
-                    if pos < self.history.len() - 1 {
-                        self.history_position = Some(pos + 1);
-                        if let Some(entry) = self.history.get(pos + 1) {
-                            self.content = entry.clone();
-                            self.cursor.update_text_length(&self.content);
-                            self.cursor.move_to_end();
-                        }
-                    } else {
-                        self.history_position = None;
-                        self.content.clear();
-                        self.cursor.move_to_start();
-                    }
-                }
                 None
             }
             KeyAction::Backspace => {
@@ -322,28 +281,23 @@ impl Widget for InputState<'_> {
         let cursor_pos = self.cursor.get_position();
         let mut spans = Vec::with_capacity(4);
 
-        // Prompt hinzufügen
         spans.push(Span::styled(
             &self.prompt,
             Style::default().fg(self.config.prompt.color.into()),
         ));
 
-        // Berechne die verfügbare Breite für den Text
-        // Wir subtrahieren die Länge des Prompts und einen Puffer von 4 Zeichen
         let prompt_width = self.prompt.graphemes(true).count();
         let available_width = self
             .config
             .input_max_length
             .saturating_sub(prompt_width + 4);
 
-        // Berechne den sichtbaren Bereich basierend auf der Cursor-Position
         let viewport_start = if cursor_pos > available_width {
-            cursor_pos - available_width + 10 // 10 Zeichen Puffer für bessere Lesbarkeit
+            cursor_pos - available_width + 10
         } else {
             0
         };
 
-        // Rendere den Text vor dem Cursor
         if cursor_pos > 0 {
             let visible_text = if viewport_start < cursor_pos {
                 graphemes[viewport_start..cursor_pos].join("")
@@ -357,7 +311,6 @@ impl Widget for InputState<'_> {
             ));
         }
 
-        // Cursor-Zeichen rendern
         let cursor_char = graphemes.get(cursor_pos).map_or(" ", |&c| c);
         let cursor_style = if self.cursor.is_visible() {
             Style::default()
@@ -368,7 +321,6 @@ impl Widget for InputState<'_> {
         };
         spans.push(Span::styled(cursor_char, cursor_style));
 
-        // Text nach dem Cursor
         if cursor_pos < graphemes.len() {
             let remaining_width = available_width.saturating_sub(cursor_pos - viewport_start);
             let end_pos = (cursor_pos + 1 + remaining_width).min(graphemes.len());

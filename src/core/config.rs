@@ -1,4 +1,7 @@
-// core/config.rs - KOMPLETT INTERNATIONALISIERT
+// =====================================================
+// FILE: core/config.rs - BEREINIGT nach History-Refactoring
+// =====================================================
+
 use crate::core::constants::{DEFAULT_BUFFER_SIZE, DEFAULT_POLL_RATE};
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
@@ -18,7 +21,7 @@ struct GeneralConfig {
     max_messages: usize,
     typewriter_delay: u64,
     input_max_length: usize,
-    max_history: usize,
+    max_history: usize, // ✅ BLEIBT für Rückwärtskompatibilität
     poll_rate: u64,
 }
 
@@ -47,7 +50,7 @@ pub struct Config {
     pub max_messages: usize,
     pub typewriter_delay: Duration,
     pub input_max_length: usize,
-    pub max_history: usize,
+    pub max_history: usize, // ✅ BLEIBT - wird von HistoryConfig verwendet
     pub poll_rate: Duration,
     pub theme: Theme,
     pub prompt: Prompt,
@@ -73,7 +76,6 @@ impl Config {
         Self::load_with_messages(true).await
     }
 
-    // ✅ NEUE METHODE: Load mit/ohne Messages
     pub async fn load_with_messages(show_messages: bool) -> Result<Self> {
         let mut last_error = None;
 
@@ -81,9 +83,8 @@ impl Config {
             if path.exists() {
                 match Self::from_file(&path).await {
                     Ok(config) => {
-                        // ✅ SPRACHE ZUERST SETZEN
-                        if let Err(e) = crate::i18n::set_language(&config.language) {
-                            // ✅ i18n: Language set failed warning
+                        // ✅ SPRACHE DELEGIERT an LanguageConfig
+                        if let Err(e) = crate::commands::lang::config::LanguageConfig::load_and_apply_from_config(&config).await {
                             if show_messages {
                                 log::warn!(
                                     "{}",
@@ -95,7 +96,6 @@ impl Config {
                             }
                         }
 
-                        // ✅ DANN Debug-Message in korrekter Sprache (nur wenn gewünscht)
                         if show_messages {
                             log::debug!(
                                 "{}",
@@ -105,7 +105,6 @@ impl Config {
                                 )
                             );
 
-                            // ✅ WILLKOMMEN-MESSAGE nach Sprach-Setup (nur wenn gewünscht)
                             log::info!(
                                 "{}",
                                 crate::i18n::get_command_translation(
@@ -125,58 +124,53 @@ impl Config {
             }
         }
 
-        // ✅ i18n: No existing config message (nur wenn gewünscht)
         if show_messages {
             log::info!("{}", get_translation("system.config.no_existing", &[]));
         }
 
         match crate::setup::setup_toml::ensure_config_exists().await {
-            Ok(config_path) => match Self::from_file(&config_path).await {
-                Ok(mut config) => {
-                    // ✅ i18n: New default config message (nur wenn gewünscht)
-                    if show_messages {
-                        let plain_msg = get_translation(
-                            "system.config.new_default",
-                            &[&config_path.display().to_string()],
-                        );
-                        log::info!("{}", plain_msg);
-                        config.debug_info = Some(plain_msg);
+            Ok(config_path) => {
+                match Self::from_file(&config_path).await {
+                    Ok(mut config) => {
+                        if show_messages {
+                            let plain_msg = get_translation(
+                                "system.config.new_default",
+                                &[&config_path.display().to_string()],
+                            );
+                            log::info!("{}", plain_msg);
+                            config.debug_info = Some(plain_msg);
 
-                        // ✅ WILLKOMMEN-MESSAGE nach Sprach-Setup (nur wenn gewünscht)
-                        log::info!(
-                            "{}",
-                            crate::i18n::get_command_translation(
-                                "system.startup.version",
-                                &[crate::core::constants::VERSION]
-                            )
-                        );
+                            log::info!(
+                                "{}",
+                                crate::i18n::get_command_translation(
+                                    "system.startup.version",
+                                    &[crate::core::constants::VERSION]
+                                )
+                            );
+                        }
+
+                        let _ = crate::commands::lang::config::LanguageConfig::load_and_apply_from_config(&config).await;
+
+                        Ok(config)
                     }
-
-                    // ✅ SPRACHE SETZEN
-                    let _ = crate::i18n::set_language(&config.language);
-
-                    Ok(config)
-                }
-                Err(e) => {
-                    // ✅ i18n: Config load error (nur wenn gewünscht)
-                    if show_messages {
-                        log::error!(
-                            "{}",
-                            get_translation("system.config.load_error", &[&format!("{:?}", e)])
-                        );
+                    Err(e) => {
+                        if show_messages {
+                            log::error!(
+                                "{}",
+                                get_translation("system.config.load_error", &[&format!("{:?}", e)])
+                            );
+                        }
+                        Err(e)
                     }
-                    Err(e)
                 }
-            },
+            }
             Err(e) => {
-                // ✅ i18n: Setup failed error (nur wenn gewünscht)
                 if show_messages {
                     log::error!(
                         "{}",
                         get_translation("system.config.setup_failed", &[&format!("{:?}", e)])
                     );
                     if let Some(last_e) = last_error {
-                        // ✅ i18n: Last error debug (nur wenn gewünscht)
                         log::debug!(
                             "{}",
                             get_translation(
@@ -204,18 +198,13 @@ impl Config {
             max_messages: config_file.general.max_messages,
             typewriter_delay: Duration::from_millis(config_file.general.typewriter_delay),
             input_max_length: config_file.general.input_max_length,
-            max_history: config_file.general.max_history,
+            max_history: config_file.general.max_history, // ✅ BLEIBT für HistoryConfig
             poll_rate: Duration::from_millis(config_file.general.poll_rate),
             theme: Theme::from_config(&config_file.theme)?,
             prompt: Prompt::from_config(&config_file.prompt)?,
             language: config_file.language.current,
             debug_info: None,
         })
-    }
-
-    pub async fn set_language(&mut self, lang: &str) -> Result<()> {
-        self.language = lang.to_lowercase();
-        self.save().await
     }
 
     pub async fn save(&self) -> Result<()> {
@@ -225,7 +214,7 @@ impl Config {
                     max_messages: self.max_messages,
                     typewriter_delay: self.typewriter_delay.as_millis() as u64,
                     input_max_length: self.input_max_length,
-                    max_history: self.max_history,
+                    max_history: self.max_history, // ✅ BLEIBT
                     poll_rate: self.poll_rate.as_millis() as u64,
                 },
                 theme: ThemeConfig {
@@ -291,7 +280,7 @@ impl Default for Config {
             max_messages: DEFAULT_BUFFER_SIZE,
             typewriter_delay: Duration::from_millis(50),
             input_max_length: DEFAULT_BUFFER_SIZE,
-            max_history: 30,
+            max_history: 30, // ✅ BLEIBT - wird von HistoryConfig verwendet
             poll_rate: Duration::from_millis(DEFAULT_POLL_RATE),
             theme: Theme::default(),
             prompt: Prompt::default(),
