@@ -1,4 +1,4 @@
-// src/i18n/mod.rs - MIT ASCII-MARKERN
+// src/i18n/mod.rs - CLIPPY WARNING BEHOBEN
 mod cache;
 mod error;
 mod langs;
@@ -45,10 +45,11 @@ fn set_language_internal(lang: &str, _save_config: bool) -> Result<()> {
 
 // ✅ HAUPTFUNKTION: Text + Farbe in einem Aufruf
 pub fn get_translation_with_color(key: &str, params: &[&str]) -> (String, AppColor) {
+    // ✅ CLIPPY FIX: read() statt write() für read-only Operation
     TranslationService::get_instance()
-        .write()
+        .read()
         .unwrap()
-        .get_translation(key, params)
+        .get_translation_readonly(key, params)
 }
 
 // ✅ NUR TEXT (für normale Verwendung)
@@ -67,17 +68,17 @@ pub fn get_colored_translation(key: &str, params: &[&str]) -> String {
     color.format_message("", &text)
 }
 
-// ✅ COMMAND-SYSTEM MIT ASCII-MARKERN - CRASH-SAFE!
+// ✅ COMMAND-SYSTEM MIT ASCII-MARKERN - ENHANCED I18N!
 pub fn get_command_translation(key: &str, params: &[&str]) -> String {
-    let service = TranslationService::get_instance().write().unwrap();
+    // ✅ CLIPPY FIX: read() statt write() für read-only Operation
+    let service = TranslationService::get_instance().read().unwrap();
 
     if let Some(entry) = service.config.get_entry(key) {
-        let (text, _color) = entry.format(params);
-        // ✅ ASCII-MARKER - Kein Unicode-Crash!
-        format!("[{}] {}", entry.category, text)
+        // ✅ NEUE METHODE: Verwendet display_category (übersetzt)
+        entry.format_for_command(params)
     } else {
-        // Fallback mit Warning-Marker
-        format!("[warning] ⚠️ Translation key not found: {}", key)
+        // Fallback mit Warning-Marker (auch uppercase)
+        format!("[WARNING] ⚠️ Translation key not found: {}", key)
     }
 }
 
@@ -86,12 +87,13 @@ pub fn set_language(lang: &str) -> Result<()> {
     set_language_internal(lang, true)
 }
 
-// ✅ HILFSFUNKTIONEN
+// ✅ HILFSFUNKTIONEN - READ-ONLY OPERATIONEN
 fn is_language_available(lang: &str) -> bool {
     AVAILABLE_LANGUAGES.iter().any(|&l| l == lang)
 }
 
 pub fn get_current_language() -> String {
+    // ✅ CLIPPY FIX: read() für read-only
     TranslationService::get_instance()
         .read()
         .unwrap()
@@ -107,17 +109,22 @@ pub fn get_available_languages() -> Vec<String> {
 }
 
 pub fn get_translation_stats() -> (usize, usize) {
-    TranslationService::get_instance()
-        .read()
-        .unwrap()
-        .cache
-        .stats()
+    // ✅ LIFETIME FIX: Werte sofort extrahieren
+    let service = TranslationService::get_instance().read().unwrap();
+    let stats = service.cache.lock().unwrap().stats();
+    stats
 }
 
 pub fn clear_translation_cache() {
-    TranslationService::get_instance()
-        .write()
-        .unwrap()
-        .cache
-        .clear();
+    // ✅ Cache clearing über read lock + cache mutex
+    let service = TranslationService::get_instance().read().unwrap();
+    service.cache.lock().unwrap().clear();
+}
+
+/// ✅ REVERSE-MAPPING: display_category → color_category (für Output-Widget)
+pub fn get_color_category_for_display(display_category: &str) -> String {
+    let service = TranslationService::get_instance().read().unwrap();
+    service
+        .config
+        .get_color_category_for_display(display_category)
 }

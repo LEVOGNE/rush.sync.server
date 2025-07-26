@@ -1,4 +1,4 @@
-// src/commands/handler.rs
+// src/commands/handler.rs - UNKNOWN COMMAND FIX
 use crate::commands::clear::ClearCommand;
 use crate::commands::exit::exit::ExitCommand;
 use crate::commands::history::HistoryCommand;
@@ -111,8 +111,9 @@ impl CommandHandler {
                 },
             }
         } else {
+            // ✅ FIX: Verwende get_command_translation für [ERROR] Prefix
             CommandResult {
-                message: i18n::get_translation("system.commands.unknown", &[input]),
+                message: i18n::get_command_translation("system.commands.unknown", &[input]),
                 success: false,
                 should_exit: false,
             }

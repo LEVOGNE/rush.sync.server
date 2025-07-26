@@ -1,4 +1,4 @@
-// i18n/cache.rs - ANGEPASST
+// i18n/cache.rs - APPCOLOR ANGEPASST
 use crate::ui::color::AppColor;
 use std::collections::HashMap;
 

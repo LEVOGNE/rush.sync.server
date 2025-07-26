@@ -1,3 +1,4 @@
+// output/logging.rs - VEREINFACHT UND REPARIERT
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
 use lazy_static::lazy_static;
@@ -44,7 +45,6 @@ pub struct LogMessage {
 }
 
 impl LogMessage {
-    /// ✅ Wichtig: bleibt für alle bisherigen Aufrufe!
     pub fn new(level: Level, message: String) -> Self {
         Self {
             level,
@@ -53,18 +53,19 @@ impl LogMessage {
         }
     }
 
-    /// ✅ Doppeltes [INFO]/[DEBUG] verhindern
+    /// ✅ VEREINFACHT: Kein doppeltes Level mehr!
     pub fn formatted(&self) -> String {
         let color = AppColor::from_log_level(self.level);
 
-        let msg = self.message.trim_start();
-        let level_str = format!("[{}]", self.level);
+        // Prüfe ob Level bereits im Message enthalten ist
+        let level_prefix = format!("[{}]", self.level);
 
-        if msg.starts_with(&level_str) {
-            // Schon Level enthalten → nur einfärben
-            color.format_message("", msg)
+        if self.message.starts_with(&level_prefix) {
+            // Schon formatiert -> nur einfärben
+            color.format_message("", &self.message)
         } else {
-            color.format_message(&self.level.to_string(), msg)
+            // Level hinzufügen
+            color.format_message(&self.level.to_string(), &self.message)
         }
     }
 }
@@ -95,7 +96,10 @@ impl log::Log for AppLogger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            if let Err(e) = Self::add_message(record.level(), record.args().to_string()) {
+            // ✅ WICHTIG: Hier wird NUR die reine Message übertragen
+            let clean_message = record.args().to_string();
+
+            if let Err(e) = Self::add_message(record.level(), clean_message) {
                 eprintln!(
                     "{}",
                     get_translation("system.logging.error", &[&e.to_string()])

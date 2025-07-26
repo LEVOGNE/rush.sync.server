@@ -1,10 +1,10 @@
-// i18n/service.rs - VOLLSTÄNDIG
+// i18n/service.rs - THREAD-SAFE CACHE
 use super::DEFAULT_LANGUAGE;
 use crate::i18n::cache::TranslationCache;
 use crate::i18n::types::TranslationConfig;
 use crate::ui::color::AppColor;
 use lazy_static::lazy_static;
-use std::sync::RwLock;
+use std::sync::{Mutex, RwLock};
 
 lazy_static! {
     static ref INSTANCE: RwLock<TranslationService> = RwLock::new(TranslationService::new());
@@ -13,7 +13,8 @@ lazy_static! {
 pub struct TranslationService {
     pub(crate) current_language: String,
     pub(crate) config: TranslationConfig,
-    pub(crate) cache: TranslationCache,
+    // ✅ THREAD-SAFE CACHE mit eigenem Mutex
+    pub(crate) cache: Mutex<TranslationCache>,
 }
 
 impl TranslationService {
@@ -21,7 +22,7 @@ impl TranslationService {
         Self {
             current_language: DEFAULT_LANGUAGE.to_string(),
             config: TranslationConfig::default(),
-            cache: TranslationCache::new(1000),
+            cache: Mutex::new(TranslationCache::new(1000)),
         }
     }
 
@@ -29,14 +30,18 @@ impl TranslationService {
         &INSTANCE
     }
 
-    // ✅ DIREKTE String + AppColor Rückgabe
-    pub fn get_translation(&mut self, key: &str, params: &[&str]) -> (String, AppColor) {
+    // ✅ NEUE METHODE: NUR LESEN (für read locks)
+    pub fn get_translation_readonly(&self, key: &str, params: &[&str]) -> (String, AppColor) {
         let cache_key = self.build_cache_key(key, params);
 
-        if let Some(cached) = self.cache.get(&cache_key) {
-            return cached;
+        // ✅ Cache-Check (thread-safe)
+        if let Ok(mut cache) = self.cache.lock() {
+            if let Some(cached) = cache.get(&cache_key) {
+                return cached;
+            }
         }
 
+        // ✅ Translation berechnen
         let (text, color) = if let Some(entry) = self.config.get_entry(key) {
             entry.format(params)
         } else {
@@ -47,7 +52,11 @@ impl TranslationService {
             )
         };
 
-        self.cache.insert(cache_key, (text.clone(), color));
+        // ✅ Cache-Update (thread-safe)
+        if let Ok(mut cache) = self.cache.lock() {
+            cache.insert(cache_key, (text.clone(), color));
+        }
+
         (text, color)
     }
 

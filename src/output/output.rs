@@ -1,7 +1,6 @@
+// output/output.rs - KOMPLETT NEU UND SAUBER
 use crate::core::prelude::*;
-use crate::i18n;
 use crate::ui::color::AppColor;
-use log::Level;
 use ratatui::{
     style::Style,
     text::{Line, Span},
@@ -10,105 +9,111 @@ use ratatui::{
 use strip_ansi_escapes::strip;
 use unicode_segmentation::UnicodeSegmentation;
 
-fn extract_log_level(text: &str) -> Option<Level> {
-    if let Some(start) = text.find('[') {
-        if let Some(end) = text[start..].find(']') {
-            let level_str = &text[start + 1..start + end];
-            match level_str {
-                "DEBUG" => Some(Level::Debug),
-                "INFO" => Some(Level::Info),
-                "WARN" => Some(Level::Warn),
-                "ERROR" => Some(Level::Error),
-                "TRACE" => Some(Level::Trace),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    }
-}
-
-// ✅ EINFACH: Unterstützt BEIDE Marker-Formate ohne Multi-line Komplexität
-fn extract_category_and_clean_text(message: &str) -> (Option<String>, String) {
-    let stripped = String::from_utf8_lossy(&strip(message).unwrap_or_default()).into_owned();
-
-    // ✅ FORMAT 1: [CAT:category]text
-    if let Some(start) = stripped.find("[CAT:") {
-        if let Some(end_pos) = stripped[start..].find(']') {
-            let end = start + end_pos;
-            if end > start + 5 {
-                let category = stripped[start + 5..end].to_string();
-                let full_marker = &stripped[start..=end];
-                let clean_text = stripped.replacen(full_marker, "", 1);
-                return (Some(category), clean_prefixes(clean_text));
-            }
-        }
-    }
-
-    // ✅ FORMAT 2: [category]text (für Command-Ausgaben)
-    if let Some(start) = stripped.find('[') {
-        if let Some(end_pos) = stripped[start..].find(']') {
-            let end = start + end_pos;
-            if end > start + 1 {
-                let category = stripped[start + 1..end].to_string();
-
-                // ✅ Nur bekannte Categories akzeptieren
-                if is_known_category(&category) {
-                    let full_marker = &stripped[start..=end];
-                    let clean_text = stripped.replacen(full_marker, "", 1);
-                    return (Some(category), clean_prefixes(clean_text));
-                }
-            }
-        }
-    }
-
-    (None, clean_prefixes(stripped))
-}
-
-// ✅ HILFSFUNKTION: Bekannte Categories
-fn is_known_category(category: &str) -> bool {
-    matches!(
-        category.to_lowercase().as_str(),
-        "lang" | "version" | "warning" | "error" | "info" | "debug" | "trace"
-    )
-}
-
-// ✅ HILFSFUNKTION: Prefix-Bereinigung
-fn clean_prefixes(text: String) -> String {
-    let mut clean_text = text;
-    if clean_text.starts_with("__CONFIRM_EXIT__") {
-        clean_text = clean_text.replace("__CONFIRM_EXIT__", "");
-    }
-    if clean_text.starts_with("__CLEAR__") {
-        clean_text = clean_text.replace("__CLEAR__", "");
-    }
-    clean_text.trim().to_string()
-}
-
+/// ✅ HAUPTFUNKTION: Bestimmt Farbe basierend auf Message-Inhalt
 fn get_message_color(message: &str, config: &Config) -> AppColor {
-    let (category_opt, clean_text) = extract_category_and_clean_text(message);
+    let clean_message = clean_ansi_codes(message);
 
-    // 1. Use category marker if present
-    if let Some(category) = category_opt {
-        return AppColor::from_category_str(&category);
+    // 1. Command-Category Marker: [category] (alle Categories, dann Mapping)
+    if let Some(display_category) = extract_any_category_marker(&clean_message) {
+        // ✅ Hole color_category aus JSON-Mapping
+        let color_category = crate::i18n::get_color_category_for_display(&display_category);
+        return AppColor::from_category_str(&color_category);
     }
 
-    // 2. Check for unknown commands
-    if message.starts_with(&i18n::get_translation("system.commands.unknown", &[""])) {
-        return i18n::get_translation_color("system.commands.unknown");
+    // 2. Standard Log-Level: [DEBUG], [INFO], [WARN], [ERROR], [TRACE]
+    if let Some(level_str) = extract_log_level_marker(&clean_message) {
+        return match level_str.as_str() {
+            "DEBUG" => AppColor::from_category_str("debug"),
+            "INFO" => AppColor::from_category_str("info"),
+            "WARN" => AppColor::from_category_str("warning"),
+            "ERROR" => AppColor::from_category_str("error"),
+            "TRACE" => AppColor::from_category_str("trace"),
+            _ => config.theme.output_text,
+        };
     }
 
-    // 3. Check standard log levels
-    if let Some(level) = extract_log_level(&clean_text) {
-        return AppColor::from_log_level(level);
+    // 3. Spezielle Nachrichten
+    if clean_message.contains("Translation key not found") {
+        return AppColor::from_category_str("warning");
     }
 
-    // 4. Fallback: theme color
+    if clean_message.contains("Unknown command") || clean_message.contains("Unbekannter Befehl") {
+        return AppColor::from_category_str("error");
+    }
+
+    // 4. Fallback: Theme-Standard
     config.theme.output_text
 }
 
+/// ✅ HILFSFUNKTION: ANSI-Codes entfernen
+fn clean_ansi_codes(message: &str) -> String {
+    String::from_utf8_lossy(&strip(message.as_bytes()).unwrap_or_default()).into_owned()
+}
+
+/// ✅ HILFSFUNKTION: Alle Category-Marker extrahieren (für JSON-Mapping)
+fn extract_any_category_marker(message: &str) -> Option<String> {
+    // Format: [CAT:category]
+    if let Some(start) = message.find("[CAT:") {
+        if let Some(end) = message[start..].find(']') {
+            let category = &message[start + 5..start + end];
+            return Some(category.to_lowercase());
+        }
+    }
+
+    // Format: [category] - alle Categories akzeptieren
+    if let Some(start) = message.find('[') {
+        if let Some(end) = message[start..].find(']') {
+            let potential_category = &message[start + 1..start + end];
+
+            // ✅ Ignoriere nur Standard-Log-Level (die werden separat behandelt)
+            let upper_cat = potential_category.to_uppercase();
+            if !matches!(
+                upper_cat.as_str(),
+                "DEBUG" | "INFO" | "WARN" | "ERROR" | "TRACE"
+            ) {
+                return Some(potential_category.to_lowercase());
+            }
+        }
+    }
+
+    None
+}
+
+/// ✅ HILFSFUNKTION: Log-Level Marker extrahieren
+fn extract_log_level_marker(message: &str) -> Option<String> {
+    if let Some(start) = message.find('[') {
+        if let Some(end) = message[start..].find(']') {
+            let level_str = &message[start + 1..start + end];
+
+            // Standard-Log-Level akzeptieren (case-insensitive, return uppercase)
+            if matches!(
+                level_str.to_uppercase().as_str(),
+                "DEBUG" | "INFO" | "WARN" | "ERROR" | "TRACE"
+            ) {
+                return Some(level_str.to_uppercase());
+            }
+        }
+    }
+
+    None
+}
+
+/// ✅ HILFSFUNKTION: Message für Anzeige bereinigen
+fn clean_message_for_display(message: &str) -> String {
+    let mut clean = clean_ansi_codes(message);
+
+    // Entferne spezielle Prefixes
+    if clean.starts_with("__CONFIRM_EXIT__") {
+        clean = clean.replace("__CONFIRM_EXIT__", "");
+    }
+    if clean.starts_with("__CLEAR__") {
+        clean = clean.replace("__CLEAR__", "");
+    }
+
+    clean.trim().to_string()
+}
+
+/// ✅ HAUPTFUNKTION: Widget erstellen
 pub fn create_output_widget<'a>(
     messages: &'a [(&'a String, usize)],
     available_height: u16,
@@ -128,37 +133,41 @@ pub fn create_output_widget<'a>(
             .wrap(Wrap { trim: true });
     }
 
+    // Berechne sichtbare Nachrichten
     let start_idx = if messages.len() > max_visible_messages {
         messages.len() - max_visible_messages
     } else {
         0
     };
     let visible_messages = &messages[start_idx..];
-    let visible_len = visible_messages.len();
 
+    // Verarbeite jede Nachricht
     for (idx, (message, current_length)) in visible_messages.iter().enumerate() {
-        let is_last_message = idx == visible_len - 1;
-        let (_, clean_text) = extract_category_and_clean_text(message);
+        let is_last_message = idx == visible_messages.len() - 1;
+        let clean_message = clean_message_for_display(message);
 
-        let text = if is_last_message {
-            let graphemes: Vec<&str> = clean_text.graphemes(true).collect();
+        // Typewriter-Effekt nur für letzte Nachricht
+        let display_text = if is_last_message {
+            let graphemes: Vec<&str> = clean_message.graphemes(true).collect();
             graphemes
                 .iter()
                 .take(*current_length)
                 .copied()
                 .collect::<String>()
         } else {
-            clean_text
+            clean_message
         };
 
+        // Bestimme Farbe basierend auf Original-Message
         let color = get_message_color(message, config);
 
         lines.push(Line::from(vec![Span::styled(
-            text,
+            display_text,
             Style::default().fg(color.into()),
         )]));
     }
 
+    // Fülle verbleibenden Platz
     let remaining_space = max_visible_messages.saturating_sub(lines.len());
     for _ in 0..remaining_space {
         lines.push(Line::from(vec![Span::raw("")]));
