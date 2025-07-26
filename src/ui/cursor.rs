@@ -1,5 +1,4 @@
-// ## FILE: ui/cursor.rs - MINIMAL OPTIMIERT
-// ## BEGIN ##
+// ui/cursor.rs - KORRIGIERT: Robuste Bounds-Checks
 use std::time::{Duration, Instant};
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -25,6 +24,7 @@ impl CursorState {
     pub fn get_position(&self) -> usize {
         self.position
     }
+
     pub fn is_visible(&self) -> bool {
         self.visible
     }
@@ -43,6 +43,7 @@ impl CursorState {
 
     pub fn update_text_length(&mut self, text: &str) {
         self.text_length = text.graphemes(true).count();
+        // ✅ KRITISCH: Position immer korrekt bounded
         self.position = self.position.min(self.text_length);
         self.show_cursor();
     }
@@ -55,6 +56,7 @@ impl CursorState {
     }
 
     pub fn move_right(&mut self) {
+        // ✅ ZUSÄTZLICHER CHECK: Nie über text_length hinaus
         if self.position < self.text_length {
             self.position += 1;
             self.show_cursor();
@@ -72,6 +74,11 @@ impl CursorState {
     }
 
     pub fn get_next_byte_position(&self, text: &str) -> usize {
+        // ✅ SAFETY: Leerer Text check
+        if text.is_empty() {
+            return 0;
+        }
+
         text.grapheme_indices(true)
             .take(self.position + 1)
             .last()
@@ -80,25 +87,46 @@ impl CursorState {
     }
 
     pub fn get_byte_position(&self, text: &str) -> usize {
+        // ✅ SAFETY: Mehrfache Checks
         if text.is_empty() || self.position == 0 {
             return 0;
         }
 
+        // ✅ SAFETY: Position darf nie größer als text_length sein
+        let safe_position = self.position.min(text.graphemes(true).count());
+        if safe_position == 0 {
+            return 0;
+        }
+
         text.grapheme_indices(true)
-            .nth(self.position.saturating_sub(1))
+            .nth(safe_position.saturating_sub(1))
             .map(|(pos, grapheme)| pos + grapheme.len())
             .unwrap_or(text.len())
     }
 
     pub fn get_prev_byte_position(&self, text: &str) -> usize {
+        // ✅ SAFETY: Umfassende Checks
         if text.is_empty() || self.position <= 1 {
             return 0;
         }
 
+        // ✅ SAFETY: Position validieren
+        let safe_position = self.position.min(text.graphemes(true).count());
+        if safe_position <= 1 {
+            return 0;
+        }
+
         text.grapheme_indices(true)
-            .nth(self.position.saturating_sub(2))
+            .nth(safe_position.saturating_sub(2))
             .map(|(pos, grapheme)| pos + grapheme.len())
             .unwrap_or(0)
+    }
+
+    // ✅ NEU: Reset für leeren Text
+    pub fn reset_for_empty_text(&mut self) {
+        self.position = 0;
+        self.text_length = 0;
+        self.show_cursor();
     }
 }
 
@@ -107,4 +135,3 @@ impl Default for CursorState {
         Self::new()
     }
 }
-// ## END ##

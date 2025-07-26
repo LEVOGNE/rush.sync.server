@@ -179,7 +179,7 @@ impl<'a> InputState<'a> {
             return self.handle_exit_confirmation(action);
         }
 
-        // ✅ 3. NORMALE Eingabeverarbeitung
+        // ✅ 3. NORMALE Eingabeverarbeitung mit SAFETY CHECKS
         match action {
             KeyAction::Submit => {
                 if self.content.is_empty() {
@@ -188,13 +188,13 @@ impl<'a> InputState<'a> {
                 if self.validate_input(&self.content).is_ok() {
                     let content = std::mem::take(&mut self.content);
 
-                    // ✅ HISTORY: Add to manager
+                    // ✅ SAFETY: Cursor für leeren Text zurücksetzen
+                    self.cursor.reset_for_empty_text();
+
                     self.history_manager.add_entry(content.clone());
-                    self.cursor.move_to_start();
 
                     let result = self.command_handler.handle_input(&content);
 
-                    // ✅ PRÜFE auf History-Events
                     if let Some(event) = HistoryEventHandler::handle_command_result(&result.message)
                     {
                         return Some(self.handle_history_event(event));
@@ -238,25 +238,56 @@ impl<'a> InputState<'a> {
                 None
             }
             KeyAction::Backspace => {
+                // ✅ SAFETY: Umfassende Checks vor Range-Operation
                 if self.content.is_empty() || self.cursor.get_position() == 0 {
                     return None;
                 }
+
                 let current_byte_pos = self.cursor.get_byte_position(&self.content);
                 let prev_byte_pos = self.cursor.get_prev_byte_position(&self.content);
+
+                // ✅ SAFETY: Range-Validierung vor replace_range
+                if prev_byte_pos >= current_byte_pos || current_byte_pos > self.content.len() {
+                    // Fallback: Cursor zurücksetzen
+                    self.cursor.update_text_length(&self.content);
+                    return None;
+                }
 
                 self.cursor.move_left();
                 self.content
                     .replace_range(prev_byte_pos..current_byte_pos, "");
                 self.cursor.update_text_length(&self.content);
+
+                // ✅ SAFETY: Wenn jetzt leer, Cursor komplett zurücksetzen
+                if self.content.is_empty() {
+                    self.cursor.reset_for_empty_text();
+                }
                 None
             }
             KeyAction::Delete => {
-                if self.cursor.get_position() < self.content.graphemes(true).count() {
-                    let current_byte_pos = self.cursor.get_byte_position(&self.content);
-                    let next_byte_pos = self.cursor.get_next_byte_position(&self.content);
-                    self.content
-                        .replace_range(current_byte_pos..next_byte_pos, "");
+                // ✅ SAFETY: Validierung vor Delete-Operation
+                let text_length = self.content.graphemes(true).count();
+                if self.cursor.get_position() >= text_length || text_length == 0 {
+                    return None;
+                }
+
+                let current_byte_pos = self.cursor.get_byte_position(&self.content);
+                let next_byte_pos = self.cursor.get_next_byte_position(&self.content);
+
+                // ✅ SAFETY: Range-Validierung
+                if current_byte_pos >= next_byte_pos || next_byte_pos > self.content.len() {
+                    // Fallback: Cursor zurücksetzen
                     self.cursor.update_text_length(&self.content);
+                    return None;
+                }
+
+                self.content
+                    .replace_range(current_byte_pos..next_byte_pos, "");
+                self.cursor.update_text_length(&self.content);
+
+                // ✅ SAFETY: Wenn jetzt leer, Cursor komplett zurücksetzen
+                if self.content.is_empty() {
+                    self.cursor.reset_for_empty_text();
                 }
                 None
             }
