@@ -2,7 +2,7 @@
 // FILE: tests/command_system_tests.rs - INTEGRATION TESTS
 // =====================================================
 
-use rush_sync::{create_default_registry, CommandHandler};
+use rush_sync_server::{create_default_registry, CommandHandler};
 
 #[test]
 fn test_command_system_integration() {

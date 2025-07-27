@@ -2,7 +2,7 @@
 // FILE: tests/simple_test.rs - EINFACHER FUNKTIONSTEST
 // =====================================================
 
-use rush_sync::CommandHandler;
+use rush_sync_server::CommandHandler;
 
 #[test]
 fn test_basic_functionality() {

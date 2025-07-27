@@ -2,7 +2,7 @@
 // MINIMAL TEST - 100% SICHER QUE FUNKTIONIERT
 // =====================================================
 
-use rush_sync::CommandHandler;
+use rush_sync_server::CommandHandler;
 
 #[test]
 fn test_system_works() {

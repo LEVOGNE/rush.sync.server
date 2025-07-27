@@ -1,7 +1,7 @@
 // ## BEGIN ##
 use log::{error, info, warn};
-use rush_sync::output::logging::AppLogger;
-use rush_sync::{i18n, run, Result};
+use rush_sync_server::output::logging::AppLogger;
+use rush_sync_server::{i18n, run, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
     }
 
     // Logger initialisieren
-    if let Err(e) = rush_sync::output::logging::init() {
+    if let Err(e) = rush_sync_server::output::logging::init() {
         let logger_error =
             i18n::get_command_translation("system.startup.logger_init_failed", &[&e.to_string()]);
         println!("{}", logger_error);

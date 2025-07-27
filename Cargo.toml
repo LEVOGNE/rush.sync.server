@@ -1,27 +1,27 @@
 [package]
-name = "rush_sync"
+name = "rush-sync-server"
 version = "0.2.0"
 edition = "2021"
+description = "Modern asynchronous TUI sync server with i18n, modular command system, and flexible configuration."
+license = "MIT OR Apache-2.0 AND LicenseRef-Commercial"
+repository = "https://github.com/LEVOGNE/rush.sync.server"
+readme = "README.md"
+keywords = ["cli", "tui", "sync", "i18n"]
+categories = ["command-line-utilities", "development-tools::tui"]
 
 [dependencies]
 crossterm = "0.27"
 ratatui = "0.24"
 unicode-segmentation = "1.10"
-
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
-
 env_logger = "0.11"
 log = "0.4"
 lazy_static = "1.4"
 strip-ansi-escapes = "0.1.1"
-
 tokio = { version = "1.36", features = ["full"] }
-
 serde_json = "1.0"
-
 rust-embed = "6.8"
-
 once_cell = "1.19"
 
 [lints.clippy]
@@ -29,5 +29,4 @@ module_inception = "allow"
 
 [dev-dependencies]
 tokio-test = "0.4"
-# oder falls schon vorhanden:
 tokio = { version = "1.0", features = ["macros", "rt"] }

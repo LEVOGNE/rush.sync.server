@@ -2,12 +2,12 @@
 // VOLLSTÄNDIGER SYSTEM-TEST - MIT i18n INITIALISIERUNG
 // =====================================================
 
-use rush_sync::CommandHandler;
+use rush_sync_server::CommandHandler;
 
 /// Hilfsfunktion: i18n für Tests initialisieren
 async fn setup_test_environment() {
     // i18n initialisieren (wie in main.rs)
-    let _ = rush_sync::i18n::init().await;
+    let _ = rush_sync_server::i18n::init().await;
 }
 
 #[tokio::test]

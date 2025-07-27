@@ -2,7 +2,7 @@
 // DEBUG TEST - Schauen was die Commands wirklich zurückgeben
 // =====================================================
 
-use rush_sync::CommandHandler;
+use rush_sync_server::CommandHandler;
 
 #[test]
 fn debug_command_outputs() {
