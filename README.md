@@ -1,44 +1,52 @@
-# Rush Sync
+# Rush Sync Server
 
-**Rush Sync** ist eine moderne, modulare Terminal-Anwendung in **Rust**, mit interaktiver TUI, internationalisierter Oberfläche, farbcodiertem Logging und flexibler Konfiguration.  
-Ideal für Entwickler, die eine anpassbare, skriptfähige Terminal-UI benötigen.
+![Rust](https://img.shields.io/badge/Rust-1.80+-orange)
+![Build](https://img.shields.io/badge/build-passing-brightgreen)
+![License](https://img.shields.io/badge/license-Dual--License-blue)
+
+**Rush Sync Server** is a modern, modular terminal application written in **Rust**, featuring an interactive TUI, internationalized interface, color-coded logging, and flexible configuration.
+Perfect for developers who need a **customizable, scriptable terminal UI**.
 
 ---
 
 ## ✅ Features
 
-- **Interaktive Terminal-UI** mit modernem Design  
-- **Farbcodierte Log-Ausgaben** (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`)  
-- **Typewriter-Effekt** für neue Nachrichten  
-- **Scrollbare Nachrichtenhistorie** mit Auto-Scroll  
-- **Eingabehistorie** & erweiterte Cursor-Navigation  
-- **Konfigurierbares Design** via TOML (Farben, Prompt, Layout)  
-- **Automatische Konfigurationserstellung**  
-- **Mehrsprachigkeit (i18n)** integriert  
-- **Unicode-Support (Grapheme-basiert)**
+- **Interactive terminal UI** with an asynchronous event loop (Tokio)
+- **Color-coded logging** with level detection (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`)
+- **Internationalization (i18n):**
+  - Multilingual markers are automatically mapped to standard colors (`[SPRACHE]`, `[IDIOMA]` → `lang` → Cyan)
+  - Dynamic language switching at runtime
+- **Typewriter effect** & **blinking cursor**
+- **Auto-scroll & scrollable message history**
+- **Input history** & full cursor navigation
+- **Modular command handler** (`exit`, `lang`, `restart`, `version`, etc.)
+- **Configurable design & prompt** via TOML
+- **Unicode support (grapheme-based)**
+- **Restart function** without external process restart
 
 ---
 
-## ⌨️ Tastenkombinationen
+## ⌨️ Keyboard Shortcuts
 
-| Taste | Funktion |
-|-------|---------|
-| `↑/↓` | Eingabehistorie navigieren |
-| `←/→` | Cursor im Text bewegen |
-| `Home / End` | Zum Anfang / Ende springen |
-| `Shift + ↑/↓` | Zeilenweise scrollen |
-| `Page Up / Down` | Seitenweise scrollen |
-| `Enter` | Eingabe bestätigen |
-| `ESC` (doppelt) | Programm beenden |
-| `Backspace / Delete` | Zeichen löschen |
+| Key              | Function                        |
+| ---------------- | ------------------------------- |
+| `↑ / ↓`          | Navigate input history          |
+| `← / →`          | Move cursor in text             |
+| `Home / End`     | Jump to start / end of input    |
+| `Shift + ↑ / ↓`  | Scroll line by line             |
+| `Page Up / Down` | Scroll page by page             |
+| `Enter`          | Confirm input                   |
+| `ESC` (twice)    | Exit the program                |
+| `__RESTART__`    | Internal restart (cold restart) |
+| `__CLEAR__`      | Clear all messages              |
 
 ---
 
-## ⚙️ Konfiguration
+## ⚙️ Configuration
 
-Die **`rush.toml`** wird beim ersten Start automatisch im `.rss`-Verzeichnis erstellt.
+The **`rush.toml`** file is automatically created in the `.rss` directory on first start.
 
-### Standard-Config
+### Default Configuration
 
 ```toml
 [general]
@@ -60,20 +68,24 @@ text = "/// "
 color = "Black"
 ```
 
-### Farben
+### Colors (COLOR_MAP)
 
-`Black`, `White`, `Gray`, `DarkGray`, `Red`, `Green`, `Blue`, `Yellow`,  
-`Magenta`, `Cyan`, `LightRed`, `LightGreen`, `LightBlue`, `LightYellow`,  
+Supported:
+`Black`, `White`, `Gray`, `DarkGray`, `Red`, `Green`, `Blue`, `Yellow`,
+`Magenta`, `Cyan`, `LightRed`, `LightGreen`, `LightBlue`, `LightYellow`,
 `LightMagenta`, `LightCyan`
+
+i18n translations are automatically mapped to standard keys
+(e.g., `"Sprache"`, `"Idioma"`, `"Язык"` → `lang` → Cyan).
 
 ---
 
 ## 🚀 Installation
 
-### Voraussetzungen
+### Requirements
 
-- **Rust** (2021 Edition, stabile Version)  
-- **Cargo** (automatisch bei Rust enthalten)  
+- **Rust** (2021 Edition, stable)
+- **Cargo** (included with Rust)
 - Git (optional)
 
 ### Build & Run
@@ -87,68 +99,79 @@ cargo run --release
 
 ---
 
-## 🗂 Projektstruktur (vereinfacht)
+## 🗂 Project Structure
 
-```
+```graphql
 src/
-├── core/        # Kernlogik (Config, Error, Constants, Prelude)
-├── ui/          # Terminal-UI (ScreenManager, TerminalManager, Widgets)
-├── input/       # Eingabe-Handling (Keyboard, EventLoop)
-├── output/      # Logging & Scrolling
-├── commands/    # Integrierte Commands (exit, clear, history, lang, version)
-└── setup/       # TOML-Setup & Autokonfiguration
+├── core/        # Core logic (Config, Error, Prelude)
+├── ui/          # Terminal UI (ScreenManager, TerminalManager, Widgets)
+├── input/       # Input handling (Keyboard, EventHandler)
+├── output/      # Logging, MessageManager, Color
+├── commands/    # Modular commands (exit, lang, history, restart)
+└── setup/       # Auto-configuration (TOML setup)
 ```
 
 ---
 
-## 🛠 Technische Details
+## 🛠 Technical Details
 
-- **Event Loop**: Tokio (async)  
-- **Terminal**: Crossterm + Ratatui  
-- **Logging**: Eigenes asynchrones Logging-System  
-- **Config**: Serde + TOML  
-- **Unicode**: Voller Grapheme-Support  
-- **Commands**: Modulares Trait-basiertes System
+- **Event loop:** Asynchronous (Tokio) → split into:
+  - `handle_input_event`
+  - `handle_tick_event`
+  - `handle_resize_event`
+- **Logging:**
+  - Global `AppLogger` (intercepts all `log::*` calls)
+  - `LogMessage` stores level + text → color-coded output
+- **Internationalization:**
+  - `get_marker_color` automatically maps translated markers to standard categories
+- **Restart:** Internal, without external process restart
 
 ---
 
-## 🧪 Testing & Debugging
+## 🧪 Testing
 
 ```bash
 cargo test
 RUST_LOG=debug cargo test
 ```
 
----
-
-## ⚠ Bekannte Einschränkungen
-
-- Min. Terminalgröße: **20x10** Zeichen  
-- Keine Mausunterstützung (geplant)  
-- Kein RTL-Support
+Available tests:
+✔ Commands
+✔ Event loop
+✔ Config setup
+✔ i18n translations
 
 ---
 
 ## 🗺 Roadmap
 
-- [ ] Mausunterstützung  
-- [ ] Split-Screen & Tabs  
-- [ ] Syntax-Highlighting  
-- [ ] Plugin-System  
-- [ ] Konfiguration direkt aus der UI  
-- [ ] Erweiterte Unicode-Unterstützung
+- [ ] Mouse support (scroll & selection)
+- [ ] Split-screen & tabs
+- [ ] Syntax highlighting
+- [ ] Plugin system for custom commands
+- [ ] Live UI configuration changes
 
 ---
 
-## 📜 Lizenz
+## 📜 License
 
-MIT License – siehe [LICENSE](LICENSE)
+### **Dual-Licensing Model**
+
+This project is distributed under a **dual license**:
+
+1. **Community License (GPLv3)** – free for private and non-commercial use.
+   See [LICENSE](LICENSE).
+2. **Commercial License** – required for any commercial use.
+   See [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
+
+**Contact for commercial licensing:**
+📧 [l.ersen@icloud.com](mailto:l.ersen@icloud.com)
 
 ---
 
-## 🤝 Beiträge
+## 🤝 Contributing
 
-1. Fork erstellen  
-2. Feature-Branch anlegen  
-3. Änderungen + Tests committen  
-4. Pull Request erstellen
+1. Fork this repository
+2. Create a feature branch
+3. Commit changes + add tests
+4. Submit a pull request

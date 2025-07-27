@@ -1,67 +1,70 @@
+// ## BEGIN ##
 use crate::core::prelude::*;
 use log::Level;
+use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AppColor(Color);
 
-impl AppColor {
-    pub fn from_any<T: Into<String>>(source: T) -> Self {
-        Self::from_category(&source.into())
-    }
+// ✅ Zentrale Map für ALLE Farben & Kategorien
+static COLOR_MAP: Lazy<HashMap<&'static str, Color>> = Lazy::new(|| {
+    let mut map = HashMap::new();
 
+    // Standard-Farben
+    map.insert("black", Color::Black);
+    map.insert("red", Color::Red);
+    map.insert("green", Color::Green);
+    map.insert("yellow", Color::Yellow);
+    map.insert("blue", Color::Blue);
+    map.insert("magenta", Color::Magenta);
+    map.insert("cyan", Color::Cyan);
+    map.insert("gray", Color::Gray);
+    map.insert("darkgray", Color::DarkGray);
+    map.insert("lightred", Color::LightRed);
+    map.insert("lightgreen", Color::LightGreen);
+    map.insert("lightyellow", Color::LightYellow);
+    map.insert("lightblue", Color::LightBlue);
+    map.insert("lightmagenta", Color::LightMagenta);
+    map.insert("lightcyan", Color::LightCyan);
+    map.insert("white", Color::White);
+
+    // Kategorien
+    map.insert("error", Color::Red);
+    map.insert("warning", Color::Yellow);
+    map.insert("warn", Color::Yellow);
+    map.insert("info", Color::Green);
+    map.insert("debug", Color::Blue);
+    map.insert("trace", Color::DarkGray);
+    map.insert("lang", Color::Cyan);
+    map.insert("version", Color::LightBlue);
+
+    map
+});
+
+impl AppColor {
     pub fn new(color: Color) -> Self {
         Self(color)
     }
 
-    pub fn from_category_str(category: &str) -> Self {
-        Self::from_category(category)
+    /// Universelle Umwandlung aus Kategorie oder Farbe
+    pub fn from_any<T: Into<String>>(source: T) -> Self {
+        let key = source.into().to_lowercase();
+        Self(*COLOR_MAP.get(key.as_str()).unwrap_or(&Color::Gray))
     }
 
-    const COLOR_MAP: &'static [(&'static str, Color)] = &[
-        ("black", Color::Black),
-        ("red", Color::Red),
-        ("green", Color::Green),
-        ("yellow", Color::Yellow),
-        ("blue", Color::Blue),
-        ("magenta", Color::Magenta),
-        ("cyan", Color::Cyan),
-        ("gray", Color::Gray),
-        ("darkgray", Color::DarkGray),
-        ("lightred", Color::LightRed),
-        ("lightgreen", Color::LightGreen),
-        ("lightyellow", Color::LightYellow),
-        ("lightblue", Color::LightBlue),
-        ("lightmagenta", Color::LightMagenta),
-        ("lightcyan", Color::LightCyan),
-        ("white", Color::White),
-    ];
-
-    pub fn from_string(color_str: &str) -> crate::core::error::Result<Self> {
-        Self::COLOR_MAP
-            .iter()
-            .find(|(name, _)| *name == color_str.to_lowercase())
-            .map(|(_, color)| Self(*color))
-            .ok_or_else(|| AppError::Validation(format!("Ungültige Farbe: {}", color_str)))
-    }
-
+    /// Aus explizitem Log-Level
     pub fn from_log_level(level: Level) -> Self {
-        Self::from_category(&level.to_string().to_lowercase())
+        Self::from_any(level.to_string())
     }
 
-    // ✅ ZENTRALE Kategorisierung - NUR COLOR_CATEGORIES!
-    fn from_category(category: &str) -> Self {
-        let color = match category.to_lowercase().as_str() {
-            "error" => Color::Red,
-            "warning" | "warn" => Color::Yellow,
-            "info" => Color::Green,
-            "debug" => Color::Blue,
-            "trace" => Color::DarkGray,
-            "lang" => Color::Cyan, // ✅ NUR EINE COLOR-CATEGORY!
-            "version" => Color::LightBlue,
-            _ => Color::Gray,
-        };
-        Self(color)
+    /// String-Validierung für Config (bleibt Result)
+    pub fn from_string(color_str: &str) -> crate::core::error::Result<Self> {
+        COLOR_MAP
+            .get(&color_str.to_lowercase().as_str())
+            .map(|&c| Self(c))
+            .ok_or_else(|| AppError::Validation(format!("Ungültige Farbe: {}", color_str)))
     }
 
     pub fn format_message(&self, level: &str, message: &str) -> String {
@@ -100,25 +103,11 @@ impl AppColor {
     }
 
     pub fn to_name(&self) -> &'static str {
-        match self.0 {
-            Color::Black => "Black",
-            Color::Red => "Red",
-            Color::Green => "Green",
-            Color::Yellow => "Yellow",
-            Color::Blue => "Blue",
-            Color::Magenta => "Magenta",
-            Color::Cyan => "Cyan",
-            Color::Gray => "Gray",
-            Color::DarkGray => "DarkGray",
-            Color::LightRed => "LightRed",
-            Color::LightGreen => "LightGreen",
-            Color::LightYellow => "LightYellow",
-            Color::LightBlue => "LightBlue",
-            Color::LightMagenta => "LightMagenta",
-            Color::LightCyan => "LightCyan",
-            Color::White => "White",
-            _ => "Gray",
-        }
+        COLOR_MAP
+            .iter()
+            .find(|(_, &v)| v == self.0)
+            .map(|(k, _)| *k)
+            .unwrap_or("gray")
     }
 }
 
@@ -145,3 +134,4 @@ impl Default for AppColor {
         Self(Color::Gray)
     }
 }
+// ## END ##

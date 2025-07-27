@@ -11,7 +11,7 @@ fn test_command_system_integration() {
 
     // Test: Commands sind verfügbar
     let commands = handler.list_commands();
-    assert!(commands.len() > 0, "Should have registered commands");
+    assert!(!commands.is_empty(), "Should have registered commands");
 
     // Test: Version Command
     let result = handler.handle_input("version");
@@ -81,7 +81,7 @@ fn test_registry_functionality() {
 
     // Test: Registry ist nicht leer
     assert!(!registry.is_empty(), "Registry should not be empty");
-    assert!(registry.len() > 0, "Registry should have commands");
+    assert!(!registry.is_empty(), "Registry should have commands");
 
     // Test: Debug info
     let debug_info = registry.debug_info();

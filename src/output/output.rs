@@ -1,3 +1,4 @@
+// ## BEGIN ##
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
 use ratatui::{
@@ -8,82 +9,91 @@ use ratatui::{
 use strip_ansi_escapes::strip;
 use unicode_segmentation::UnicodeSegmentation;
 
+/// ✅ Entfernt ANSI-Codes aus Logs (z.B. falls doch welche reinkommen)
+fn clean_ansi_codes(message: &str) -> String {
+    String::from_utf8_lossy(&strip(message.as_bytes()).unwrap_or_default()).into_owned()
+}
+
+/// ✅ Entfernt interne Steuerzeichen wie __CLEAR__
+fn clean_message_for_display(message: &str) -> String {
+    clean_ansi_codes(message)
+        .replace("__CONFIRM_EXIT__", "")
+        .replace("__CLEAR__", "")
+        .trim()
+        .to_string()
+}
+
+/// ✅ Teilt Message in Text + Marker ([INFO], [ERROR], etc.)
+// ## FILE: src/output/output.rs (Optimiert) ##
 fn parse_message_parts(message: &str) -> Vec<(String, bool)> {
-    let clean_message = clean_ansi_codes(message);
     let mut parts = Vec::new();
-    let mut current_pos = 0;
+    let mut chars = message.char_indices().peekable();
+    let mut start = 0;
 
-    while current_pos < clean_message.len() {
-        if let Some(marker_start) = clean_message[current_pos..].find('[') {
-            let absolute_start = current_pos + marker_start;
-
-            if marker_start > 0 {
-                let text_before = clean_message[current_pos..absolute_start].to_string();
-                if !text_before.trim().is_empty() {
-                    parts.push((text_before, false));
+    while let Some((i, c)) = chars.peek().cloned() {
+        if c == '[' {
+            // Text vor dem Marker
+            if start < i {
+                let text = &message[start..i];
+                if !text.trim().is_empty() {
+                    parts.push((text.to_owned(), false));
                 }
             }
 
-            if let Some(marker_end) = clean_message[absolute_start..].find(']') {
-                let absolute_end = absolute_start + marker_end + 1;
-                let marker = clean_message[absolute_start..absolute_end].to_string();
-                parts.push((marker, true));
-                current_pos = absolute_end;
+            // Marker finden
+            if let Some(end_idx) = message[i..].find(']') {
+                let end = i + end_idx + 1;
+                parts.push((message[i..end].to_owned(), true));
+                start = end;
+                while let Some(&(ci, _)) = chars.peek() {
+                    if ci < end {
+                        chars.next();
+                    } else {
+                        break;
+                    }
+                }
             } else {
-                let remaining = clean_message[absolute_start..].to_string();
-                parts.push((remaining, false));
+                parts.push((message[i..].to_owned(), false));
                 break;
             }
         } else {
-            let remaining = clean_message[current_pos..].to_string();
-            if !remaining.trim().is_empty() {
-                parts.push((remaining, false));
-            }
-            break;
+            chars.next();
+        }
+    }
+
+    if start < message.len() {
+        let remaining = &message[start..];
+        if !remaining.trim().is_empty() {
+            parts.push((remaining.to_owned(), false));
         }
     }
 
     if parts.is_empty() {
-        parts.push((clean_message, false));
+        parts.push((message.to_owned(), false));
     }
 
     parts
 }
 
-// ✅ SMART & SKALIERBAR: Dynamisches Mapping mit Fallback
+/// ✅ Marker-Farben: nutzt i18n → z.B. "info" → AppColor
 fn get_marker_color(marker: &str) -> AppColor {
     let display_category = marker
         .trim_start_matches('[')
         .trim_end_matches(']')
+        .trim_start_matches("cat:")
         .to_lowercase();
 
-    if let Some(cat) = display_category.strip_prefix("cat:") {
-        let color_category = crate::i18n::get_color_category_for_display(cat);
-        return AppColor::from_category_str(&color_category);
+    // ✅ 1. Standard-Keys direkt
+    if AppColor::from_any(&display_category).to_name() != "gray" {
+        return AppColor::from_any(&display_category);
     }
 
-    // ✅ SMART: Verwende das erweiterte i18n-System
-    let color_category = crate::i18n::get_color_category_for_display(&display_category);
-    AppColor::from_category_str(&color_category)
+    // ✅ 2. Übersetzte Marker → i18n-Mapping
+    let mapped_category = crate::i18n::get_color_category_for_display(&display_category);
+    AppColor::from_any(mapped_category)
 }
 
-fn clean_ansi_codes(message: &str) -> String {
-    String::from_utf8_lossy(&strip(message.as_bytes()).unwrap_or_default()).into_owned()
-}
-
-fn clean_message_for_display(message: &str) -> String {
-    let mut clean = clean_ansi_codes(message);
-
-    if clean.starts_with("__CONFIRM_EXIT__") {
-        clean = clean.replace("__CONFIRM_EXIT__", "");
-    }
-    if clean.starts_with("__CLEAR__") {
-        clean = clean.replace("__CLEAR__", "");
-    }
-
-    clean.trim().to_string()
-}
-
+/// ✅ Hauptfunktion: Baut den fertigen Paragraph
 pub fn create_output_widget<'a>(
     messages: &'a [(&'a String, usize)],
     available_height: u16,
@@ -103,11 +113,7 @@ pub fn create_output_widget<'a>(
             .wrap(Wrap { trim: true });
     }
 
-    let start_idx = if messages.len() > max_visible_messages {
-        messages.len() - max_visible_messages
-    } else {
-        0
-    };
+    let start_idx = messages.len().saturating_sub(max_visible_messages);
     let visible_messages = &messages[start_idx..];
 
     for (idx, (message, current_length)) in visible_messages.iter().enumerate() {
@@ -151,12 +157,14 @@ pub fn create_output_widget<'a>(
                 chars_used += part_char_count;
             } else {
                 let graphemes: Vec<&str> = part_text.graphemes(true).collect();
-                let partial_text = graphemes
-                    .iter()
-                    .take(chars_needed)
-                    .copied()
-                    .collect::<String>();
-                spans.push(Span::styled(partial_text, part_style));
+                spans.push(Span::styled(
+                    graphemes
+                        .iter()
+                        .take(chars_needed)
+                        .copied()
+                        .collect::<String>(),
+                    part_style,
+                ));
                 break;
             }
         }
@@ -181,3 +189,4 @@ pub fn create_output_widget<'a>(
         )
         .wrap(Wrap { trim: true })
 }
+// ## END ##
