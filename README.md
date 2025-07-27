@@ -13,32 +13,82 @@ Perfect for developers who need a **customizable, scriptable terminal UI**.
 
 - **Interactive terminal UI** with an asynchronous event loop (Tokio)
 - **Color-coded logging** with level detection (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`)
+- **Runtime log-level switching** with persistent config saving
+- **Performance monitoring** with real-time FPS & config analysis
 - **Internationalization (i18n):**
   - Multilingual markers are automatically mapped to standard colors (`[SPRACHE]`, `[IDIOMA]` → `lang` → Cyan)
-  - Dynamic language switching at runtime
-- **Typewriter effect** & **blinking cursor**
+  - Dynamic language switching at runtime (German/English)
+  - Automatic language detection and config persistence
+- **Typewriter effect** & **blinking cursor** (configurable/disableable)
 - **Auto-scroll & scrollable message history**
 - **Input history** & full cursor navigation
-- **Modular command handler** (`exit`, `lang`, `restart`, `version`, etc.)
-- **Configurable design & prompt** via TOML
+- **Modular command handler** with extensible plugin system
+- **Configurable design & prompt** via TOML with performance optimization
 - **Unicode support (grapheme-based)**
 - **Restart function** without external process restart
+- **Smart bounds checking** with automatic config correction
+
+---
+
+## 💻 Available Commands
+
+| Command                | Description                                     | Examples                         |
+| ---------------------- | ----------------------------------------------- | -------------------------------- |
+| `version` / `ver`      | Show application version                        | `version`                        |
+| `lang` / `language`    | Switch language (EN/DE) with config persistence | `lang de`, `lang en`             |
+| `clear` / `cls`        | Clear all messages                              | `clear`                          |
+| `exit` / `q`           | Exit with confirmation                          | `exit`                           |
+| `restart`              | Internal restart (reloads config)               | `restart`, `restart --force`     |
+| `history -c`           | Clear input history                             | `history -c`                     |
+| `log-level`            | Change log level (runtime + persistent)         | `log-level 3`, `log-level debug` |
+| `perf` / `performance` | Show performance & config status                | `perf`, `performance`            |
+
+### Log-Level Command Details
+
+```bash
+log-level           # Show current level
+log-level 3         # Set to INFO level
+log-level DEBUG     # Set to DEBUG level
+log-level -h        # Show help
+
+# Available levels:
+# 1 = ERROR   (Only critical errors)
+# 2 = WARN    (Warnings and errors)
+# 3 = INFO    (General information) [DEFAULT]
+# 4 = DEBUG   (Debug information)
+# 5 = TRACE   (Very detailed tracing)
+```
+
+### Performance Command Details
+
+```bash
+perf                # Show full performance report
+performance         # Same as perf
+stats               # Same as perf
+perf -h             # Show help
+```
+
+**Performance Report includes:**
+
+- Current FPS (based on poll_rate)
+- Typewriter speed (chars/second)
+- Config values & file location
+- Performance recommendations
+- Related commands
 
 ---
 
 ## ⌨️ Keyboard Shortcuts
 
-| Key              | Function                        |
-| ---------------- | ------------------------------- |
-| `↑ / ↓`          | Navigate input history          |
-| `← / →`          | Move cursor in text             |
-| `Home / End`     | Jump to start / end of input    |
-| `Shift + ↑ / ↓`  | Scroll line by line             |
-| `Page Up / Down` | Scroll page by page             |
-| `Enter`          | Confirm input                   |
-| `ESC` (twice)    | Exit the program                |
-| `__RESTART__`    | Internal restart (cold restart) |
-| `__CLEAR__`      | Clear all messages              |
+| Key              | Function                     |
+| ---------------- | ---------------------------- |
+| `↑ / ↓`          | Navigate input history       |
+| `← / →`          | Move cursor in text          |
+| `Home / End`     | Jump to start / end of input |
+| `Shift + ↑ / ↓`  | Scroll line by line          |
+| `Page Up / Down` | Scroll page by page          |
+| `Enter`          | Confirm input                |
+| `ESC` (twice)    | Exit the program             |
 
 ---
 
@@ -46,15 +96,18 @@ Perfect for developers who need a **customizable, scriptable terminal UI**.
 
 The **`rush.toml`** file is automatically created in the `.rss` directory on first start.
 
-### Default Configuration
+### Complete Default Configuration
 
 ```toml
 [general]
 max_messages = 100
-typewriter_delay = 30
+# Typewriter-Effekt: 50ms = 20 Zeichen/Sekunde (empfohlen: 30-100ms)
+typewriter_delay = 50
 input_max_length = 100
 max_history = 30
+# Poll-Rate: 16ms = 60 FPS (empfohlen: 16-33ms, NICHT unter 16!)
 poll_rate = 16
+log_level = "info"
 
 [theme]
 input_text = "Black"
@@ -66,7 +119,40 @@ output_bg = "Black"
 [prompt]
 text = "/// "
 color = "Black"
+
+[language]
+current = "en"
+
+# =================================================================
+# PERFORMANCE-HINWEISE:
+# =================================================================
+# poll_rate:
+#   - 16ms = 60 FPS (EMPFOHLEN für flüssiges UI)
+#   - 33ms = 30 FPS (akzeptabel für langsamere Systeme)
+#   - 1-15ms = NICHT empfohlen (hohe CPU-Last!)
+#   - 0ms = CRASH! (Tokio interval panic)
+#
+# typewriter_delay:
+#   - 50ms = 20 Zeichen/Sekunde (gut lesbar)
+#   - 30ms = 33 Zeichen/Sekunde (schnell)
+#   - 100ms = 10 Zeichen/Sekunde (langsam)
+#   - 0ms = Typewriter-Effekt deaktiviert
+# =================================================================
 ```
+
+### Performance Optimization
+
+**Recommended Values:**
+
+- `poll_rate = 16` (60 FPS - optimal)
+- `poll_rate = 33` (30 FPS - good for slower systems)
+- `typewriter_delay = 0` (disabled) or `30-100` (enabled)
+
+**Automatic Bounds Checking:**
+
+- Invalid values are automatically corrected on startup
+- Corrected values are saved back to config
+- Performance warnings for critical settings
 
 ### Colors (COLOR_MAP)
 
@@ -74,6 +160,15 @@ Supported:
 `Black`, `White`, `Gray`, `DarkGray`, `Red`, `Green`, `Blue`, `Yellow`,
 `Magenta`, `Cyan`, `LightRed`, `LightGreen`, `LightBlue`, `LightYellow`,
 `LightMagenta`, `LightCyan`
+
+**Smart Color Categories:**
+
+- `error` → Red
+- `warning` / `warn` → Yellow
+- `info` → Green
+- `debug` → Blue
+- `lang` / `language` → Cyan
+- `version` → LightBlue
 
 i18n translations are automatically mapped to standard keys
 (e.g., `"Sprache"`, `"Idioma"`, `"Язык"` → `lang` → Cyan).
@@ -97,18 +192,31 @@ cargo build --release
 cargo run --release
 ```
 
+### Performance Testing
+
+```bash
+# Test with debug logging
+RUST_LOG=debug cargo run --release
+
+# Test performance impact
+cargo run --release
+# Type: perf
+```
+
 ---
 
 ## 🗂 Project Structure
 
 ```graphql
 src/
-├── core/        # Core logic (Config, Error, Prelude)
+├── core/        # Core logic (Config, Error, Prelude, Constants)
 ├── ui/          # Terminal UI (ScreenManager, TerminalManager, Widgets)
 ├── input/       # Input handling (Keyboard, EventHandler)
-├── output/      # Logging, MessageManager, Color
-├── commands/    # Modular commands (exit, lang, history, restart)
-└── setup/       # Auto-configuration (TOML setup)
+├── output/      # Logging, MessageManager, Color, Performance
+├── commands/    # Modular commands (exit, lang, history, restart, log-level, performance)
+├── setup/       # Auto-configuration (TOML setup)
+└── i18n/        # Internationalization (German/English)
+    └── langs/   # Language files (de.json, en.json)
 ```
 
 ---
@@ -121,10 +229,19 @@ src/
   - `handle_resize_event`
 - **Logging:**
   - Global `AppLogger` (intercepts all `log::*` calls)
+  - Runtime log-level switching with config persistence
   - `LogMessage` stores level + text → color-coded output
+- **Performance Monitoring:**
+  - Real-time FPS calculation based on poll_rate
+  - Typewriter speed analysis (chars/second)
+  - Config value validation with automatic correction
+  - Performance recommendations based on system capabilities
 - **Internationalization:**
   - `get_marker_color` automatically maps translated markers to standard categories
+  - Smart fallback for unknown display categories
+  - Persistent language switching with config save
 - **Restart:** Internal, without external process restart
+- **Memory Management:** Bounded message buffers with automatic cleanup
 
 ---
 
@@ -133,13 +250,20 @@ src/
 ```bash
 cargo test
 RUST_LOG=debug cargo test
+
+# Test specific components
+cargo test command_system_tests
+cargo test performance
+cargo test config
 ```
 
 Available tests:
-✔ Commands
+✔ Commands (including new log-level & performance)
 ✔ Event loop
-✔ Config setup
-✔ i18n translations
+✔ Config setup & bounds checking
+✔ i18n translations (German/English)
+✔ Performance monitoring
+✔ Language switching
 
 ---
 
@@ -148,8 +272,55 @@ Available tests:
 - [ ] Mouse support (scroll & selection)
 - [ ] Split-screen & tabs
 - [ ] Syntax highlighting
-- [ ] Plugin system for custom commands
+- [x] ~~Plugin system for custom commands~~ ✓ Implemented
+- [x] ~~Live log-level configuration~~ ✓ Implemented
+- [x] ~~Performance monitoring~~ ✓ Implemented
 - [ ] Live UI configuration changes
+- [ ] Config hot-reload without restart
+- [ ] Custom color themes
+- [ ] Command aliases & macros
+
+---
+
+## 🎛 Advanced Usage
+
+### Performance Monitoring
+
+```bash
+# Show detailed performance report
+perf
+
+# Output example:
+📊 PERFORMANCE & CONFIG STATUS:
+🎯 Poll Rate: 16ms (60.0 FPS) ✅ Optimal
+⌨️ Typewriter: 50ms (20.0 chars/sec)
+📈 Max Messages: 100
+📜 Max History: 30
+🎨 Log Level: INFO
+📍 Config: rush.toml
+
+💡 EMPFEHLUNGEN:
+• poll_rate: 16ms (optimal) oder 33ms (gut)
+• typewriter_delay: 0ms (aus) oder 30-100ms
+• Für beste Performance: poll_rate >= 16ms
+```
+
+### Dynamic Log-Level Management
+
+```bash
+# Runtime log-level switching (saved to config)
+log-level debug    # Switch to debug mode
+log-level 1        # Switch to error-only
+log-level info     # Back to default
+```
+
+### Language Switching
+
+```bash
+lang de            # Switch to German
+lang en            # Switch to English
+lang               # Show current language & available options
+```
 
 ---
 
@@ -175,3 +346,10 @@ This project is distributed under a **dual license**:
 2. Create a feature branch
 3. Commit changes + add tests
 4. Submit a pull request
+
+**Development Guidelines:**
+
+- Follow performance recommendations (poll_rate >= 16ms)
+- Add i18n support for new features (de.json + en.json)
+- Include performance tests for new commands
+- Update config bounds checking for new parameters

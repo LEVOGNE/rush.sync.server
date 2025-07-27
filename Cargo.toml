@@ -1,10 +1,9 @@
 [package]
 name = "rush-sync-server"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "Modern asynchronous TUI sync server with i18n, modular command system, and flexible configuration."
 license = "GPL-3.0 OR LicenseRef-Commercial"
-license-file = "LICENSE"
 repository = "https://github.com/LEVOGNE/rush.sync.server"
 readme = "README.md"
 keywords = ["cli", "tui", "sync", "i18n", "async"]

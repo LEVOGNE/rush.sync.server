@@ -31,7 +31,7 @@ impl CommandRegistry {
         self.commands.push(Box::new(command));
         self.name_map.insert(name, index);
 
-        log::debug!("Command registered: {}", self.commands[index].name());
+        //log::debug!("Command registered: {}", self.commands[index].name());
         self
     }
 
@@ -61,10 +61,10 @@ impl CommandRegistry {
         }
 
         self.initialized = true;
-        log::debug!(
-            "CommandRegistry initialized with {} commands",
-            self.commands.len()
-        );
+        // log::debug!(
+        //     "CommandRegistry initialized with {} commands",
+        //     self.commands.len()
+        // );
         self
     }
 

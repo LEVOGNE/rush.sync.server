@@ -36,7 +36,7 @@ static COLOR_MAP: Lazy<HashMap<&'static str, Color>> = Lazy::new(|| {
     map.insert("warn", Color::Yellow);
     map.insert("info", Color::Green);
     map.insert("debug", Color::Blue);
-    map.insert("trace", Color::DarkGray);
+    map.insert("trace", Color::White);
     map.insert("lang", Color::Cyan);
     map.insert("version", Color::LightBlue);
 

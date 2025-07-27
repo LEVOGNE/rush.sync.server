@@ -1,3 +1,7 @@
+// =====================================================
+// FILE: src/output/message.rs - TYPEWRITER FIX
+// =====================================================
+
 use crate::core::prelude::*;
 use crate::input::keyboard::KeyAction;
 use crate::output::scroll::ScrollState;
@@ -24,8 +28,6 @@ impl<'a> MessageManager<'a> {
             scroll_state,
         }
     }
-
-    // Neue Methode um die gesamte Content-Höhe zu erhalten
 
     pub fn clear_messages(&mut self) {
         self.messages.clear();
@@ -59,9 +61,16 @@ impl<'a> MessageManager<'a> {
             }
         }
 
+        // ✅ TYPEWRITER FIX: Wenn delay = 0, sofort alles anzeigen
+        let initial_length = if self.config.typewriter_delay.as_millis() == 0 {
+            content.graphemes(true).count() // ✅ Komplette Nachricht sofort
+        } else {
+            1 // ✅ Typewriter-Effekt: nur erstes Zeichen
+        };
+
         self.messages.push(Message {
             content,
-            current_length: 1,
+            current_length: initial_length,
             timestamp: Instant::now(),
         });
 
@@ -101,7 +110,13 @@ impl<'a> MessageManager<'a> {
         self.get_messages()
     }
 
+    // ✅ HAUPTFIX: Typewriter Update nur wenn delay > 0
     pub fn update_typewriter(&mut self) {
+        // ✅ EARLY RETURN: Wenn typewriter_delay = 0, mache nichts
+        if self.config.typewriter_delay.as_millis() == 0 {
+            return;
+        }
+
         if let Some(last_message) = self.messages.last_mut() {
             let total_length = last_message.content.graphemes(true).count();
 

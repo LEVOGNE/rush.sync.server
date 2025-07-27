@@ -1,5 +1,5 @@
 // =====================================================
-// LIB.RS - KORRIGIERT & VOLLSTÄNDIG
+// FILE: src/lib.rs - PERFORMANCE COMMAND HINZUGEFÜGT
 // =====================================================
 
 // ✅ ALTE Macros (behalten für Kompatibilität)
@@ -94,21 +94,24 @@ pub use commands::{Command, CommandHandler, CommandPlugin, CommandRegistry, Plug
 pub use core::config::Config;
 pub use core::error::{AppError, Result};
 
-/// ✅ PUBLIC FUNCTION - Für Integration Tests und externe Nutzung
+/// ✅ PUBLIC FUNCTION - Für Integration Tests und externe Nutzung (MIT PERFORMANCE COMMAND)
 pub fn create_default_registry() -> CommandRegistry {
     use commands::{
         clear::ClearCommand, exit::exit::ExitCommand, history::HistoryCommand,
-        lang::LanguageCommand, restart::RestartCommand, version::VersionCommand,
+        lang::LanguageCommand, log_level::LogLevelCommand, performance::PerformanceCommand,
+        restart::RestartCommand, version::VersionCommand,
     };
 
     let mut registry = CommandRegistry::new();
 
     registry.register(HistoryCommand);
     registry.register(ExitCommand);
+    registry.register(LogLevelCommand);
     registry.register(LanguageCommand);
     registry.register(ClearCommand);
     registry.register(RestartCommand);
     registry.register(VersionCommand);
+    registry.register(PerformanceCommand); // ✅ NEU HINZUGEFÜGT
 
     registry.initialize();
     registry

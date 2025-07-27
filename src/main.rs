@@ -1,13 +1,13 @@
-// ## BEGIN ##
-use log::{error, info, warn};
-use rush_sync_server::output::logging::AppLogger;
-use rush_sync_server::{i18n, run, Result};
+use rush_sync_server::core::config::Config;
+use rush_sync_server::ui::screen::ScreenManager;
+use rush_sync_server::{i18n, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Sprache initialisieren (vor dem Logging)
     match i18n::init().await {
         Ok(_) => {
+            // ✅ FIRST-RUN Message - kann bleiben
             let success_msg = i18n::get_command_translation("system.startup.language_success", &[]);
             println!("{}", success_msg);
         }
@@ -20,31 +20,17 @@ async fn main() -> Result<()> {
     }
 
     // Logger initialisieren
-    if let Err(e) = rush_sync_server::output::logging::init() {
+    if let Err(e) = rush_sync_server::output::logging::init().await {
         let logger_error =
             i18n::get_command_translation("system.startup.logger_init_failed", &[&e.to_string()]);
         println!("{}", logger_error);
     }
 
-    // ✅ AUTO-SCROLL-TEST: 30 Logs mit verschiedenen Levels
-    for i in 1..=30 {
-        match i % 4 {
-            0 => info!("AutoScroll-Test {} – INFO", i),
-            1 => warn!("AutoScroll-Test {} – WARNUNG", i),
-            2 => error!("AutoScroll-Test {} – FEHLER", i),
-            _ => AppLogger::log_plain(format!("AutoScroll-Test {} – Plain Text", i)),
-        }
-    }
+    // ✅ CONFIG LADEN: show_messages = true NUR EINMALIG beim Start
+    // Danach überall Config::load() ohne Messages
+    let config = Config::load_with_messages(true).await?;
 
-    // Starte die Anwendung (deine normale App)
-    match run().await {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            let run_error =
-                i18n::get_command_translation("system.startup.run_failed", &[&e.to_string()]);
-            println!("{}", run_error);
-            Err(e)
-        }
-    }
+    // ✅ Ab hier normales Laden ohne Messages
+    let mut screen = ScreenManager::new(&config).await?;
+    screen.run().await
 }
-// ## END ##

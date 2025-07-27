@@ -1,4 +1,5 @@
 // ## BEGIN ##
+use crate::commands::log_level::LogLevelManager;
 use crate::core::prelude::*;
 use log::{Level, Log, Metadata, Record};
 use once_cell::sync::Lazy;
@@ -68,10 +69,11 @@ impl Log for GlobalLogger {
     fn flush(&self) {}
 }
 
-pub fn init() -> Result<()> {
+pub async fn init() -> Result<()> {
     if log::set_boxed_logger(Box::new(GlobalLogger)).is_ok() {
-        log::set_max_level(log::LevelFilter::Trace);
+        // ✅ LADE LOG-LEVEL AUS CONFIG
+        let config_level = LogLevelManager::load_from_config().await;
+        LogLevelManager::init_with_level(config_level);
     }
     Ok(())
 }
-// ## END ##
