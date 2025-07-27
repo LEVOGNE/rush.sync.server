@@ -24,3 +24,8 @@ rust-embed = "6.8"
 
 [lints.clippy]
 module_inception = "allow"
+
+[dev-dependencies]
+tokio-test = "0.4"
+# oder falls schon vorhanden:
+tokio = { version = "1.0", features = ["macros", "rt"] }

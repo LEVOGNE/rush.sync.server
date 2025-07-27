@@ -1,4 +1,8 @@
-// src/commands/version/version.rs
+// =====================================================
+// FILE: commands/version/version.rs - TRAIT IMPL
+// =====================================================
+
+use crate::commands::command::Command;
 use crate::core::constants::VERSION;
 use crate::core::prelude::*;
 use crate::i18n::get_command_translation;
@@ -6,17 +10,27 @@ use crate::i18n::get_command_translation;
 #[derive(Debug)]
 pub struct VersionCommand;
 
-impl VersionCommand {
-    pub fn matches(&self, command: &str) -> bool {
+impl Command for VersionCommand {
+    fn name(&self) -> &'static str {
+        "version"
+    }
+
+    fn description(&self) -> &'static str {
+        "Show application version"
+    }
+
+    fn matches(&self, command: &str) -> bool {
         crate::matches_exact!(command, "version" | "ver")
     }
 
-    pub fn execute_sync(&self, _args: &[&str]) -> Result<String> {
+    fn execute_sync(&self, _args: &[&str]) -> Result<String> {
         Ok(get_command_translation(
             "system.commands.version",
             &[VERSION],
         ))
     }
 
-    crate::async_fallback!();
+    fn priority(&self) -> u8 {
+        40 // Standard Priorität
+    }
 }

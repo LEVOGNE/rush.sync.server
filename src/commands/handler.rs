@@ -1,11 +1,8 @@
-// commands/handler.rs - WIRKLICH ALLGEMEIN (nur Delegation!)
+// =====================================================
+// FILE: commands/handler.rs - BORROW-FEHLER BEHOBEN
+// =====================================================
 
-use crate::commands::clear::ClearCommand;
-use crate::commands::exit::exit::ExitCommand;
-use crate::commands::history::HistoryCommand;
-use crate::commands::lang::LanguageCommand;
-use crate::commands::restart::RestartCommand;
-use crate::commands::version::VersionCommand;
+use super::registry::CommandRegistry;
 use crate::i18n;
 
 #[derive(Debug)]
@@ -15,97 +12,25 @@ pub struct CommandResult {
     pub should_exit: bool,
 }
 
-/// ✅ ALLGEMEIN: Enum delegiert nur, enthält keine spezifische Logic
-#[derive(Debug)]
-pub enum CommandType {
-    History(HistoryCommand),
-    Exit(ExitCommand),
-    Language(LanguageCommand),
-    Clear(ClearCommand),
-    Restart(RestartCommand),
-    Version(VersionCommand),
-    // ✅ SPÄTER: Einfach neue Commands hinzufügen
-    // Auth(AuthCommand),
-    // File(FileCommand),
-    // Network(NetworkCommand),
-    // ... 100+ weitere Commands
-}
-
-impl CommandType {
-    /// ✅ ALLGEMEIN: Erstelle alle verfügbaren Commands
-    pub fn all() -> Vec<Self> {
-        vec![
-            Self::History(HistoryCommand),
-            Self::Exit(ExitCommand),
-            Self::Language(LanguageCommand),
-            Self::Clear(ClearCommand),
-            Self::Restart(RestartCommand),
-            Self::Version(VersionCommand),
-        ]
-    }
-
-    /// ✅ ALLGEMEIN: Delegiert matching (keine spezifische Logic!)
-    pub fn matches(&self, command: &str) -> bool {
-        match self {
-            Self::History(cmd) => cmd.matches(command),
-            Self::Exit(cmd) => cmd.matches(command),
-            Self::Language(cmd) => cmd.matches(command),
-            Self::Clear(cmd) => cmd.matches(command),
-            Self::Restart(cmd) => cmd.matches(command),
-            Self::Version(cmd) => cmd.matches(command),
-        }
-    }
-
-    /// ✅ ALLGEMEIN: Delegiert sync execution (keine spezifische Logic!)
-    pub fn execute_sync(&self, args: &[&str]) -> crate::core::error::Result<String> {
-        match self {
-            Self::History(cmd) => cmd.execute_sync(args),
-            Self::Exit(cmd) => cmd.execute_sync(args),
-            Self::Language(cmd) => cmd.execute_sync(args),
-            Self::Clear(cmd) => cmd.execute_sync(args),
-            Self::Restart(cmd) => cmd.execute_sync(args),
-            Self::Version(cmd) => cmd.execute_sync(args),
-        }
-    }
-
-    /// ✅ ALLGEMEIN: Delegiert async execution (keine spezifische Logic!)
-    pub async fn execute_async(&self, args: &[&str]) -> crate::core::error::Result<String> {
-        match self {
-            Self::History(cmd) => cmd.execute_async(args).await,
-            Self::Exit(cmd) => cmd.execute_async(args).await,
-            Self::Language(cmd) => cmd.execute_async(args).await,
-            Self::Clear(cmd) => cmd.execute_async(args).await,
-            Self::Restart(cmd) => cmd.execute_async(args).await, // ← NEU
-            Self::Version(cmd) => cmd.execute_async(args).await,
-        }
-    }
-
-    /// ✅ ALLGEMEIN: Delegiert async support check (keine spezifische Logic!)
-    pub fn supports_async(&self) -> bool {
-        match self {
-            Self::History(cmd) => cmd.supports_async(),
-            Self::Exit(cmd) => cmd.supports_async(),
-            Self::Language(cmd) => cmd.supports_async(),
-            Self::Clear(cmd) => cmd.supports_async(),
-            Self::Restart(cmd) => cmd.supports_async(),
-            Self::Version(cmd) => cmd.supports_async(),
-        }
-    }
-}
-
-/// ✅ ALLGEMEIN: Handler orchestriert nur, keine Command-spezifische Logic!
+/// ✅ ULTRA-SMART: Handler nutzt nur noch Registry!
 pub struct CommandHandler {
-    commands: Vec<CommandType>,
+    registry: CommandRegistry,
 }
 
 impl CommandHandler {
+    /// ✅ EINFACHSTE INITIALISIERUNG
     pub fn new() -> Self {
         Self {
-            commands: CommandType::all(),
+            registry: crate::create_default_registry(),
         }
     }
 
-    /// ✅ ALLGEMEIN: SYNCHRONE Version (nur Orchestrierung!)
+    /// ✅ CUSTOM Registry (für Tests/Extensions)
+    pub fn with_registry(registry: CommandRegistry) -> Self {
+        Self { registry }
+    }
+
+    /// ✅ SYNCHRONE Verarbeitung - BORROW-SAFE
     pub fn handle_input(&self, input: &str) -> CommandResult {
         let input = input.trim();
         let parts: Vec<&str> = input.split_whitespace().collect();
@@ -118,38 +43,30 @@ impl CommandHandler {
             };
         }
 
-        // ✅ ALLGEMEIN: Iteriere über alle Commands
-        for command in &self.commands {
-            if command.matches(parts[0]) {
-                match command.execute_sync(&parts[1..]) {
-                    Ok(msg) => {
-                        let should_exit = self.should_exit_on_message(&msg);
-                        return CommandResult {
-                            message: msg,
-                            success: true,
-                            should_exit,
-                        };
-                    }
-                    Err(e) => {
-                        return CommandResult {
-                            message: e.to_string(),
-                            success: false,
-                            should_exit: false,
-                        };
-                    }
+        // ✅ DELEGATION an Registry
+        match self.registry.execute_sync(parts[0], &parts[1..]) {
+            Some(Ok(msg)) => {
+                let should_exit = self.should_exit_on_message(&msg);
+                CommandResult {
+                    message: msg,
+                    success: true,
+                    should_exit,
                 }
             }
-        }
-
-        // ✅ ALLGEMEIN: Unbekannter Command
-        CommandResult {
-            message: i18n::get_command_translation("system.commands.unknown", &[input]),
-            success: false,
-            should_exit: false,
+            Some(Err(e)) => CommandResult {
+                message: e.to_string(),
+                success: false,
+                should_exit: false,
+            },
+            None => CommandResult {
+                message: i18n::get_command_translation("system.commands.unknown", &[input]),
+                success: false,
+                should_exit: false,
+            },
         }
     }
 
-    /// ✅ ALLGEMEIN: ASYNC Version (nur Orchestrierung!)
+    /// ✅ ASYNC Verarbeitung - BORROW-SAFE
     pub async fn handle_input_async(&self, input: &str) -> CommandResult {
         let input = input.trim();
         let parts: Vec<&str> = input.split_whitespace().collect();
@@ -162,45 +79,45 @@ impl CommandHandler {
             };
         }
 
-        // ✅ ALLGEMEIN: Iteriere über alle Commands
-        for command in &self.commands {
-            if command.matches(parts[0]) {
-                // ✅ ALLGEMEIN: Smart async/sync delegation
-                let result = if command.supports_async() {
-                    command.execute_async(&parts[1..]).await
-                } else {
-                    command.execute_sync(&parts[1..])
-                };
-
-                match result {
-                    Ok(msg) => {
-                        let should_exit = self.should_exit_on_message(&msg);
-                        return CommandResult {
-                            message: msg,
-                            success: true,
-                            should_exit,
-                        };
-                    }
-                    Err(e) => {
-                        return CommandResult {
-                            message: e.to_string(),
-                            success: false,
-                            should_exit: false,
-                        };
-                    }
+        // ✅ ASYNC DELEGATION an Registry
+        match self.registry.execute_async(parts[0], &parts[1..]).await {
+            Some(Ok(msg)) => {
+                let should_exit = self.should_exit_on_message(&msg);
+                CommandResult {
+                    message: msg,
+                    success: true,
+                    should_exit,
                 }
             }
-        }
-
-        // ✅ ALLGEMEIN: Unbekannter Command
-        CommandResult {
-            message: i18n::get_command_translation("system.commands.unknown", &[input]),
-            success: false,
-            should_exit: false,
+            Some(Err(e)) => CommandResult {
+                message: e.to_string(),
+                success: false,
+                should_exit: false,
+            },
+            None => CommandResult {
+                message: i18n::get_command_translation("system.commands.unknown", &[input]),
+                success: false,
+                should_exit: false,
+            },
         }
     }
 
-    /// ✅ ALLGEMEIN: Helper (keine Command-spezifische Logic!)
+    /// ✅ ERWEITERT: Command zu Registry hinzufügen (zur Laufzeit!)
+    pub fn add_command<T: crate::commands::command::Command>(&mut self, command: T) {
+        self.registry.register(command);
+    }
+
+    /// ✅ INFO: Registry Informationen
+    pub fn list_commands(&self) -> Vec<(&str, &str)> {
+        self.registry.list_commands()
+    }
+
+    /// ✅ DEBUG: Registry Debug-Info
+    pub fn debug_info(&self) -> String {
+        self.registry.debug_info()
+    }
+
+    /// ✅ Helper bleibt gleich
     fn should_exit_on_message(&self, message: &str) -> bool {
         message.starts_with("__EXIT__")
             || message.starts_with("__CONFIRM_EXIT__")
