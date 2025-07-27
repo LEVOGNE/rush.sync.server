@@ -7,8 +7,45 @@ license = "GPL-3.0 OR LicenseRef-Commercial"
 license-file = "LICENSE"
 repository = "https://github.com/LEVOGNE/rush.sync.server"
 readme = "README.md"
-keywords = ["cli", "tui", "sync", "i18n"]
-categories = ["command-line-utilities", "development-tools::tui"]
+keywords = [
+  "cli",
+  "tui",
+  "sync",
+  "i18n",
+  "modular",
+  "configuration",
+  "async",
+  "tokio",
+  "ratatui",
+  "crossterm",
+  "serde",
+  "toml",
+  "logging",
+  "ansi-escapes",
+  "rust",
+  "development-tools",
+  "command-line-utilities",
+  "sync-server",
+]
+categories = [
+  "command-line-utilities",
+  "development-tools",
+  "asynchronous",
+  "tui",
+  "modular",
+  "configuration",
+  "sync-server",
+  "internationalization",
+  "rust",
+  "async",
+  "tokio",
+  "ratatui",
+  "crossterm",
+  "serde",
+  "toml",
+  "logging",
+  "ansi-escapes",
+]
 
 [dependencies]
 crossterm = "0.27"
