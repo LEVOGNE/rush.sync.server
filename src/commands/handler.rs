@@ -4,6 +4,7 @@ use crate::commands::clear::ClearCommand;
 use crate::commands::exit::exit::ExitCommand;
 use crate::commands::history::HistoryCommand;
 use crate::commands::lang::LanguageCommand;
+use crate::commands::restart::RestartCommand;
 use crate::commands::version::VersionCommand;
 use crate::i18n;
 
@@ -21,6 +22,7 @@ pub enum CommandType {
     Exit(ExitCommand),
     Language(LanguageCommand),
     Clear(ClearCommand),
+    Restart(RestartCommand),
     Version(VersionCommand),
     // ✅ SPÄTER: Einfach neue Commands hinzufügen
     // Auth(AuthCommand),
@@ -37,6 +39,7 @@ impl CommandType {
             Self::Exit(ExitCommand),
             Self::Language(LanguageCommand),
             Self::Clear(ClearCommand),
+            Self::Restart(RestartCommand),
             Self::Version(VersionCommand),
         ]
     }
@@ -48,6 +51,7 @@ impl CommandType {
             Self::Exit(cmd) => cmd.matches(command),
             Self::Language(cmd) => cmd.matches(command),
             Self::Clear(cmd) => cmd.matches(command),
+            Self::Restart(cmd) => cmd.matches(command),
             Self::Version(cmd) => cmd.matches(command),
         }
     }
@@ -59,6 +63,7 @@ impl CommandType {
             Self::Exit(cmd) => cmd.execute_sync(args),
             Self::Language(cmd) => cmd.execute_sync(args),
             Self::Clear(cmd) => cmd.execute_sync(args),
+            Self::Restart(cmd) => cmd.execute_sync(args),
             Self::Version(cmd) => cmd.execute_sync(args),
         }
     }
@@ -70,6 +75,7 @@ impl CommandType {
             Self::Exit(cmd) => cmd.execute_async(args).await,
             Self::Language(cmd) => cmd.execute_async(args).await,
             Self::Clear(cmd) => cmd.execute_async(args).await,
+            Self::Restart(cmd) => cmd.execute_async(args).await, // ← NEU
             Self::Version(cmd) => cmd.execute_async(args).await,
         }
     }
@@ -81,6 +87,7 @@ impl CommandType {
             Self::Exit(cmd) => cmd.supports_async(),
             Self::Language(cmd) => cmd.supports_async(),
             Self::Clear(cmd) => cmd.supports_async(),
+            Self::Restart(cmd) => cmd.supports_async(),
             Self::Version(cmd) => cmd.supports_async(),
         }
     }
@@ -195,7 +202,10 @@ impl CommandHandler {
 
     /// ✅ ALLGEMEIN: Helper (keine Command-spezifische Logic!)
     fn should_exit_on_message(&self, message: &str) -> bool {
-        message.starts_with("__EXIT__") || message.starts_with("__CONFIRM_EXIT__")
+        message.starts_with("__EXIT__")
+            || message.starts_with("__CONFIRM_EXIT__")
+            || message.starts_with("__RESTART__")
+            || message.starts_with("__CONFIRM_RESTART__")
     }
 }
 

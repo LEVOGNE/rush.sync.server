@@ -273,40 +273,37 @@ impl Prompt {
     }
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            config_path: None,
-            max_messages: DEFAULT_BUFFER_SIZE,
-            typewriter_delay: Duration::from_millis(50),
-            input_max_length: DEFAULT_BUFFER_SIZE,
-            max_history: 30, // ✅ BLEIBT - wird von HistoryConfig verwendet
-            poll_rate: Duration::from_millis(DEFAULT_POLL_RATE),
-            theme: Theme::default(),
-            prompt: Prompt::default(),
-            language: crate::i18n::DEFAULT_LANGUAGE.to_string(),
-            debug_info: None,
-        }
+crate::impl_default!(
+    Config,
+    Self {
+        config_path: None,
+        max_messages: DEFAULT_BUFFER_SIZE,
+        typewriter_delay: Duration::from_millis(50),
+        input_max_length: DEFAULT_BUFFER_SIZE,
+        max_history: 30,
+        poll_rate: Duration::from_millis(DEFAULT_POLL_RATE),
+        theme: Theme::default(),
+        prompt: Prompt::default(),
+        language: crate::i18n::DEFAULT_LANGUAGE.to_string(),
+        debug_info: None,
     }
-}
+);
 
-impl Default for Theme {
-    fn default() -> Self {
-        Self {
-            input_text: AppColor::new(Color::Black),
-            input_bg: AppColor::new(Color::Black),
-            cursor: AppColor::new(Color::Black),
-            output_text: AppColor::new(Color::White),
-            output_bg: AppColor::new(Color::White),
-        }
+crate::impl_default!(
+    Theme,
+    Self {
+        input_text: AppColor::new(Color::Black),
+        input_bg: AppColor::new(Color::Black),
+        cursor: AppColor::new(Color::Black),
+        output_text: AppColor::new(Color::White),
+        output_bg: AppColor::new(Color::White),
     }
-}
+);
 
-impl Default for Prompt {
-    fn default() -> Self {
-        Self {
-            text: "/// ".to_string(),
-            color: AppColor::new(Color::Black),
-        }
+crate::impl_default!(
+    Prompt,
+    Self {
+        text: "/// ".to_string(),
+        color: AppColor::new(Color::Black),
     }
-}
+);

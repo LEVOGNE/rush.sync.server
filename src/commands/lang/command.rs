@@ -1,3 +1,4 @@
+// src/commands/lang/command.rs
 use super::manager::LanguageManager;
 use crate::core::prelude::*;
 

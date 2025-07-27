@@ -18,32 +18,31 @@ impl AppColor {
         Self::from_category(category)
     }
 
+    const COLOR_MAP: &'static [(&'static str, Color)] = &[
+        ("black", Color::Black),
+        ("red", Color::Red),
+        ("green", Color::Green),
+        ("yellow", Color::Yellow),
+        ("blue", Color::Blue),
+        ("magenta", Color::Magenta),
+        ("cyan", Color::Cyan),
+        ("gray", Color::Gray),
+        ("darkgray", Color::DarkGray),
+        ("lightred", Color::LightRed),
+        ("lightgreen", Color::LightGreen),
+        ("lightyellow", Color::LightYellow),
+        ("lightblue", Color::LightBlue),
+        ("lightmagenta", Color::LightMagenta),
+        ("lightcyan", Color::LightCyan),
+        ("white", Color::White),
+    ];
+
     pub fn from_string(color_str: &str) -> crate::core::error::Result<Self> {
-        let color = match color_str.to_lowercase().as_str() {
-            "black" => Color::Black,
-            "red" => Color::Red,
-            "green" => Color::Green,
-            "yellow" => Color::Yellow,
-            "blue" => Color::Blue,
-            "magenta" => Color::Magenta,
-            "cyan" => Color::Cyan,
-            "gray" => Color::Gray,
-            "darkgray" => Color::DarkGray,
-            "lightred" => Color::LightRed,
-            "lightgreen" => Color::LightGreen,
-            "lightyellow" => Color::LightYellow,
-            "lightblue" => Color::LightBlue,
-            "lightmagenta" => Color::LightMagenta,
-            "lightcyan" => Color::LightCyan,
-            "white" => Color::White,
-            _ => {
-                return Err(AppError::Validation(format!(
-                    "Ungültige Farbe: {}",
-                    color_str
-                )))
-            }
-        };
-        Ok(Self(color))
+        Self::COLOR_MAP
+            .iter()
+            .find(|(name, _)| *name == color_str.to_lowercase())
+            .map(|(_, color)| Self(*color))
+            .ok_or_else(|| AppError::Validation(format!("Ungültige Farbe: {}", color_str)))
     }
 
     pub fn from_log_level(level: Level) -> Self {

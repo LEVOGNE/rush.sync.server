@@ -1,3 +1,4 @@
+// src/commands/history/history.rs
 use crate::core::prelude::*;
 
 #[derive(Debug)]
@@ -16,12 +17,5 @@ impl HistoryCommand {
         }
     }
 
-    pub async fn execute_async(&self, args: &[&str]) -> Result<String> {
-        // Default: nutze sync version
-        self.execute_sync(args)
-    }
-
-    pub fn supports_async(&self) -> bool {
-        false
-    }
+    crate::async_fallback!();
 }

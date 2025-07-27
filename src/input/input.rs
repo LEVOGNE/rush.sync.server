@@ -1,5 +1,5 @@
 // =====================================================
-// FILE: input/input.rs - FINAL VERSION (ohne Debug)
+// FILE: input/input.rs - FINAL VERSION mit RESTART SUPPORT
 // =====================================================
 
 use crate::commands::handler::CommandHandler;
@@ -27,6 +27,7 @@ pub struct InputState<'a> {
     command_handler: CommandHandler,
     keyboard_manager: KeyboardManager,
     waiting_for_exit_confirmation: bool,
+    waiting_for_restart_confirmation: bool, // ← NEU HINZUGEFÜGT
 }
 
 impl<'a> InputState<'a> {
@@ -42,6 +43,7 @@ impl<'a> InputState<'a> {
             command_handler: CommandHandler::new(),
             keyboard_manager: KeyboardManager::new(),
             waiting_for_exit_confirmation: false,
+            waiting_for_restart_confirmation: false, // ← NEU HINZUGEFÜGT
         }
     }
 
@@ -68,6 +70,7 @@ impl<'a> InputState<'a> {
 
     pub fn reset_for_language_change(&mut self) {
         self.waiting_for_exit_confirmation = false;
+        self.waiting_for_restart_confirmation = false; // ← NEU HINZUGEFÜGT
         self.content.clear();
         self.history_manager.reset_position();
         self.cursor.move_to_start();
@@ -86,6 +89,52 @@ impl<'a> InputState<'a> {
                     input if input == confirm_short.to_lowercase() => {
                         self.content.clear();
                         Some("__EXIT__".to_string())
+                    }
+                    input if input == cancel_short.to_lowercase() => {
+                        self.clear_input();
+                        Some(crate::i18n::get_translation("system.input.cancelled", &[]))
+                    }
+                    _ => {
+                        self.clear_input();
+                        Some(crate::i18n::get_translation("system.input.cancelled", &[]))
+                    }
+                }
+            }
+            KeyAction::InsertChar(c) => {
+                let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
+                let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
+
+                if c.to_lowercase().to_string() == confirm_short.to_lowercase()
+                    || c.to_lowercase().to_string() == cancel_short.to_lowercase()
+                {
+                    self.content.clear();
+                    self.content.push(c);
+                    self.cursor.update_text_length(&self.content);
+                    self.cursor.move_to_end();
+                }
+                None
+            }
+            KeyAction::Backspace | KeyAction::Delete | KeyAction::ClearLine => {
+                self.clear_input();
+                None
+            }
+            _ => None,
+        }
+    }
+
+    // ✅ NEU: Restart Confirmation Handler
+    fn handle_restart_confirmation(&mut self, action: KeyAction) -> Option<String> {
+        match action {
+            KeyAction::Submit => {
+                self.waiting_for_restart_confirmation = false;
+
+                let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
+                let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
+
+                match self.content.trim().to_lowercase().as_str() {
+                    input if input == confirm_short.to_lowercase() => {
+                        self.content.clear();
+                        Some("__RESTART__".to_string()) // ✅ RESTART auslösen
                     }
                     input if input == cancel_short.to_lowercase() => {
                         self.clear_input();
@@ -172,14 +221,25 @@ impl<'a> InputState<'a> {
             return self.handle_history_action(history_action);
         }
 
-        // ✅ 2. NORMALE Keyboard-Actions
+        // ✅ 2. ESC wird NICHT hier behandelt - nur in ScreenManager!
+        if key.code == KeyCode::Esc {
+            return None;
+        }
+
+        // ✅ 3. NORMALE Keyboard-Actions (ohne ESC!)
         let action = self.keyboard_manager.get_action(&key);
 
+        // ✅ 4. CONFIRMATION HANDLING erweitert
         if self.waiting_for_exit_confirmation {
             return self.handle_exit_confirmation(action);
         }
 
-        // ✅ 3. NORMALE Eingabeverarbeitung mit SAFETY CHECKS
+        if self.waiting_for_restart_confirmation {
+            // ← NEU HINZUFÜGEN
+            return self.handle_restart_confirmation(action);
+        }
+
+        // ✅ 5. NORMALE Eingabeverarbeitung
         match action {
             KeyAction::Submit => {
                 if self.content.is_empty() {
@@ -187,12 +247,8 @@ impl<'a> InputState<'a> {
                 }
                 if self.validate_input(&self.content).is_ok() {
                     let content = std::mem::take(&mut self.content);
-
-                    // ✅ SAFETY: Cursor für leeren Text zurücksetzen
                     self.cursor.reset_for_empty_text();
-
                     self.history_manager.add_entry(content.clone());
-
                     let result = self.command_handler.handle_input(&content);
 
                     if let Some(event) = HistoryEventHandler::handle_command_result(&result.message)
@@ -203,6 +259,12 @@ impl<'a> InputState<'a> {
                     if result.message.starts_with("__CONFIRM_EXIT__") {
                         self.waiting_for_exit_confirmation = true;
                         return Some(result.message.replace("__CONFIRM_EXIT__", ""));
+                    }
+
+                    // ✅ NEU: Restart Confirmation handling
+                    if result.message.starts_with("__CONFIRM_RESTART__") {
+                        self.waiting_for_restart_confirmation = true;
+                        return Some(result.message.replace("__CONFIRM_RESTART__", ""));
                     }
 
                     if result.should_exit {
@@ -238,7 +300,6 @@ impl<'a> InputState<'a> {
                 None
             }
             KeyAction::Backspace => {
-                // ✅ SAFETY: Umfassende Checks vor Range-Operation
                 if self.content.is_empty() || self.cursor.get_position() == 0 {
                     return None;
                 }
@@ -246,9 +307,7 @@ impl<'a> InputState<'a> {
                 let current_byte_pos = self.cursor.get_byte_position(&self.content);
                 let prev_byte_pos = self.cursor.get_prev_byte_position(&self.content);
 
-                // ✅ SAFETY: Range-Validierung vor replace_range
                 if prev_byte_pos >= current_byte_pos || current_byte_pos > self.content.len() {
-                    // Fallback: Cursor zurücksetzen
                     self.cursor.update_text_length(&self.content);
                     return None;
                 }
@@ -258,14 +317,12 @@ impl<'a> InputState<'a> {
                     .replace_range(prev_byte_pos..current_byte_pos, "");
                 self.cursor.update_text_length(&self.content);
 
-                // ✅ SAFETY: Wenn jetzt leer, Cursor komplett zurücksetzen
                 if self.content.is_empty() {
                     self.cursor.reset_for_empty_text();
                 }
                 None
             }
             KeyAction::Delete => {
-                // ✅ SAFETY: Validierung vor Delete-Operation
                 let text_length = self.content.graphemes(true).count();
                 if self.cursor.get_position() >= text_length || text_length == 0 {
                     return None;
@@ -274,9 +331,7 @@ impl<'a> InputState<'a> {
                 let current_byte_pos = self.cursor.get_byte_position(&self.content);
                 let next_byte_pos = self.cursor.get_next_byte_position(&self.content);
 
-                // ✅ SAFETY: Range-Validierung
                 if current_byte_pos >= next_byte_pos || next_byte_pos > self.content.len() {
-                    // Fallback: Cursor zurücksetzen
                     self.cursor.update_text_length(&self.content);
                     return None;
                 }
@@ -285,7 +340,6 @@ impl<'a> InputState<'a> {
                     .replace_range(current_byte_pos..next_byte_pos, "");
                 self.cursor.update_text_length(&self.content);
 
-                // ✅ SAFETY: Wenn jetzt leer, Cursor komplett zurücksetzen
                 if self.content.is_empty() {
                     self.cursor.reset_for_empty_text();
                 }

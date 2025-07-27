@@ -35,6 +35,8 @@ pub struct ScreenManager<'a> {
     config: &'a Config,
     terminal_mgr: TerminalManager,
     events: EventHandler,
+    keyboard_manager: KeyboardManager,
+    waiting_for_restart_confirmation: bool,
 }
 
 impl<'a> ScreenManager<'a> {
@@ -61,6 +63,8 @@ impl<'a> ScreenManager<'a> {
             terminal_size: (size.width, size.height),
             config,
             events: EventHandler::new(config.poll_rate),
+            keyboard_manager: KeyboardManager::new(),
+            waiting_for_restart_confirmation: false,
         })
     }
 
@@ -96,8 +100,8 @@ impl<'a> ScreenManager<'a> {
                         }
 
                         // ✅ 2. NORMAL: Andere Keys normal verarbeiten
-                        let mut keyboard_manager = KeyboardManager::new();
-                        match keyboard_manager.get_action(&key) {
+                        //let mut keyboard_manager = KeyboardManager::new();
+                        match self.keyboard_manager.get_action(&key) {
                             action @ (KeyAction::ScrollUp
                             | KeyAction::ScrollDown
                             | KeyAction::PageUp
@@ -133,6 +137,15 @@ impl<'a> ScreenManager<'a> {
                                     } else if new_input.starts_with("__EXIT__") {
                                         self.events.shutdown().await;
                                         break Ok(());
+                                    } else if new_input.starts_with("__RESTART_FORCE__")
+                                        || new_input == "__RESTART__"
+                                    {
+                                        // ✅ KALT-RESTART durchführen
+                                        if let Err(e) = self.perform_restart().await {
+                                            self.message_manager
+                                                .add_message(format!("Restart failed: {}", e));
+                                        }
+                                        continue;
                                     }
                                 }
                             }
@@ -226,6 +239,34 @@ impl<'a> ScreenManager<'a> {
             frame.render_widget(input_widget, chunks[1]);
         })?;
 
+        Ok(())
+    }
+
+    /// Führt einen internen Kalt-Restart durch
+    async fn perform_restart(&mut self) -> Result<()> {
+        // ✅ 1. CLEANUP: Terminal zurücksetzen
+        self.terminal_mgr.cleanup().await?;
+
+        // ✅ 2. REINIT: Alles neu initialisieren
+        self.terminal_mgr = TerminalManager::new().await?;
+        self.terminal_mgr.setup().await?;
+
+        let backend = CrosstermBackend::new(io::stdout());
+        self.terminal = Terminal::new(backend)?;
+
+        // ✅ 3. RESET: Messages und Input State zurücksetzen
+        self.message_manager.clear_messages();
+        self.input_state = Box::new(InputState::new(&self.config.prompt.text, self.config));
+        self.waiting_for_restart_confirmation = false;
+
+        // ✅ 4. SUCCESS: Restart-Nachricht
+        self.message_manager
+            .add_message(crate::i18n::get_command_translation(
+                "system.commands.restart.success",
+                &[],
+            ));
+
+        log::info!("Internal restart completed successfully");
         Ok(())
     }
 }

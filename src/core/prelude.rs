@@ -16,3 +16,5 @@ pub use ratatui::style::Color;
 
 // ✅ i18n - NUR DIE ESSENTIALS
 pub use crate::i18n::{get_translation, TranslationError};
+
+// ✅ Macros werden automatisch verfügbar durch #[macro_export]
