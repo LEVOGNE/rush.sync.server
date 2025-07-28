@@ -5,7 +5,6 @@ use rust_embed::RustEmbed;
 use std::collections::HashMap;
 use std::sync::{Mutex, RwLock};
 
-pub const AVAILABLE_LANGUAGES: &[&str] = &["de", "en"];
 pub const DEFAULT_LANGUAGE: &str = "en";
 
 #[derive(Debug)]
@@ -29,12 +28,13 @@ impl std::fmt::Display for TranslationError {
 #[folder = "src/i18n/langs/"]
 pub struct Langs;
 
-fn get_language_file(lang: &str) -> Option<&'static str> {
-    match lang {
-        "de" => Some(include_str!("langs/de.json")),
-        "en" => Some(include_str!("langs/en.json")),
-        _ => None,
-    }
+fn get_language_file(lang: &str) -> Option<String> {
+    let filename = format!("{}.json", lang.to_lowercase());
+    Langs::get(&filename).and_then(|file| {
+        std::str::from_utf8(file.data.as_ref())
+            .ok()
+            .map(|s| s.to_owned())
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -80,7 +80,7 @@ impl TranslationConfig {
         })?;
 
         let raw_entries: HashMap<String, String> =
-            serde_json::from_str(translation_str).map_err(|e| {
+            serde_json::from_str(&translation_str).map_err(|e| {
                 AppError::Translation(TranslationError::LoadError(format!(
                     "Error parsing language file: {}",
                     e
@@ -111,7 +111,6 @@ impl TranslationConfig {
                     },
                 );
 
-                // ✅ SAMMLE neue Display-Mappings
                 new_display_mappings.insert(
                     display_category.to_lowercase(),
                     color_category.to_lowercase(),
@@ -259,7 +258,11 @@ pub fn set_language(lang: &str) -> Result<()> {
 
 fn set_language_internal(lang: &str, _save_config: bool) -> Result<()> {
     let lang = lang.to_lowercase();
-    if !AVAILABLE_LANGUAGES.iter().any(|&l| l == lang) {
+
+    if !get_available_languages()
+        .iter()
+        .any(|l| l.to_lowercase() == lang)
+    {
         return Err(AppError::Translation(TranslationError::InvalidLanguage(
             lang.to_uppercase(),
         )));
@@ -297,9 +300,8 @@ pub fn get_current_language() -> String {
 }
 
 pub fn get_available_languages() -> Vec<String> {
-    AVAILABLE_LANGUAGES
-        .iter()
-        .map(|&s| s.to_uppercase())
+    Langs::iter()
+        .filter_map(|f| f.as_ref().strip_suffix(".json").map(|s| s.to_uppercase()))
         .collect()
 }
 

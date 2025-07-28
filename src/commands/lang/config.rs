@@ -1,8 +1,8 @@
 // commands/lang/config.rs - CONFIG INTEGRATION
-
 use super::persistence::LanguagePersistence;
 use crate::core::config::Config;
 use crate::core::prelude::*;
+use crate::i18n::get_available_languages;
 
 /// Config-Integration für Language Management
 pub struct LanguageConfig;
@@ -11,11 +11,13 @@ impl LanguageConfig {
     /// Setzt Sprache in bestehender Config-Instanz
     pub async fn set_in_config(config: &mut Config, lang: &str) -> Result<()> {
         // ✅ 1. VALIDIERUNG
-        if !crate::i18n::AVAILABLE_LANGUAGES.contains(&lang) {
+        let lang_lower = lang.to_lowercase();
+        let available = get_available_languages();
+
+        if !available.iter().any(|l| l.to_lowercase() == lang_lower) {
             return Err(AppError::Validation(format!(
                 "Ungültige Sprache: {}. Verfügbar: {:?}",
-                lang,
-                crate::i18n::AVAILABLE_LANGUAGES
+                lang, available
             )));
         }
 
