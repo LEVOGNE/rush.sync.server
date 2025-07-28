@@ -5,6 +5,9 @@
 ![License](https://img.shields.io/badge/license-Dual--License-blue)
 ![Crates.io](https://img.shields.io/crates/v/rush-sync-server)
 
+> 🛠 **NOTE**: Version `0.2.2` on crates.io has a critical bug in language file loading (`*.json` not embedded correctly).
+> Please use **version `0.2.3+`** for a stable release!
+
 **Rush Sync Server** is a modern, modular terminal application written in **Rust**, featuring an interactive TUI, internationalized interface, color-coded logging, and flexible configuration.
 Perfect for developers who need a **customizable, scriptable terminal UI**.
 
@@ -12,7 +15,7 @@ Perfect for developers who need a **customizable, scriptable terminal UI**.
 
 ## 🚀 Installation & Usage
 
-### 📦 **As Binary (End Users) - Version 0.2.2+**
+### 📦 **As Binary (End Users) - Version 0.2.3+**
 
 ```bash
 # Install directly from crates.io
@@ -22,13 +25,13 @@ cargo install rush-sync-server
 rush-sync
 ```
 
-### 📚 **As Library (Developers) - Version 0.2.2+**
+### 📚 **As Library (Developers) - Version 0.2.3+**
 
 Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rush-sync-server = "0.2.2"
+rush-sync-server = "0.2.3"
 tokio = { version = "1.36", features = ["full"] }
 ```
 
@@ -455,7 +458,7 @@ async fn main() -> Result<()> {
 - [x] ~~Plugin system for custom commands~~ ✓ Implemented
 - [x] ~~Live log-level configuration~~ ✓ Implemented
 - [x] ~~Performance monitoring~~ ✓ Implemented
-- [x] ~~Binary & Library distribution~~ ✓ Implemented (v0.2.2+)
+- [x] ~~Binary & Library distribution~~ ✓ Implemented (v0.2.3+)
 - [ ] Live UI configuration changes
 - [ ] Config hot-reload without restart
 - [ ] Custom color themes
@@ -463,7 +466,7 @@ async fn main() -> Result<()> {
 
 ---
 
-## 📊 **What's New in v0.2.2**
+## 📊 **What's New in v0.2.3**
 
 - ✅ **Binary distribution**: Install with `cargo install rush-sync-server`
 - ✅ **Library API**: Use as dependency in your Rust projects

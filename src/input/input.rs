@@ -18,20 +18,29 @@ use ratatui::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
-pub struct InputState<'a> {
+pub struct InputState {
     content: String,
     cursor: CursorState,
     prompt: String,
     history_manager: HistoryManager,
-    config: &'a Config,
+    config: Config, // nun eigener Clone
     command_handler: CommandHandler,
     keyboard_manager: KeyboardManager,
     waiting_for_exit_confirmation: bool,
     waiting_for_restart_confirmation: bool, // ← NEU HINZUGEFÜGT
 }
 
-impl<'a> InputState<'a> {
-    pub fn new(prompt: &str, config: &'a Config) -> Self {
+/// ✅ Backup structure für InputState
+#[derive(Debug, Clone, Default)]
+pub struct InputStateBackup {
+    pub content: String,
+    pub history: Vec<String>,
+    pub cursor_pos: usize,
+    pub prompt: String,
+}
+
+impl InputState {
+    pub fn new(prompt: &str, config: &Config) -> Self {
         let history_config = HistoryConfig::from_main_config(config);
 
         Self {
@@ -39,7 +48,7 @@ impl<'a> InputState<'a> {
             cursor: CursorState::new(),
             prompt: prompt.to_string(),
             history_manager: HistoryManager::new(history_config.max_entries),
-            config,
+            config: config.clone(), // Clone statt Referenz
             command_handler: CommandHandler::new(),
             keyboard_manager: KeyboardManager::new(),
             waiting_for_exit_confirmation: false,
@@ -235,7 +244,6 @@ impl<'a> InputState<'a> {
         }
 
         if self.waiting_for_restart_confirmation {
-            // ← NEU HINZUFÜGEN
             return self.handle_restart_confirmation(action);
         }
 
@@ -261,10 +269,34 @@ impl<'a> InputState<'a> {
                         return Some(result.message.replace("__CONFIRM_EXIT__", ""));
                     }
 
-                    // ✅ NEU: Restart Confirmation handling
+                    // ✅ KORRIGIERT: Restart Confirmation handling (auch mit zusätzlichem Text)
                     if result.message.starts_with("__CONFIRM_RESTART__") {
                         self.waiting_for_restart_confirmation = true;
                         return Some(result.message.replace("__CONFIRM_RESTART__", ""));
+                    }
+
+                    // ✅ KRITISCH KORRIGIERT: Restart handling - akzeptiert auch __RESTART__ mit zusätzlichem Text
+                    if result.message.starts_with("__RESTART_FORCE__")
+                        || result.message.starts_with("__RESTART__")
+                    // ✅ DIES WAR DAS PROBLEM!
+                    {
+                        // ✅ EXTRAHIERE den Text nach __RESTART__ für User-Feedback
+                        let feedback_text = if result.message.starts_with("__RESTART_FORCE__") {
+                            result
+                                .message
+                                .replace("__RESTART_FORCE__", "")
+                                .trim()
+                                .to_string()
+                        } else {
+                            result.message.replace("__RESTART__", "").trim().to_string()
+                        };
+
+                        // ✅ ZEIGE FEEDBACK falls vorhanden
+                        if !feedback_text.is_empty() {
+                            return Some(format!("__RESTART_WITH_MSG__{}", feedback_text));
+                        } else {
+                            return Some("__RESTART__".to_string());
+                        }
                     }
 
                     if result.should_exit {
@@ -274,6 +306,7 @@ impl<'a> InputState<'a> {
                 }
                 None
             }
+            // ✅ REST bleibt unverändert...
             KeyAction::InsertChar(c) => {
                 if self.content.graphemes(true).count() < self.config.input_max_length {
                     let byte_pos = self.cursor.get_byte_position(&self.content);
@@ -358,9 +391,50 @@ impl<'a> InputState<'a> {
             | KeyAction::NoAction => None,
         }
     }
+
+    pub fn export_state(&self) -> InputStateBackup {
+        InputStateBackup {
+            content: self.content.clone(),
+            history: self.history_manager.get_all_entries(),
+            cursor_pos: self.cursor.get_current_position(),
+            prompt: self.prompt.clone(),
+        }
+    }
+
+    /// ✅ Import state from backup
+    pub fn import_state(&mut self, backup: InputStateBackup) {
+        // Restore content
+        self.content = backup.content;
+
+        // Restore history
+        self.history_manager.import_entries(backup.history);
+
+        // Restore cursor
+        self.cursor.update_text_length(&self.content);
+        // Note: cursor position will be recalculated by update_text_length
+
+        // Restore prompt if changed
+        self.prompt = backup.prompt;
+
+        log::debug!(
+            "✅ InputState imported: {} chars, {} history entries",
+            self.content.len(),
+            self.history_manager.entry_count()
+        );
+    }
+
+    /// ✅ Get current input content (public getter)
+    pub fn get_content(&self) -> &str {
+        &self.content
+    }
+
+    /// ✅ Get history count (public getter)
+    pub fn get_history_count(&self) -> usize {
+        self.history_manager.entry_count()
+    }
 }
 
-impl Widget for InputState<'_> {
+impl Widget for InputState {
     fn render(&self) -> Paragraph {
         let graphemes: Vec<&str> = self.content.graphemes(true).collect();
         let cursor_pos = self.cursor.get_position();
@@ -433,9 +507,19 @@ impl Widget for InputState<'_> {
     fn as_input_state(&mut self) -> Option<&mut dyn InputWidget> {
         Some(self)
     }
+
+    /// ✅ NEU: Backup implementation
+    fn get_backup_data(&self) -> Option<InputStateBackup> {
+        Some(self.export_state())
+    }
+
+    /// ✅ NEU: Restore implementation
+    fn restore_backup_data(&mut self, backup: InputStateBackup) {
+        self.import_state(backup);
+    }
 }
 
-impl InputWidget for InputState<'_> {
+impl InputWidget for InputState {
     fn update_cursor_blink(&mut self) {
         self.cursor.update_blink();
     }

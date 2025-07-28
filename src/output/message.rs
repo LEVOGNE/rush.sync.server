@@ -1,5 +1,5 @@
 // =====================================================
-// FILE: src/output/message.rs - TYPEWRITER FIX
+// FILE: src/output/message.rs - OWNED CONFIG SUPPORT
 // =====================================================
 
 use crate::core::prelude::*;
@@ -13,20 +13,47 @@ pub struct Message {
     pub timestamp: Instant,
 }
 
-pub struct MessageManager<'a> {
+pub struct MessageManager {
     pub messages: Vec<Message>,
-    config: &'a Config,
+    config: Config, // ✅ OWNED statt &'a Config
     pub scroll_state: ScrollState,
 }
 
-impl<'a> MessageManager<'a> {
-    pub fn new(config: &'a Config) -> Self {
+impl MessageManager {
+    /// ✅ NEUER CONSTRUCTOR mit owned config
+    pub fn new(config: &Config) -> Self {
         let scroll_state = ScrollState::new();
         Self {
             messages: Vec::with_capacity(config.max_messages),
-            config,
+            config: config.clone(), // ✅ CLONE die Config
             scroll_state,
         }
+    }
+
+    /// ✅ NEU: UPDATE METHOD für Live-Changes
+    pub fn update_config(&mut self, new_config: &Config) {
+        self.config = new_config.clone();
+
+        // ✅ RESIZE messages buffer falls max_messages geändert wurde
+        if self.messages.len() > self.config.max_messages {
+            let excess = self.messages.len() - self.config.max_messages;
+            self.messages.drain(0..excess);
+
+            // ✅ UPDATE scroll state nach message removal
+            if self.scroll_state.offset > 0 {
+                self.scroll_state.offset = self.scroll_state.offset.saturating_sub(excess);
+            }
+        } else {
+            // ✅ RESERVE mehr Platz falls max_messages erhöht wurde
+            self.messages
+                .reserve(self.config.max_messages.saturating_sub(self.messages.len()));
+        }
+
+        log::debug!(
+            "MessageManager config updated: max_messages = {}, typewriter_delay = {}ms",
+            self.config.max_messages,
+            self.config.typewriter_delay.as_millis()
+        );
     }
 
     pub fn clear_messages(&mut self) {
@@ -54,6 +81,7 @@ impl<'a> MessageManager<'a> {
     }
 
     pub fn add_message(&mut self, content: String) {
+        // ✅ BUFFER-MANAGEMENT: Entferne alte Messages wenn Buffer voll
         if self.messages.len() >= self.config.max_messages {
             self.messages.remove(0);
             if self.scroll_state.offset > 0 {
@@ -74,16 +102,16 @@ impl<'a> MessageManager<'a> {
             timestamp: Instant::now(),
         });
 
-        // Erzwinge Auto-Scroll bei neuer Nachricht
+        // ✅ ERZWINGE Auto-Scroll bei neuer Nachricht
         self.scroll_state.force_auto_scroll();
 
-        // Update dimensions with current window height
+        // ✅ UPDATE dimensions mit aktueller window height
         self.scroll_state
             .update_dimensions(self.scroll_state.window_height, self.messages.len());
     }
 
     pub fn handle_scroll(&mut self, action: KeyAction, window_height: usize) {
-        // Update dimensions vor dem Scrollen
+        // ✅ UPDATE dimensions vor dem Scrollen
         self.scroll_state
             .update_dimensions(window_height, self.messages.len());
 
@@ -110,7 +138,7 @@ impl<'a> MessageManager<'a> {
         self.get_messages()
     }
 
-    // ✅ HAUPTFIX: Typewriter Update nur wenn delay > 0
+    /// ✅ HAUPTFIX: Typewriter Update nur wenn delay > 0
     pub fn update_typewriter(&mut self) {
         // ✅ EARLY RETURN: Wenn typewriter_delay = 0, mache nichts
         if self.config.typewriter_delay.as_millis() == 0 {

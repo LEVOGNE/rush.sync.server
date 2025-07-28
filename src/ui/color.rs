@@ -1,11 +1,14 @@
-// ## BEGIN ##
+// =====================================================
+// FILE: src/ui/color.rs - VOLLSTÄNDIG mit CLONE SUPPORT
+// =====================================================
+
 use crate::core::prelude::*;
 use log::Level;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)] // ✅ CLONE ist bereits da
 pub struct AppColor(Color);
 
 // ✅ Zentrale Map für ALLE Farben & Kategorien
@@ -135,4 +138,3 @@ impl Default for AppColor {
         Self(Color::Gray)
     }
 }
-// ## END ##

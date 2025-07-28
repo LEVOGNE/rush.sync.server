@@ -128,6 +128,11 @@ impl CursorState {
         self.text_length = 0;
         self.show_cursor();
     }
+
+    /// ✅ Get current position (public access)
+    pub fn get_current_position(&self) -> usize {
+        self.position
+    }
 }
 
 impl Default for CursorState {

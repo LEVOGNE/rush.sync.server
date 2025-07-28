@@ -247,5 +247,24 @@
   "system.log.trace.display_category": "trace",
   "system.log.language.text": "SPRACHE",
   "system.log.language.category": "lang",
-  "system.log.language.display_category": "sprache"
+  "system.log.language.display_category": "sprache",
+
+  "system.commands.theme.current.text": "Aktuelles Theme: {}",
+  "system.commands.theme.current.category": "info",
+  "system.commands.theme.current.display_category": "info",
+  "system.commands.theme.available.text": "Verfügbare Themes: {}",
+  "system.commands.theme.available.category": "info",
+  "system.commands.theme.available.display_category": "info",
+  "system.commands.theme.changed.text": "Theme geändert zu: {}",
+  "system.commands.theme.changed.category": "info",
+  "system.commands.theme.changed.display_category": "info",
+  "system.commands.theme.invalid.text": "Ungültiges Theme: '{}'. Verfügbar: dark, light, matrix, blue",
+  "system.commands.theme.invalid.category": "error",
+  "system.commands.theme.invalid.display_category": "fehler",
+  "system.commands.theme.help.text": "Theme Befehle:\n  theme                Zeige aktuelles Theme & verfügbare Optionen\n  theme dark           Wechsle zu dunklem Theme\n  theme light          Wechsle zu hellem Theme\n  theme matrix         Wechsle zu Matrix Theme (grün)\n  theme blue           Wechsle zu blauem Theme\n  theme preview <name> Zeige Theme-Farben\n  theme -h             Zeige diese Hilfe",
+  "system.commands.theme.help.category": "info",
+  "system.commands.theme.help.display_category": "info",
+  "system.commands.theme.preview_missing.text": "Theme-Name fehlt. Verwendung: theme preview <name>",
+  "system.commands.theme.preview_missing.category": "error",
+  "system.commands.theme.preview_missing.display_category": "fehler"
 }

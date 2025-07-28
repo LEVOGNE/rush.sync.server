@@ -13,9 +13,10 @@ pub mod performance;
 pub mod plugins;
 pub mod registry;
 pub mod restart;
+pub mod theme; // ✅ DIESE ZEILE HINZUFÜGEN
 pub mod version;
 
-// ✅ CLEAN EXPORTS (macros entfernt da sie in lib.rs sind)
+// ✅ CLEAN EXPORTS
 pub use command::Command;
 pub use handler::CommandHandler;
 pub use plugins::{CommandPlugin, PluginManager};

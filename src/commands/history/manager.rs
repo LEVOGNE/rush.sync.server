@@ -65,4 +65,23 @@ impl HistoryManager {
     pub fn reset_position(&mut self) {
         self.position = None;
     }
+
+    /// ✅ Get all entries as clone (für backup)
+    pub fn get_all_entries(&self) -> Vec<String> {
+        self.entries.clone()
+    }
+
+    /// ✅ Import entries (für restore)
+    pub fn import_entries(&mut self, entries: Vec<String>) {
+        for entry in entries {
+            if !entry.trim().is_empty() && !self.entries.contains(&entry) {
+                self.add_entry(entry);
+            }
+        }
+    }
+
+    /// ✅ Get count
+    pub fn entry_count(&self) -> usize {
+        self.entries.len()
+    }
 }

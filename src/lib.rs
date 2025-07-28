@@ -43,8 +43,13 @@ macro_rules! register_commands {
 macro_rules! create_full_registry {
     () => {{
         use $crate::commands::{
-            clear::ClearCommand, exit::exit::ExitCommand, history::HistoryCommand,
-            lang::LanguageCommand, restart::RestartCommand, version::VersionCommand,
+            clear::ClearCommand,
+            exit::exit::ExitCommand,
+            history::HistoryCommand,
+            lang::LanguageCommand,
+            restart::RestartCommand,
+            theme::ThemeCommand, // ✅ NEU HINZUGEFÜGT
+            version::VersionCommand,
         };
 
         let mut registry = $crate::commands::registry::CommandRegistry::new();
@@ -56,7 +61,8 @@ macro_rules! create_full_registry {
             LanguageCommand,
             ClearCommand,
             RestartCommand,
-            VersionCommand
+            VersionCommand,
+            ThemeCommand // ✅ NEU HINZUGEFÜGT
         );
 
         registry.initialize();
@@ -94,12 +100,17 @@ pub use commands::{Command, CommandHandler, CommandPlugin, CommandRegistry, Plug
 pub use core::config::Config;
 pub use core::error::{AppError, Result};
 
-/// ✅ PUBLIC FUNCTION - Für Integration Tests und externe Nutzung (MIT PERFORMANCE COMMAND)
 pub fn create_default_registry() -> CommandRegistry {
     use commands::{
-        clear::ClearCommand, exit::exit::ExitCommand, history::HistoryCommand,
-        lang::LanguageCommand, log_level::LogLevelCommand, performance::PerformanceCommand,
-        restart::RestartCommand, version::VersionCommand,
+        clear::ClearCommand,
+        exit::exit::ExitCommand,
+        history::HistoryCommand,
+        lang::LanguageCommand,
+        log_level::LogLevelCommand,
+        performance::PerformanceCommand,
+        restart::RestartCommand,
+        theme::ThemeCommand,
+        version::VersionCommand, // ✅ THEME HINZUGEFÜGT
     };
 
     let mut registry = CommandRegistry::new();
@@ -111,7 +122,8 @@ pub fn create_default_registry() -> CommandRegistry {
     registry.register(ClearCommand);
     registry.register(RestartCommand);
     registry.register(VersionCommand);
-    registry.register(PerformanceCommand); // ✅ NEU HINZUGEFÜGT
+    registry.register(PerformanceCommand);
+    registry.register(ThemeCommand); // ✅ NEU HINZUGEFÜGT
 
     registry.initialize();
     registry

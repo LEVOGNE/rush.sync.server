@@ -1,12 +1,13 @@
 // =====================================================
-// FILE: src/setup/setup_toml.rs - SICHERE DEFAULTS
+// FILE: src/setup/setup_toml.rs - SICHERE DEFAULTS (KORRIGIERT)
 // =====================================================
 
 use crate::core::prelude::*;
 use std::path::PathBuf;
 use tokio::fs;
 
-// ✅ SICHERE DEFAULT-CONFIG mit Performance-Kommentaren
+// ✅ SICHERE DEFAULT-CONFIG mit Performance-Kommentaren + PROMPT SEKTION
+
 const DEFAULT_CONFIG: &str = r#"[general]
 max_messages = 100
 # Typewriter-Effekt: 50ms = 20 Zeichen/Sekunde (empfohlen: 30-100ms)
@@ -16,20 +17,42 @@ max_history = 30
 # Poll-Rate: 16ms = 60 FPS (empfohlen: 16-33ms, NICHT unter 16!)
 poll_rate = 16
 log_level = "info"
+current_theme = "dark"
 
-[theme]
-input_text = "Black"
-input_bg = "White"
-cursor = "Black"
-output_text = "DarkGray"
-output_bg = "Black"
+[language]
+current = "en"
 
 [prompt]
 text = "/// "
 color = "Black"
 
-[language]
-current = "en"
+[theme.dark]
+input_text = "Black"
+input_bg = "White"
+cursor = "Black"
+output_text = "White"
+output_bg = "Black"
+
+[theme.light]
+input_text = "White"
+input_bg = "Black"
+cursor = "White"
+output_text = "Black"
+output_bg = "White"
+
+[theme.green]
+input_text = "Black"
+input_bg = "Green"
+cursor = "Black"
+output_text = "Green"
+output_bg = "Black"
+
+[theme.blue]
+input_text = "White"
+input_bg = "Blue"
+cursor = "White"
+output_text = "Blue"
+output_bg = "White"
 
 # =================================================================
 # PERFORMANCE-HINWEISE:
@@ -45,6 +68,12 @@ current = "en"
 #   - 30ms = 33 Zeichen/Sekunde (schnell)
 #   - 100ms = 10 Zeichen/Sekunde (langsam)
 #   - 0ms = Typewriter-Effekt deaktiviert
+#
+# current_theme:
+#   - "dark" = Dunkles Theme (Standard)
+#   - "light" = Helles Theme
+#   - "matrix" = Matrix-Style (Grün)
+#   - "blue" = Blaues Theme
 # =================================================================
 "#;
 

@@ -1,6 +1,10 @@
-// ## BEGIN ##
+// =====================================================
+// FILE: src/ui/screen.rs - VOLLSTÄNDIG mit LIVE UPDATE PROCESSING
+// =====================================================
+
 use crate::commands::history::HistoryKeyboardHandler;
 use crate::commands::lang::LanguageManager;
+use crate::commands::theme::TomlThemeLoader;
 use crate::core::prelude::*;
 use crate::input::{
     event::{AppEvent, EventHandler},
@@ -20,20 +24,21 @@ use std::io::{self, Stdout};
 
 pub type TerminalBackend = Terminal<CrosstermBackend<Stdout>>;
 
-pub struct ScreenManager<'a> {
+pub struct ScreenManager {
     terminal: TerminalBackend,
-    message_manager: MessageManager<'a>,
-    input_state: Box<dyn Widget + 'a>,
+    message_manager: MessageManager,
+    input_state: Box<dyn Widget>,
     terminal_size: (u16, u16),
-    config: &'a Config,
+    config: Config, // ✅ OWNED statt &'a Config für Live-Updates!
     terminal_mgr: TerminalManager,
     events: EventHandler,
     keyboard_manager: KeyboardManager,
     waiting_for_restart_confirmation: bool,
 }
 
-impl<'a> ScreenManager<'a> {
-    pub async fn new(config: &'a Config) -> Result<Self> {
+impl ScreenManager {
+    /// ✅ CONSTRUCTOR mit owned config
+    pub async fn new(config: &Config) -> Result<Self> {
         let mut terminal_mgr = TerminalManager::new().await?;
         terminal_mgr.setup().await?;
 
@@ -47,13 +52,16 @@ impl<'a> ScreenManager<'a> {
             .scroll_state
             .update_dimensions(initial_height, 0);
 
+        // ✅ CLONE Config für owned ownership
+        let owned_config = config.clone();
+
         Ok(Self {
             terminal,
             terminal_mgr,
             message_manager,
             input_state: Box::new(InputState::new(&config.prompt.text, config)),
             terminal_size: (size.width, size.height),
-            config,
+            config: owned_config, // ✅ OWNED Config
             events: EventHandler::new(config.poll_rate),
             keyboard_manager: KeyboardManager::new(),
             waiting_for_restart_confirmation: false,
@@ -88,7 +96,7 @@ impl<'a> ScreenManager<'a> {
         result
     }
 
-    /// ✅ Eingaben (History, Submit, Scroll, Restart, Quit)
+    /// ✅ Eingaben mit LIVE THEME UPDATE PROCESSING
     async fn handle_input_event(&mut self, key: KeyEvent) -> Result<bool> {
         // History
         if HistoryKeyboardHandler::get_history_action(&key).is_some() {
@@ -97,6 +105,13 @@ impl<'a> ScreenManager<'a> {
                     self.message_manager.add_message(processed);
                     return Ok(false);
                 }
+
+                // ✅ NEU: LIVE THEME UPDATE PROCESSING
+                if let Some(processed) = self.process_live_theme_update(&new_input).await {
+                    self.message_manager.add_message(processed);
+                    return Ok(false);
+                }
+
                 self.message_manager.add_message(new_input.clone());
 
                 if new_input.starts_with("__CLEAR__") {
@@ -126,11 +141,34 @@ impl<'a> ScreenManager<'a> {
                         return Ok(false);
                     }
 
+                    // ✅ NEU: LIVE THEME UPDATE PROCESSING
+                    if let Some(processed) = self.process_live_theme_update(&new_input).await {
+                        self.message_manager.add_message(processed);
+                        return Ok(false);
+                    }
+
                     self.message_manager.add_message(new_input.clone());
                     if new_input.starts_with("__CLEAR__") {
                         self.message_manager.clear_messages();
                     } else if new_input.starts_with("__EXIT__") {
                         return Ok(true);
+                    }
+                    // ✅ LEGACY: Restart support (falls noch verwendet)
+                    else if new_input.starts_with("__RESTART_WITH_MSG__") {
+                        let feedback_msg = new_input
+                            .replace("__RESTART_WITH_MSG__", "")
+                            .trim()
+                            .to_string();
+
+                        if !feedback_msg.is_empty() {
+                            self.message_manager.add_message(feedback_msg);
+                            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                        }
+
+                        if let Err(e) = self.perform_restart().await {
+                            self.message_manager
+                                .add_message(format!("Restart failed: {}", e));
+                        }
                     } else if new_input.starts_with("__RESTART_FORCE__")
                         || new_input == "__RESTART__"
                     {
@@ -149,11 +187,98 @@ impl<'a> ScreenManager<'a> {
                         self.message_manager.add_message(processed);
                         return Ok(false);
                     }
+
+                    // ✅ NEU: LIVE THEME UPDATE PROCESSING
+                    if let Some(processed) = self.process_live_theme_update(&new_input).await {
+                        self.message_manager.add_message(processed);
+                        return Ok(false);
+                    }
+
                     self.message_manager.add_message(new_input);
                 }
             }
         }
         Ok(false)
+    }
+
+    async fn process_live_theme_update(&mut self, message: &str) -> Option<String> {
+        if !message.starts_with("__LIVE_THEME_UPDATE__") {
+            return None;
+        }
+
+        let parts: Vec<&str> = message.split("__MESSAGE__").collect();
+        if parts.len() != 2 {
+            log::error!("Invalid live theme update format: {}", message);
+            return None;
+        }
+
+        let theme_part = parts[0].replace("__LIVE_THEME_UPDATE__", "");
+        let display_message = parts[1];
+
+        log::debug!("🎨 Processing live theme update: {}", theme_part);
+
+        // ✅ Lade Theme aus TOML
+        if let Some(theme_def) = TomlThemeLoader::load_theme_by_name_sync(&theme_part) {
+            match self.create_theme_from_definition(&theme_def) {
+                Ok(new_theme) => {
+                    // ✅ STEP 1: BACKUP current InputState data
+                    let backup = self.input_state.get_backup_data().unwrap_or_default();
+                    log::debug!(
+                        "📦 Backed up {} history entries, content: '{}'",
+                        backup.history.len(),
+                        backup.content
+                    );
+
+                    // ✅ STEP 2: UPDATE config with new theme
+                    self.config.theme = new_theme;
+                    self.config.current_theme_name = theme_part.clone();
+
+                    // ✅ STEP 3: CREATE new InputState with new config
+                    self.input_state =
+                        Box::new(InputState::new(&self.config.prompt.text, &self.config));
+
+                    // ✅ STEP 4: RESTORE backed up data
+                    self.input_state.restore_backup_data(backup.clone());
+                    log::debug!(
+                        "🔄 Restored {} history entries to new InputState",
+                        backup.history.len()
+                    );
+
+                    // ✅ STEP 5: UPDATE MessageManager
+                    self.message_manager.update_config(&self.config);
+
+                    log::info!(
+                        "✅ Live theme '{}' applied from TOML - {} history entries preserved!",
+                        theme_part.to_uppercase(),
+                        backup.history.len()
+                    );
+                    Some(display_message.to_string())
+                }
+                Err(e) => {
+                    log::error!("❌ Failed to create theme: {}", e);
+                    Some(format!("❌ Theme update failed: {}", e))
+                }
+            }
+        } else {
+            log::error!("❌ Theme '{}' not found in TOML", theme_part);
+            Some(format!("❌ Theme '{}' not found in config", theme_part))
+        }
+    }
+
+    // ✅ HELPER: Theme aus TOML-Definition erstellen
+    fn create_theme_from_definition(
+        &self,
+        theme_def: &crate::commands::theme::ThemeDefinition,
+    ) -> Result<crate::core::config::Theme> {
+        use crate::ui::color::AppColor;
+
+        Ok(crate::core::config::Theme {
+            input_text: AppColor::from_string(&theme_def.input_text)?,
+            input_bg: AppColor::from_string(&theme_def.input_bg)?,
+            cursor: AppColor::from_string(&theme_def.cursor)?,
+            output_text: AppColor::from_string(&theme_def.output_text)?,
+            output_bg: AppColor::from_string(&theme_def.output_bg)?,
+        })
     }
 
     /// ✅ Fenstergröße anpassen
@@ -215,7 +340,7 @@ impl<'a> ScreenManager<'a> {
 
             let messages = self.message_manager.get_messages();
             let output_widget =
-                create_output_widget(&messages, available_height as u16, self.config);
+                create_output_widget(&messages, available_height as u16, &self.config);
             frame.render_widget(output_widget, chunks[0]);
 
             let input_widget = self.input_state.render();
@@ -225,6 +350,7 @@ impl<'a> ScreenManager<'a> {
     }
 
     async fn perform_restart(&mut self) -> Result<()> {
+        // ✅ LEGACY restart function (falls noch benötigt)
         self.terminal_mgr.cleanup().await?;
         self.terminal_mgr = TerminalManager::new().await?;
         self.terminal_mgr.setup().await?;
@@ -233,7 +359,7 @@ impl<'a> ScreenManager<'a> {
         self.terminal = Terminal::new(backend)?;
 
         self.message_manager.clear_messages();
-        self.input_state = Box::new(InputState::new(&self.config.prompt.text, self.config));
+        self.input_state = Box::new(InputState::new(&self.config.prompt.text, &self.config));
         self.waiting_for_restart_confirmation = false;
 
         self.message_manager
@@ -245,4 +371,3 @@ impl<'a> ScreenManager<'a> {
         Ok(())
     }
 }
-// ## END ##
