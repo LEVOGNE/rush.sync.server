@@ -123,3 +123,20 @@ pub async fn run() -> Result<()> {
     let mut screen = ui::screen::ScreenManager::new(&config).await?;
     screen.run().await
 }
+
+/// ✅ PUBLIC API
+pub use ui::screen::ScreenManager;
+
+// ✅ CONVENIENCE FUNCTIONS
+pub async fn run_with_config(config: Config) -> Result<()> {
+    let mut screen = ScreenManager::new(&config).await?;
+    screen.run().await
+}
+
+pub fn create_handler() -> CommandHandler {
+    CommandHandler::new()
+}
+
+pub async fn load_config() -> Result<Config> {
+    Config::load().await
+}

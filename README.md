@@ -3,9 +3,112 @@
 ![Rust](https://img.shields.io/badge/Rust-1.80+-orange)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 ![License](https://img.shields.io/badge/license-Dual--License-blue)
+![Crates.io](https://img.shields.io/crates/v/rush-sync-server)
 
 **Rush Sync Server** is a modern, modular terminal application written in **Rust**, featuring an interactive TUI, internationalized interface, color-coded logging, and flexible configuration.
 Perfect for developers who need a **customizable, scriptable terminal UI**.
+
+---
+
+## 🚀 Installation & Usage
+
+### 📦 **As Binary (End Users) - Version 0.2.2+**
+
+```bash
+# Install directly from crates.io
+cargo install rush-sync-server
+
+# Run the application
+rush-sync
+```
+
+### 📚 **As Library (Developers) - Version 0.2.2+**
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+rush-sync-server = "0.2.2"
+tokio = { version = "1.36", features = ["full"] }
+```
+
+#### **Quick Start Examples:**
+
+```rust
+use rush_sync_server::*;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Option 1: Run with default configuration
+    run().await?;
+    Ok(())
+}
+```
+
+```rust
+use rush_sync_server::*;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Option 2: Load config and run
+    let config = load_config().await?;
+    run_with_config(config).await?;
+    Ok(())
+}
+```
+
+```rust
+use rush_sync_server::*;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Option 3: Use as command handler only
+    let handler = create_handler();
+
+    let result = handler.handle_input("version");
+    println!("Result: {}", result.message);
+
+    let result = handler.handle_input("perf");
+    println!("Performance: {}", result.message);
+
+    Ok(())
+}
+```
+
+#### **Advanced Library Usage:**
+
+```rust
+use rush_sync_server::*;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Custom configuration
+    let mut config = load_config().await?;
+    config.poll_rate = std::time::Duration::from_millis(8); // 125 FPS
+    config.typewriter_delay = std::time::Duration::from_millis(1); // Ultra-fast
+
+    // Run with custom screen manager
+    let mut screen = ScreenManager::new(&config).await?;
+    screen.run().await?;
+
+    Ok(())
+}
+```
+
+### 🛠 **From Source (Development)**
+
+```bash
+git clone https://github.com/LEVOGNE/rush.sync.server
+cd rush.sync.server
+cargo build --release
+
+# Run as binary
+cargo run --release
+
+# Or install locally
+cargo install --path .
+rush-sync
+```
 
 ---
 
@@ -175,36 +278,6 @@ i18n translations are automatically mapped to standard keys
 
 ---
 
-## 🚀 Installation
-
-### Requirements
-
-- **Rust** (2021 Edition, stable)
-- **Cargo** (included with Rust)
-- Git (optional)
-
-### Build & Run
-
-```bash
-git clone https://github.com/username/rush_sync.git
-cd rush_sync
-cargo build --release
-cargo run --release
-```
-
-### Performance Testing
-
-```bash
-# Test with debug logging
-RUST_LOG=debug cargo run --release
-
-# Test performance impact
-cargo run --release
-# Type: perf
-```
-
----
-
 ## 🗂 Project Structure
 
 ```graphql
@@ -267,21 +340,6 @@ Available tests:
 
 ---
 
-## 🗺 Roadmap
-
-- [ ] Mouse support (scroll & selection)
-- [ ] Split-screen & tabs
-- [ ] Syntax highlighting
-- [x] ~~Plugin system for custom commands~~ ✓ Implemented
-- [x] ~~Live log-level configuration~~ ✓ Implemented
-- [x] ~~Performance monitoring~~ ✓ Implemented
-- [ ] Live UI configuration changes
-- [ ] Config hot-reload without restart
-- [ ] Custom color themes
-- [ ] Command aliases & macros
-
----
-
 ## 🎛 Advanced Usage
 
 ### Performance Monitoring
@@ -321,6 +379,98 @@ lang de            # Switch to German
 lang en            # Switch to English
 lang               # Show current language & available options
 ```
+
+### **Library Integration Examples**
+
+#### **Create Custom Commands**
+
+```rust
+use rush_sync_server::*;
+
+// Define a custom command
+#[derive(Debug)]
+struct HelloCommand;
+
+impl Command for HelloCommand {
+    fn name(&self) -> &'static str { "hello" }
+    fn description(&self) -> &'static str { "Say hello" }
+    fn matches(&self, command: &str) -> bool { command == "hello" }
+
+    fn execute_sync(&self, args: &[&str]) -> Result<String> {
+        let name = args.first().unwrap_or(&"World");
+        Ok(format!("Hello, {}!", name))
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Add custom command to existing registry
+    let mut handler = create_handler();
+    handler.add_command(HelloCommand);
+
+    let result = handler.handle_input("hello Rust");
+    println!("{}", result.message); // "Hello, Rust!"
+
+    Ok(())
+}
+```
+
+#### **Use with Custom UI**
+
+```rust
+use rush_sync_server::*;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Load config
+    let config = load_config().await?;
+
+    // Create handler for command processing
+    let handler = create_handler();
+
+    // Simple CLI loop (instead of full TUI)
+    loop {
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).unwrap();
+
+        let result = handler.handle_input(&input.trim());
+        println!("{}", result.message);
+
+        if result.should_exit {
+            break;
+        }
+    }
+
+    Ok(())
+}
+```
+
+---
+
+## 🗺 Roadmap
+
+- [ ] Mouse support (scroll & selection)
+- [ ] Split-screen & tabs
+- [ ] Syntax highlighting
+- [x] ~~Plugin system for custom commands~~ ✓ Implemented
+- [x] ~~Live log-level configuration~~ ✓ Implemented
+- [x] ~~Performance monitoring~~ ✓ Implemented
+- [x] ~~Binary & Library distribution~~ ✓ Implemented (v0.2.2+)
+- [ ] Live UI configuration changes
+- [ ] Config hot-reload without restart
+- [ ] Custom color themes
+- [ ] Command aliases & macros
+
+---
+
+## 📊 **What's New in v0.2.2**
+
+- ✅ **Binary distribution**: Install with `cargo install rush-sync-server`
+- ✅ **Library API**: Use as dependency in your Rust projects
+- ✅ **Convenience functions**: `run()`, `load_config()`, `create_handler()`
+- ✅ **Public exports**: Access to `Config`, `CommandHandler`, `ScreenManager`
+- ✅ **Custom command support**: Extend functionality with your own commands
+- ✅ **Hybrid usage**: Use as standalone app OR integrate into your project
 
 ---
 

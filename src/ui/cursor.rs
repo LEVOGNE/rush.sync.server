@@ -17,7 +17,7 @@ impl CursorState {
             text_length: 0,
             visible: true,
             last_blink: Instant::now(),
-            blink_interval: Duration::from_millis(530),
+            blink_interval: Duration::from_millis(333),
         }
     }
 

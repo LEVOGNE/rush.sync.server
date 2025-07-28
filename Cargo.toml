@@ -1,6 +1,6 @@
 [package]
 name = "rush-sync-server"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "Modern asynchronous TUI sync server with i18n, modular command system, and flexible configuration."
 license = "GPL-3.0 OR LicenseRef-Commercial"
@@ -33,3 +33,11 @@ tokio = { version = "1.0", features = ["macros", "rt"] }
 
 [badges]
 github = { repository = "LEVOGNE/rush.sync.server" }
+
+[[bin]]
+name = "rush-sync"
+path = "src/main.rs"
+
+[lib]
+name = "rush_sync_server"
+path = "src/lib.rs"

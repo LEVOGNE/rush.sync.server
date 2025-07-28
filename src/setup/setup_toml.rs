@@ -10,7 +10,7 @@ use tokio::fs;
 const DEFAULT_CONFIG: &str = r#"[general]
 max_messages = 100
 # Typewriter-Effekt: 50ms = 20 Zeichen/Sekunde (empfohlen: 30-100ms)
-typewriter_delay = 50
+typewriter_delay = 5
 input_max_length = 100
 max_history = 30
 # Poll-Rate: 16ms = 60 FPS (empfohlen: 16-33ms, NICHT unter 16!)

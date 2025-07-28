@@ -2,13 +2,16 @@ use rush_sync_server::core::config::Config;
 use rush_sync_server::ui::screen::ScreenManager;
 use rush_sync_server::{i18n, Result};
 
+// Define the VERSION constant here or import it from your crate
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Sprache initialisieren (vor dem Logging)
     match i18n::init().await {
         Ok(_) => {
             // ✅ FIRST-RUN Message - kann bleiben
-            let success_msg = i18n::get_command_translation("system.startup.language_success", &[]);
+            let success_msg = i18n::get_translation("system.startup.version", &[VERSION]);
             println!("{}", success_msg);
         }
         Err(e) => {

@@ -120,11 +120,23 @@ impl<'a> MessageManager<'a> {
         if let Some(last_message) = self.messages.last_mut() {
             let total_length = last_message.content.graphemes(true).count();
 
-            if last_message.current_length < total_length
-                && last_message.timestamp.elapsed() >= self.config.typewriter_delay
-            {
-                last_message.current_length += 1;
-                last_message.timestamp = Instant::now();
+            if last_message.current_length < total_length {
+                let elapsed = last_message.timestamp.elapsed();
+
+                // ✅ ULTRASCHNELL: Mehrere Zeichen pro Update bei sehr niedrigen Delays
+                if elapsed >= self.config.typewriter_delay {
+                    let chars_to_add = if self.config.typewriter_delay.as_millis() <= 5 {
+                        let ratio = elapsed.as_millis() as f64
+                            / self.config.typewriter_delay.as_millis() as f64;
+                        ratio.floor().max(1.0) as usize
+                    } else {
+                        1
+                    };
+
+                    let new_length = (last_message.current_length + chars_to_add).min(total_length);
+                    last_message.current_length = new_length;
+                    last_message.timestamp = Instant::now();
+                }
             }
         }
     }

@@ -114,12 +114,11 @@ impl Config {
 
                         // ✅ VERSION nur einmal beim echten Start
                         if show_messages {
-                            log::info!(
-                                "{}",
+                            crate::output::logging::AppLogger::log_plain(
                                 crate::i18n::get_command_translation(
                                     "system.startup.version",
-                                    &[crate::core::constants::VERSION]
-                                )
+                                    &[crate::core::constants::VERSION],
+                                ),
                             );
                         }
 
@@ -150,12 +149,11 @@ impl Config {
                             log::info!("{}", plain_msg);
                             config.debug_info = Some(plain_msg);
 
-                            log::info!(
-                                "{}",
+                            crate::output::logging::AppLogger::log_plain(
                                 crate::i18n::get_command_translation(
                                     "system.startup.version",
-                                    &[crate::core::constants::VERSION]
-                                )
+                                    &[crate::core::constants::VERSION],
+                                ),
                             );
                         }
 
@@ -271,7 +269,7 @@ impl Config {
             }
             v => {
                 if v < 33 {
-                    log::info!("poll_rate = {}ms (sehr schnell, aber OK)", v);
+                    log::trace!("poll_rate = {}ms (sehr schnell, aber OK)", v);
                 }
                 v
             }
