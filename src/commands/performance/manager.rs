@@ -12,12 +12,42 @@ impl PerformanceManager {
     pub fn get_status() -> Result<String> {
         let config_data = Self::load_config_values()?;
         let performance_analysis = Self::analyze_performance(&config_data);
-        Ok(Self::format_status_report(
-            &config_data,
-            &performance_analysis,
-        ))
-    }
 
+        // ✅ TEST 1: Einfache Version OHNE i18n
+        let simple_report = format!(
+            "SIMPLE PERFORMANCE:\nPoll: {}ms\nTypewriter: {}ms\nMessages: {}\nHistory: {}",
+            config_data.poll_rate,
+            config_data.typewriter_delay,
+            config_data.max_messages,
+            config_data.max_history
+        );
+
+        // ✅ TEST 2: Deutsche i18n Version (problematisch?)
+        let i18n_report = Self::format_status_report(&config_data, &performance_analysis);
+
+        // ✅ DEBUG: Zähle Zeilen in beiden Versionen
+        let simple_lines = simple_report.lines().count();
+        let i18n_lines = i18n_report.lines().count();
+
+        log::info!("📊 PERFORMANCE DEBUG:");
+        log::info!("   Simple version: {} lines", simple_lines);
+        log::info!("   i18n version: {} lines", i18n_lines);
+        log::info!(
+            "   First 100 chars of i18n: {}",
+            &i18n_report.chars().take(100).collect::<String>()
+        );
+
+        // ✅ TEST: Verwende einfache Version zum Testen
+        if simple_lines <= 6 {
+            Ok(simple_report)
+        } else {
+            // Falls das auch Probleme macht, ultraminimal:
+            Ok(format!(
+                "Performance: {}ms poll, {}ms typewriter",
+                config_data.poll_rate, config_data.typewriter_delay
+            ))
+        }
+    }
     /// Lädt Config-Werte direkt aus Datei (robust & schnell)
     fn load_config_values() -> Result<ConfigData> {
         let paths = crate::setup::setup_toml::get_config_paths();
@@ -25,15 +55,18 @@ impl PerformanceManager {
         for path in paths {
             if path.exists() {
                 if let Ok(content) = std::fs::read_to_string(&path) {
-                    let mut config_data = ConfigData::default();
-                    config_data.config_path = path.display().to_string();
-                    config_data.config_name = path
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string();
+                    // ✅ CLIPPY FIX: Initialisierung mit struct literal statt Default + assignment
+                    let mut config_data = ConfigData {
+                        config_path: path.display().to_string(),
+                        config_name: path
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .to_string(),
+                        ..Default::default() // ✅ Rest mit Default füllen
+                    };
 
-                    // ✅ ROBUSTES PARSING (Line-by-Line)
+                    // ✅ ROBUSTES PARSING (Line-by-Line) bleibt gleich
                     for line in content.lines() {
                         let line = line.trim();
                         if line.starts_with("poll_rate") && line.contains('=') {

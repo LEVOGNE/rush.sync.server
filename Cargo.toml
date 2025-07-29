@@ -1,6 +1,6 @@
 [package]
 name = "rush-sync-server"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 description = "Modern asynchronous TUI sync server with i18n, modular command system, and flexible configuration."
 license = "GPL-3.0 OR LicenseRef-Commercial"

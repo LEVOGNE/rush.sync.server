@@ -1,17 +1,17 @@
 // =====================================================
-// FILE: src/ui/screen.rs - VOLLSTÄNDIG mit LIVE UPDATE PROCESSING
+// FILE: src/ui/screen.rs - KORRIGIERTE CONSTRUCTOR CALLS
 // =====================================================
 
 use crate::commands::history::HistoryKeyboardHandler;
-use crate::commands::lang::LanguageManager;
-use crate::commands::theme::TomlThemeLoader;
+use crate::commands::lang::LanguageService;
+use crate::commands::theme::ThemeSystem;
 use crate::core::prelude::*;
 use crate::input::{
-    event::{AppEvent, EventHandler},
     input::InputState,
     keyboard::{KeyAction, KeyboardManager},
 };
-use crate::output::{logging::AppLogger, message::MessageManager, output::create_output_widget};
+use crate::input::{AppEvent, EventHandler};
+use crate::output::{display::MessageDisplay, logging::AppLogger};
 use crate::ui::{color::AppColor, terminal::TerminalManager, widget::Widget};
 
 use crossterm::event::KeyEvent;
@@ -26,10 +26,10 @@ pub type TerminalBackend = Terminal<CrosstermBackend<Stdout>>;
 
 pub struct ScreenManager {
     terminal: TerminalBackend,
-    message_manager: MessageManager,
+    message_display: MessageDisplay,
     input_state: Box<dyn Widget>,
     terminal_size: (u16, u16),
-    config: Config, // ✅ OWNED statt &'a Config für Live-Updates!
+    config: Config,
     terminal_mgr: TerminalManager,
     events: EventHandler,
     keyboard_manager: KeyboardManager,
@@ -37,7 +37,6 @@ pub struct ScreenManager {
 }
 
 impl ScreenManager {
-    /// ✅ CONSTRUCTOR mit owned config
     pub async fn new(config: &Config) -> Result<Self> {
         let mut terminal_mgr = TerminalManager::new().await?;
         terminal_mgr.setup().await?;
@@ -47,28 +46,27 @@ impl ScreenManager {
         let size = terminal.size()?;
 
         let initial_height = size.height.saturating_sub(4) as usize;
-        let mut message_manager = MessageManager::new(config);
-        message_manager
+        let mut message_display = MessageDisplay::new(config);
+        message_display
             .scroll_state
             .update_dimensions(initial_height, 0);
 
-        // ✅ CLONE Config für owned ownership
         let owned_config = config.clone();
 
         Ok(Self {
             terminal,
             terminal_mgr,
-            message_manager,
-            input_state: Box::new(InputState::new(&config.prompt.text, config)),
+            message_display,
+            // ✅ KORRIGIERT: InputState::new nimmt nur &Config
+            input_state: Box::new(InputState::new(config)),
             terminal_size: (size.width, size.height),
-            config: owned_config, // ✅ OWNED Config
+            config: owned_config,
             events: EventHandler::new(config.poll_rate),
             keyboard_manager: KeyboardManager::new(),
             waiting_for_restart_confirmation: false,
         })
     }
 
-    /// ✅ Hauptloop: Nur Dispatcher, schlank & lesbar
     pub async fn run(&mut self) -> Result<()> {
         let result = loop {
             if let Some(event) = self.events.next().await {
@@ -96,26 +94,23 @@ impl ScreenManager {
         result
     }
 
-    /// ✅ Eingaben mit LIVE THEME UPDATE PROCESSING
     async fn handle_input_event(&mut self, key: KeyEvent) -> Result<bool> {
-        // History
         if HistoryKeyboardHandler::get_history_action(&key).is_some() {
             if let Some(new_input) = self.input_state.handle_input(key) {
-                if let Some(processed) = LanguageManager::process_save_message(&new_input).await {
-                    self.message_manager.add_message(processed);
+                if let Some(processed) = LanguageService::process_save_message(&new_input).await {
+                    self.message_display.add_message(processed);
                     return Ok(false);
                 }
 
-                // ✅ NEU: LIVE THEME UPDATE PROCESSING
                 if let Some(processed) = self.process_live_theme_update(&new_input).await {
-                    self.message_manager.add_message(processed);
+                    self.message_display.add_message(processed);
                     return Ok(false);
                 }
 
-                self.message_manager.add_message(new_input.clone());
+                self.message_display.add_message(new_input.clone());
 
                 if new_input.starts_with("__CLEAR__") {
-                    self.message_manager.clear_messages();
+                    self.message_display.clear_messages();
                 } else if new_input.starts_with("__EXIT__") {
                     return Ok(true);
                 }
@@ -123,57 +118,80 @@ impl ScreenManager {
             return Ok(false);
         }
 
-        // Normale Keys
         match self.keyboard_manager.get_action(&key) {
             KeyAction::ScrollUp
             | KeyAction::ScrollDown
             | KeyAction::PageUp
             | KeyAction::PageDown => {
                 let window_height = self.get_content_height();
-                self.message_manager
+                self.message_display
                     .handle_scroll(self.keyboard_manager.get_action(&key), window_height);
             }
             KeyAction::Submit => {
                 if let Some(new_input) = self.input_state.handle_input(key) {
-                    if let Some(processed) = LanguageManager::process_save_message(&new_input).await
+                    // ✅ DETECT Performance Commands BEFORE processing
+                    let input_command = new_input.trim().to_lowercase();
+                    let is_performance_command = input_command == "perf"
+                        || input_command == "performance"
+                        || input_command == "stats";
+
+                    if let Some(processed) = LanguageService::process_save_message(&new_input).await
                     {
-                        self.message_manager.add_message(processed);
+                        self.message_display.add_message(processed);
                         return Ok(false);
                     }
 
-                    // ✅ NEU: LIVE THEME UPDATE PROCESSING
                     if let Some(processed) = self.process_live_theme_update(&new_input).await {
-                        self.message_manager.add_message(processed);
+                        self.message_display.add_message(processed);
                         return Ok(false);
                     }
 
-                    self.message_manager.add_message(new_input.clone());
+                    self.message_display.add_message(new_input.clone());
+
+                    // ✅ SANFTER FIX für Performance Commands (ohne terminal.clear)
+                    if is_performance_command {
+                        log::info!("🔧 Performance command '{}' detected", input_command);
+
+                        // Warten bis Message verarbeitet ist
+                        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+
+                        // Scroll-System sanft reparieren
+                        self.message_display.scroll_state.force_auto_scroll();
+
+                        let window_height = self.get_content_height();
+                        let content_height = self.message_display.get_content_height();
+                        self.message_display
+                            .scroll_state
+                            .update_dimensions(window_height, content_height);
+
+                        log::info!("✅ Performance command: scroll reset applied");
+                    }
+
+                    // ✅ Standard Command-Verarbeitung
                     if new_input.starts_with("__CLEAR__") {
-                        self.message_manager.clear_messages();
+                        self.message_display.clear_messages();
                     } else if new_input.starts_with("__EXIT__") {
                         return Ok(true);
-                    }
-                    // ✅ LEGACY: Restart support (falls noch verwendet)
-                    else if new_input.starts_with("__RESTART_WITH_MSG__") {
+                    } else if new_input.starts_with("__RESTART_WITH_MSG__") {
                         let feedback_msg = new_input
                             .replace("__RESTART_WITH_MSG__", "")
                             .trim()
                             .to_string();
 
                         if !feedback_msg.is_empty() {
-                            self.message_manager.add_message(feedback_msg);
+                            self.message_display.add_message(feedback_msg);
                             tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
                         }
 
                         if let Err(e) = self.perform_restart().await {
-                            self.message_manager
+                            self.message_display
                                 .add_message(format!("Restart failed: {}", e));
                         }
                     } else if new_input.starts_with("__RESTART_FORCE__")
                         || new_input == "__RESTART__"
                     {
                         if let Err(e) = self.perform_restart().await {
-                            self.message_manager
+                            self.message_display
                                 .add_message(format!("Restart failed: {}", e));
                         }
                     }
@@ -182,19 +200,18 @@ impl ScreenManager {
             KeyAction::Quit => return Ok(true),
             _ => {
                 if let Some(new_input) = self.input_state.handle_input(key) {
-                    if let Some(processed) = LanguageManager::process_save_message(&new_input).await
+                    if let Some(processed) = LanguageService::process_save_message(&new_input).await
                     {
-                        self.message_manager.add_message(processed);
+                        self.message_display.add_message(processed);
                         return Ok(false);
                     }
 
-                    // ✅ NEU: LIVE THEME UPDATE PROCESSING
                     if let Some(processed) = self.process_live_theme_update(&new_input).await {
-                        self.message_manager.add_message(processed);
+                        self.message_display.add_message(processed);
                         return Ok(false);
                     }
 
-                    self.message_manager.add_message(new_input);
+                    self.message_display.add_message(new_input);
                 }
             }
         }
@@ -217,39 +234,32 @@ impl ScreenManager {
 
         log::debug!("🎨 Processing live theme update: {}", theme_part);
 
-        // ✅ Lade Theme aus TOML
-        if let Some(theme_def) = TomlThemeLoader::load_theme_by_name_sync(&theme_part) {
-            match self.create_theme_from_definition(&theme_def) {
-                Ok(new_theme) => {
-                    // ✅ STEP 1: BACKUP current InputState data
-                    let backup = self.input_state.get_backup_data().unwrap_or_default();
-                    log::debug!(
-                        "📦 Backed up {} history entries, content: '{}'",
-                        backup.history.len(),
-                        backup.content
-                    );
+        let theme_system = match ThemeSystem::load() {
+            Ok(system) => system,
+            Err(e) => {
+                log::error!("Failed to load theme system: {}", e);
+                return Some(format!("❌ Theme update failed: {}", e));
+            }
+        };
 
-                    // ✅ STEP 2: UPDATE config with new theme
+        if let Some(theme_def) = theme_system.get_theme(&theme_part) {
+            match self.create_theme_from_definition(theme_def) {
+                Ok(new_theme) => {
+                    let backup = self.input_state.get_backup_data().unwrap_or_default();
+
                     self.config.theme = new_theme;
                     self.config.current_theme_name = theme_part.clone();
 
-                    // ✅ STEP 3: CREATE new InputState with new config
-                    self.input_state =
-                        Box::new(InputState::new(&self.config.prompt.text, &self.config));
-
-                    // ✅ STEP 4: RESTORE backed up data
+                    // ✅ KORRIGIERT: InputState::new nimmt nur &config
+                    self.input_state = Box::new(InputState::new(&self.config));
                     self.input_state.restore_backup_data(backup.clone());
-                    log::debug!(
-                        "🔄 Restored {} history entries to new InputState",
-                        backup.history.len()
-                    );
 
-                    // ✅ STEP 5: UPDATE MessageManager
-                    self.message_manager.update_config(&self.config);
+                    self.message_display.update_config(&self.config);
 
                     log::info!(
-                        "✅ Live theme '{}' applied from TOML - {} history entries preserved!",
+                        "✅ Live theme '{}' applied with prompt '{}' - {} history entries preserved!",
                         theme_part.to_uppercase(),
+                        self.config.theme.prompt_text,
                         backup.history.len()
                     );
                     Some(display_message.to_string())
@@ -265,7 +275,6 @@ impl ScreenManager {
         }
     }
 
-    // ✅ HELPER: Theme aus TOML-Definition erstellen
     fn create_theme_from_definition(
         &self,
         theme_def: &crate::commands::theme::ThemeDefinition,
@@ -278,22 +287,34 @@ impl ScreenManager {
             cursor: AppColor::from_string(&theme_def.cursor)?,
             output_text: AppColor::from_string(&theme_def.output_text)?,
             output_bg: AppColor::from_string(&theme_def.output_bg)?,
+            prompt_text: theme_def.prompt_text.clone(),
+            prompt_color: AppColor::from_string(&theme_def.prompt_color)?,
         })
     }
 
-    /// ✅ Fenstergröße anpassen
     async fn handle_resize_event(&mut self, width: u16, height: u16) -> Result<()> {
+        eprintln!(
+            "🔄 RESIZE EVENT: {}x{} → {}x{}",
+            self.terminal_size.0, self.terminal_size.1, width, height
+        );
+
         self.terminal_size = (width, height);
         let window_height = self.get_content_height();
-        self.message_manager
+        let content_height = self.message_display.get_content_height();
+
+        self.message_display
             .scroll_state
-            .update_dimensions(window_height, self.message_manager.get_content_height());
+            .update_dimensions(window_height, content_height);
+
+        eprintln!(
+            "   Window height: {}, Content height: {}",
+            window_height, content_height
+        );
         Ok(())
     }
 
-    /// ✅ Tick (Typewriter, Cursor-Blink)
     async fn handle_tick_event(&mut self) -> Result<()> {
-        self.message_manager.update_typewriter();
+        self.message_display.update_typewriter();
         if let Some(input_state) = self.input_state.as_input_state() {
             input_state.update_cursor_blink();
         }
@@ -301,18 +322,25 @@ impl ScreenManager {
     }
 
     fn get_content_height(&self) -> usize {
-        self.terminal_size.1.saturating_sub(4) as usize
+        // Berechne verfügbare Höhe für Output-Bereich
+        let total_height = self.terminal_size.1 as usize;
+        let margin = 2; // top + bottom margin
+        let input_area = 3; // Input braucht 3 Zeilen
+
+        total_height
+            .saturating_sub(margin)
+            .saturating_sub(input_area)
     }
 
     async fn process_pending_logs(&mut self) {
         match AppLogger::get_messages() {
             Ok(messages) => {
                 for log_msg in messages {
-                    self.message_manager.add_message(log_msg.formatted());
+                    self.message_display.add_message(log_msg.formatted());
                 }
             }
             Err(e) => {
-                self.message_manager.add_message(
+                self.message_display.add_message(
                     AppColor::from_any("error")
                         .format_message("ERROR", &format!("Logging-Fehler: {:?}", e)),
                 );
@@ -323,34 +351,69 @@ impl ScreenManager {
     async fn render(&mut self) -> Result<()> {
         self.terminal.draw(|frame| {
             let size = frame.size();
-            if size.width < 20 || size.height < 10 {
+
+            if size.width < 30 || size.height < 8 {
                 return;
             }
 
+            // ✅ KORRIGIERT: Berücksichtige margin in Berechnung
+            let total_available = size.height.saturating_sub(2); // margin(1) = top+bottom = 2
+            let input_needs = 3; // Input braucht minimal 3 Zeilen
+            let output_gets = total_available.saturating_sub(input_needs);
+
+            // ✅ SICHERE LAYOUT-CONSTRAINTS - mathematisch korrekt
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .margin(1)
-                .constraints([Constraint::Min(3), Constraint::Length(3)])
+                .constraints([
+                    Constraint::Length(output_gets), // ✅ Output: Berechnet
+                    Constraint::Length(input_needs), // ✅ Input: Fest 3 Zeilen
+                ])
                 .split(size);
 
-            let available_height = chunks[0].height as usize;
-            self.message_manager
-                .scroll_state
-                .update_dimensions(available_height, self.message_manager.get_content_height());
+            let output_chunk = chunks[0];
+            let input_chunk = chunks[1];
 
-            let messages = self.message_manager.get_messages();
-            let output_widget =
-                create_output_widget(&messages, available_height as u16, &self.config);
-            frame.render_widget(output_widget, chunks[0]);
+            // ✅ DEBUG: Prüfe Layout-Math
+            let total_used = output_chunk.height + input_chunk.height + 2; // +2 für margin
+            if total_used != size.height {
+                // Verwende dein Log-System statt eprintln!
+                log::warn!(
+                    "⚠️ Layout-Math ERROR: terminal={}, used={}, output={}, input={}",
+                    size.height,
+                    total_used,
+                    output_chunk.height,
+                    input_chunk.height
+                );
+            }
+
+            // ✅ UPDATE Scroll-Dimensionen mit korrekter Output-Höhe
+            let total_lines = self.message_display.get_content_height();
+            self.message_display
+                .scroll_state
+                .update_dimensions(output_chunk.height as usize, total_lines);
+
+            // ✅ RENDER
+            let (messages_data, config) = self
+                .message_display
+                .create_output_widget_for_rendering(output_chunk.height);
+            let messages_refs: Vec<(&String, usize)> =
+                messages_data.iter().map(|(s, l)| (s, *l)).collect();
+
+            let output_widget = crate::output::display::create_output_widget(
+                &messages_refs,
+                output_chunk.height,
+                &config,
+            );
+            frame.render_widget(output_widget, output_chunk);
 
             let input_widget = self.input_state.render();
-            frame.render_widget(input_widget, chunks[1]);
+            frame.render_widget(input_widget, input_chunk);
         })?;
         Ok(())
     }
 
     async fn perform_restart(&mut self) -> Result<()> {
-        // ✅ LEGACY restart function (falls noch benötigt)
         self.terminal_mgr.cleanup().await?;
         self.terminal_mgr = TerminalManager::new().await?;
         self.terminal_mgr.setup().await?;
@@ -358,11 +421,12 @@ impl ScreenManager {
         let backend = CrosstermBackend::new(io::stdout());
         self.terminal = Terminal::new(backend)?;
 
-        self.message_manager.clear_messages();
-        self.input_state = Box::new(InputState::new(&self.config.prompt.text, &self.config));
+        self.message_display.clear_messages();
+        // ✅ KORRIGIERT: InputState::new nimmt nur &config
+        self.input_state = Box::new(InputState::new(&self.config));
         self.waiting_for_restart_confirmation = false;
 
-        self.message_manager
+        self.message_display
             .add_message(crate::i18n::get_command_translation(
                 "system.commands.restart.success",
                 &[],

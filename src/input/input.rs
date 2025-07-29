@@ -1,5 +1,5 @@
 // =====================================================
-// FILE: input/input.rs - FINAL VERSION mit RESTART SUPPORT
+// FILE: src/input/input.rs - KORRIGIERTE CONSTRUCTOR
 // =====================================================
 
 use crate::commands::handler::CommandHandler;
@@ -27,7 +27,7 @@ pub struct InputState {
     command_handler: CommandHandler,
     keyboard_manager: KeyboardManager,
     waiting_for_exit_confirmation: bool,
-    waiting_for_restart_confirmation: bool, // ← NEU HINZUGEFÜGT
+    waiting_for_restart_confirmation: bool,
 }
 
 /// ✅ Backup structure für InputState
@@ -36,23 +36,23 @@ pub struct InputStateBackup {
     pub content: String,
     pub history: Vec<String>,
     pub cursor_pos: usize,
-    pub prompt: String,
 }
 
 impl InputState {
-    pub fn new(prompt: &str, config: &Config) -> Self {
+    // ✅ KORRIGIERTER CONSTRUCTOR - nimmt nur Config
+    pub fn new(config: &Config) -> Self {
         let history_config = HistoryConfig::from_main_config(config);
 
         Self {
             content: String::with_capacity(100),
             cursor: CursorState::new(),
-            prompt: prompt.to_string(),
+            prompt: config.theme.prompt_text.clone(), // ✅ GEÄNDERT: Von theme.prompt_text
             history_manager: HistoryManager::new(history_config.max_entries),
-            config: config.clone(), // Clone statt Referenz
+            config: config.clone(),
             command_handler: CommandHandler::new(),
             keyboard_manager: KeyboardManager::new(),
             waiting_for_exit_confirmation: false,
-            waiting_for_restart_confirmation: false, // ← NEU HINZUGEFÜGT
+            waiting_for_restart_confirmation: false,
         }
     }
 
@@ -79,7 +79,7 @@ impl InputState {
 
     pub fn reset_for_language_change(&mut self) {
         self.waiting_for_exit_confirmation = false;
-        self.waiting_for_restart_confirmation = false; // ← NEU HINZUGEFÜGT
+        self.waiting_for_restart_confirmation = false;
         self.content.clear();
         self.history_manager.reset_position();
         self.cursor.move_to_start();
@@ -131,7 +131,6 @@ impl InputState {
         }
     }
 
-    // ✅ NEU: Restart Confirmation Handler
     fn handle_restart_confirmation(&mut self, action: KeyAction) -> Option<String> {
         match action {
             KeyAction::Submit => {
@@ -143,7 +142,7 @@ impl InputState {
                 match self.content.trim().to_lowercase().as_str() {
                     input if input == confirm_short.to_lowercase() => {
                         self.content.clear();
-                        Some("__RESTART__".to_string()) // ✅ RESTART auslösen
+                        Some("__RESTART__".to_string())
                     }
                     input if input == cancel_short.to_lowercase() => {
                         self.clear_input();
@@ -269,18 +268,14 @@ impl InputState {
                         return Some(result.message.replace("__CONFIRM_EXIT__", ""));
                     }
 
-                    // ✅ KORRIGIERT: Restart Confirmation handling (auch mit zusätzlichem Text)
                     if result.message.starts_with("__CONFIRM_RESTART__") {
                         self.waiting_for_restart_confirmation = true;
                         return Some(result.message.replace("__CONFIRM_RESTART__", ""));
                     }
 
-                    // ✅ KRITISCH KORRIGIERT: Restart handling - akzeptiert auch __RESTART__ mit zusätzlichem Text
                     if result.message.starts_with("__RESTART_FORCE__")
                         || result.message.starts_with("__RESTART__")
-                    // ✅ DIES WAR DAS PROBLEM!
                     {
-                        // ✅ EXTRAHIERE den Text nach __RESTART__ für User-Feedback
                         let feedback_text = if result.message.starts_with("__RESTART_FORCE__") {
                             result
                                 .message
@@ -291,7 +286,6 @@ impl InputState {
                             result.message.replace("__RESTART__", "").trim().to_string()
                         };
 
-                        // ✅ ZEIGE FEEDBACK falls vorhanden
                         if !feedback_text.is_empty() {
                             return Some(format!("__RESTART_WITH_MSG__{}", feedback_text));
                         } else {
@@ -306,7 +300,6 @@ impl InputState {
                 }
                 None
             }
-            // ✅ REST bleibt unverändert...
             KeyAction::InsertChar(c) => {
                 if self.content.graphemes(true).count() < self.config.input_max_length {
                     let byte_pos = self.cursor.get_byte_position(&self.content);
@@ -397,24 +390,13 @@ impl InputState {
             content: self.content.clone(),
             history: self.history_manager.get_all_entries(),
             cursor_pos: self.cursor.get_current_position(),
-            prompt: self.prompt.clone(),
         }
     }
 
-    /// ✅ Import state from backup
     pub fn import_state(&mut self, backup: InputStateBackup) {
-        // Restore content
         self.content = backup.content;
-
-        // Restore history
         self.history_manager.import_entries(backup.history);
-
-        // Restore cursor
         self.cursor.update_text_length(&self.content);
-        // Note: cursor position will be recalculated by update_text_length
-
-        // Restore prompt if changed
-        self.prompt = backup.prompt;
 
         log::debug!(
             "✅ InputState imported: {} chars, {} history entries",
@@ -423,12 +405,10 @@ impl InputState {
         );
     }
 
-    /// ✅ Get current input content (public getter)
     pub fn get_content(&self) -> &str {
         &self.content
     }
 
-    /// ✅ Get history count (public getter)
     pub fn get_history_count(&self) -> usize {
         self.history_manager.entry_count()
     }
@@ -440,9 +420,10 @@ impl Widget for InputState {
         let cursor_pos = self.cursor.get_position();
         let mut spans = Vec::with_capacity(4);
 
+        // ✅ KORRIGIERT: Nutze config.theme.prompt_color
         spans.push(Span::styled(
             &self.prompt,
-            Style::default().fg(self.config.prompt.color.into()),
+            Style::default().fg(self.config.theme.prompt_color.into()),
         ));
 
         let prompt_width = self.prompt.graphemes(true).count();
@@ -508,12 +489,10 @@ impl Widget for InputState {
         Some(self)
     }
 
-    /// ✅ NEU: Backup implementation
     fn get_backup_data(&self) -> Option<InputStateBackup> {
         Some(self.export_state())
     }
 
-    /// ✅ NEU: Restore implementation
     fn restore_backup_data(&mut self, backup: InputStateBackup) {
         self.import_state(backup);
     }

@@ -1,5 +1,5 @@
 // =====================================================
-// FILE: src/core/config.rs - VOLLSTÄNDIG mit CLONE SUPPORT + THEME CHANGE
+// FILE: src/core/config.rs - KORRIGIERTE VERSION
 // =====================================================
 
 use crate::core::constants::{DEFAULT_BUFFER_SIZE, DEFAULT_POLL_RATE};
@@ -15,14 +15,14 @@ const MIN_POLL_RATE: u64 = 16; // 60 FPS maximum
 const MAX_POLL_RATE: u64 = 1000; // 1 FPS minimum
 const MAX_TYPEWRITER_DELAY: u64 = 2000; // Maximum 2 Sekunden
 
-// ✅ ALLE STRUCT DEFINITIONEN mit CLONE
+// ✅ KORRIGIERTE STRUCT DEFINITIONEN
 #[derive(Debug, Serialize, Deserialize)]
 struct ConfigFile {
     general: GeneralConfig,
     #[serde(default)]
     theme: Option<HashMap<String, ThemeDefinitionConfig>>,
-    prompt: PromptConfig,
     language: LanguageConfig,
+    // ✅ ENTFERNT: prompt section (jetzt Teil von theme)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -38,21 +38,6 @@ struct GeneralConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct ThemeConfig {
-    input_text: String,
-    input_bg: String,
-    cursor: String,
-    output_text: String,
-    output_bg: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct PromptConfig {
-    text: String,
-    color: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 struct LanguageConfig {
     current: String,
 }
@@ -64,14 +49,16 @@ struct ThemeDefinitionConfig {
     cursor: String,
     output_text: String,
     output_bg: String,
+    prompt_text: String,  // ✅ HINZUGEFÜGT
+    prompt_color: String, // ✅ HINZUGEFÜGT
 }
 
 fn default_theme_name() -> String {
     "dark".to_string()
 }
 
-// ✅ HAUPTSTRUCTS mit CLONE SUPPORT
-#[derive(Clone)] // ✅ CLONE hinzugefügt
+// ✅ KORRIGIERTE HAUPTSTRUCTS
+#[derive(Clone)]
 pub struct Config {
     config_path: Option<String>,
     pub max_messages: usize,
@@ -80,27 +67,25 @@ pub struct Config {
     pub max_history: usize,
     pub poll_rate: Duration,
     pub log_level: String,
-    pub theme: Theme,
+    pub theme: Theme, // ✅ Theme enthält jetzt prompt
     pub current_theme_name: String,
-    pub prompt: Prompt,
     pub language: String,
     pub debug_info: Option<String>,
+    // ✅ ENTFERNT: pub prompt: Prompt, (jetzt Teil von theme)
 }
 
-#[derive(Clone)] // ✅ CLONE hinzugefügt
+#[derive(Clone)]
 pub struct Theme {
     pub input_text: AppColor,
     pub input_bg: AppColor,
     pub cursor: AppColor,
     pub output_text: AppColor,
     pub output_bg: AppColor,
+    pub prompt_text: String,    // ✅ HINZUGEFÜGT
+    pub prompt_color: AppColor, // ✅ HINZUGEFÜGT
 }
 
-#[derive(Clone)] // ✅ CLONE hinzugefügt
-pub struct Prompt {
-    pub text: String,
-    pub color: AppColor,
-}
+// ✅ ENTFERNT: Prompt struct (jetzt Teil von Theme)
 
 impl Config {
     pub async fn load() -> Result<Self> {
@@ -122,7 +107,10 @@ impl Config {
                         }
 
                         // Sprache setzen (ohne Log-Spam)
-                        if let Err(e) = crate::commands::lang::config::LanguageConfig::load_and_apply_from_config(&config).await {
+                        if let Err(e) = crate::commands::lang::LanguageService::new()
+                            .load_and_apply_from_config(&config)
+                            .await
+                        {
                             if show_messages {
                                 log::warn!(
                                     "{}",
@@ -179,7 +167,9 @@ impl Config {
                             );
                         }
 
-                        let _ = crate::commands::lang::config::LanguageConfig::load_and_apply_from_config(&config).await;
+                        let _ = crate::commands::lang::LanguageService::new()
+                            .load_and_apply_from_config(&config)
+                            .await;
 
                         Ok(config)
                     }
@@ -221,7 +211,7 @@ impl Config {
         let poll_rate = Self::validate_poll_rate(original_poll_rate);
         let typewriter_delay = Self::validate_typewriter_delay(original_typewriter_delay);
 
-        // ✅ THEME LOADING
+        // ✅ THEME LOADING (korrigiert)
         let theme = Self::load_theme_from_config(&config_file)?;
         let current_theme_name = config_file.general.current_theme.clone();
 
@@ -235,7 +225,7 @@ impl Config {
             log_level: config_file.general.log_level,
             theme,
             current_theme_name,
-            prompt: Prompt::from_config(&config_file.prompt)?,
+            // ✅ ENTFERNT: prompt field
             language: config_file.language.current,
             debug_info: None,
         };
@@ -267,39 +257,26 @@ impl Config {
         Ok(config)
     }
 
-    /// ✅ Theme aus Config laden
+    /// ✅ KORRIGIERTE Theme-Loading Methode
     fn load_theme_from_config(config_file: &ConfigFile) -> Result<Theme> {
         let current_theme_name = &config_file.general.current_theme;
 
-        // ✅ 1. VERSUCHE aus [theme.xyz] zu laden
+        // ✅ NUR NOCH TOML-THEMES
         if let Some(ref themes) = config_file.theme {
             if let Some(theme_def) = themes.get(current_theme_name) {
                 return Theme::from_theme_definition_config(theme_def);
             }
         }
 
-        // ✅ 2. FALLBACK: Predefined Theme laden
-        if let Some(predefined_theme) =
-            crate::commands::theme::PredefinedThemes::get_by_name(current_theme_name)
-        {
-            return Ok(Theme {
-                input_text: AppColor::from_string(&predefined_theme.input_text)?,
-                input_bg: AppColor::from_string(&predefined_theme.input_bg)?,
-                cursor: AppColor::from_string(&predefined_theme.cursor)?,
-                output_text: AppColor::from_string(&predefined_theme.output_text)?,
-                output_bg: AppColor::from_string(&predefined_theme.output_bg)?,
-            });
-        }
-
-        // ✅ 3. FALLBACK: Default Theme
+        // ✅ FALLBACK: Default Theme (minimal)
         log::warn!(
-            "Theme '{}' nicht gefunden, verwende Standard",
+            "Theme '{}' nicht in TOML gefunden, verwende minimales Standard-Theme",
             current_theme_name
         );
         Ok(Theme::default())
     }
 
-    // ✅ POLL_RATE Validierung
+    // ✅ POLL_RATE Validierung (unverändert)
     fn validate_poll_rate(value: u64) -> u64 {
         match value {
             0 => {
@@ -334,7 +311,7 @@ impl Config {
         }
     }
 
-    // ✅ TYPEWRITER_DELAY Validierung
+    // ✅ TYPEWRITER_DELAY Validierung (unverändert)
     fn validate_typewriter_delay(value: u64) -> u64 {
         match value {
             0 => {
@@ -367,7 +344,7 @@ impl Config {
         )
     }
 
-    /// ✅ ROBUSTE SAVE METHODE mit Atomic Write + Retry
+    /// ✅ KORRIGIERTE SAVE METHODE
     pub async fn save(&self) -> Result<()> {
         if let Some(path) = &self.config_path {
             self.save_with_retry(path).await
@@ -376,7 +353,7 @@ impl Config {
         }
     }
 
-    /// ✅ ATOMIC SAVE mit Retry-Logic
+    /// ✅ ATOMIC SAVE mit Retry-Logic (unverändert)
     async fn save_with_retry(&self, path: &str) -> Result<()> {
         const MAX_RETRIES: u32 = 3;
         let mut last_error = None;
@@ -403,7 +380,7 @@ impl Config {
         Err(last_error.unwrap_or_else(|| AppError::Validation("Unknown save error".to_string())))
     }
 
-    /// ✅ ATOMIC FILE SAVE
+    /// ✅ KORRIGIERTE SAVE_TO_FILE Methode
     async fn save_to_file(&self, path: &str) -> Result<()> {
         log::debug!("Saving config to: {}", path);
 
@@ -417,20 +394,10 @@ impl Config {
             }
         }
 
-        // ✅ ALLE PREDEFINED THEMES hinzufügen
-        let mut theme_map = std::collections::HashMap::new();
-        for (name, theme_def) in crate::commands::theme::PredefinedThemes::get_all() {
-            theme_map.insert(
-                name,
-                ThemeDefinitionConfig {
-                    input_text: theme_def.input_text,
-                    input_bg: theme_def.input_bg,
-                    cursor: theme_def.cursor,
-                    output_text: theme_def.output_text,
-                    output_bg: theme_def.output_bg,
-                },
-            );
-        }
+        // ✅ LADE BESTEHENDE THEMES AUS TOML (falls vorhanden)
+        let existing_themes = Self::load_available_themes_from_current_config()
+            .await
+            .unwrap_or_else(|_| std::collections::HashMap::new());
 
         let config_file = ConfigFile {
             general: GeneralConfig {
@@ -442,10 +409,10 @@ impl Config {
                 log_level: self.log_level.clone(),
                 current_theme: self.current_theme_name.clone(),
             },
-            theme: Some(theme_map),
-            prompt: PromptConfig {
-                text: self.prompt.text.clone(),
-                color: self.prompt.color.to_string(),
+            theme: if existing_themes.is_empty() {
+                None
+            } else {
+                Some(existing_themes)
             },
             language: LanguageConfig {
                 current: self.language.clone(),
@@ -469,25 +436,21 @@ impl Config {
             }
         }
 
-        // ✅ ATOMIC WRITE (write to temp file then rename)
+        // ✅ ATOMIC WRITE
         let temp_path = format!("{}.tmp", path);
-
         match tokio::fs::write(&temp_path, &content).await {
-            Ok(_) => {
-                // ✅ ATOMIC MOVE (rename temp → final)
-                match tokio::fs::rename(&temp_path, path).await {
-                    Ok(_) => {
-                        log::debug!("✅ Config successfully written to: {}", path);
-                        log::debug!("   current_theme = {}", self.current_theme_name);
-                        Ok(())
-                    }
-                    Err(e) => {
-                        log::error!("Failed to rename temp file: {}", e);
-                        let _ = tokio::fs::remove_file(&temp_path).await;
-                        Err(AppError::Io(e))
-                    }
+            Ok(_) => match tokio::fs::rename(&temp_path, path).await {
+                Ok(_) => {
+                    log::debug!("✅ Config successfully written to: {}", path);
+                    log::debug!("   current_theme = {}", self.current_theme_name);
+                    Ok(())
                 }
-            }
+                Err(e) => {
+                    log::error!("Failed to rename temp file: {}", e);
+                    let _ = tokio::fs::remove_file(&temp_path).await;
+                    Err(AppError::Io(e))
+                }
+            },
             Err(e) => {
                 log::error!("Failed to write temp config file: {}", e);
                 Err(AppError::Io(e))
@@ -523,25 +486,61 @@ impl Config {
     /// Change theme in-memory and persist only the current_theme setting
     pub async fn change_theme(&mut self, theme_name: &str) -> Result<()> {
         log::debug!("Switch theme to {}", theme_name);
-        if let Some(def) = crate::commands::theme::PredefinedThemes::get_by_name(theme_name) {
+
+        // ✅ 1. LADE AKTUELL VERFÜGBARE THEMES AUS TOML
+        let available_themes = Self::load_available_themes_from_current_config().await?;
+
+        if let Some(theme_def) = available_themes.get(theme_name) {
             self.theme = Theme {
-                input_text: AppColor::from_string(&def.input_text)?,
-                input_bg: AppColor::from_string(&def.input_bg)?,
-                cursor: AppColor::from_string(&def.cursor)?,
-                output_text: AppColor::from_string(&def.output_text)?,
-                output_bg: AppColor::from_string(&def.output_bg)?,
+                input_text: AppColor::from_string(&theme_def.input_text)?,
+                input_bg: AppColor::from_string(&theme_def.input_bg)?,
+                cursor: AppColor::from_string(&theme_def.cursor)?,
+                output_text: AppColor::from_string(&theme_def.output_text)?,
+                output_bg: AppColor::from_string(&theme_def.output_bg)?,
+                prompt_text: theme_def.prompt_text.clone(),
+                prompt_color: AppColor::from_string(&theme_def.prompt_color)?,
             };
             self.current_theme_name = theme_name.to_string();
-            // persistieren
+
+            // ✅ 2. PERSISTIEREN
             self.update_current_theme_in_file().await?;
             log::info!("Saved current_theme to config: {}", theme_name);
             Ok(())
         } else {
+            let available: Vec<String> = available_themes.keys().cloned().collect();
             Err(AppError::Validation(format!(
-                "Theme '{}' nicht gefunden",
-                theme_name
+                "Theme '{}' nicht in TOML gefunden. Verfügbar: {}",
+                theme_name,
+                available.join(", ")
             )))
         }
+    }
+
+    /// ✅ NEU: Lädt alle verfügbaren Themes aus aktueller Config
+    async fn load_available_themes_from_current_config(
+    ) -> Result<std::collections::HashMap<String, ThemeDefinitionConfig>> {
+        for path in crate::setup::setup_toml::get_config_paths() {
+            if path.exists() {
+                let content = tokio::fs::read_to_string(&path)
+                    .await
+                    .map_err(AppError::Io)?;
+                let config_file: ConfigFile = toml::from_str(&content)
+                    .map_err(|e| AppError::Validation(format!("TOML parse error: {}", e)))?;
+
+                if let Some(themes) = config_file.theme {
+                    log::debug!(
+                        "Loaded {} themes from TOML: {}",
+                        themes.len(),
+                        themes.keys().cloned().collect::<Vec<String>>().join(", ") // ✅ FIX: .cloned()
+                    );
+                    return Ok(themes);
+                }
+            }
+        }
+
+        // ✅ FALLBACK: Leere Map (keine Themes)
+        log::warn!("Keine Themes in TOML gefunden");
+        Ok(std::collections::HashMap::new())
     }
 }
 
@@ -553,19 +552,13 @@ impl Theme {
             cursor: AppColor::from_string(&theme_def.cursor)?,
             output_text: AppColor::from_string(&theme_def.output_text)?,
             output_bg: AppColor::from_string(&theme_def.output_bg)?,
+            prompt_text: theme_def.prompt_text.clone(),
+            prompt_color: AppColor::from_string(&theme_def.prompt_color)?,
         })
     }
 }
 
-impl Prompt {
-    fn from_config(config: &PromptConfig) -> Result<Self> {
-        Ok(Self {
-            text: config.text.clone(),
-            color: AppColor::from_string(&config.color)?,
-        })
-    }
-}
-
+// ✅ DEFAULT IMPLEMENTATIONS
 crate::impl_default!(
     Config,
     Self {
@@ -578,7 +571,7 @@ crate::impl_default!(
         log_level: "info".to_string(),
         theme: Theme::default(),
         current_theme_name: "dark".to_string(),
-        prompt: Prompt::default(),
+        // ✅ ENTFERNT: prompt field
         language: crate::i18n::DEFAULT_LANGUAGE.to_string(),
         debug_info: None,
     }
@@ -592,14 +585,8 @@ crate::impl_default!(
         cursor: AppColor::new(Color::White),
         output_text: AppColor::new(Color::White),
         output_bg: AppColor::new(Color::Black),
-    }
-);
-
-crate::impl_default!(
-    Prompt,
-    Self {
-        text: "/// ".to_string(),
-        color: AppColor::new(Color::White),
+        prompt_text: "/// ".to_string(), // ✅ HINZUGEFÜGT
+        prompt_color: AppColor::new(Color::LightBlue), // ✅ HINZUGEFÜGT
     }
 );
 

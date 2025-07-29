@@ -1,13 +1,12 @@
 // =====================================================
-// FILE: src/setup/setup_toml.rs - SICHERE DEFAULTS (KORRIGIERT)
+// FILE: src/setup/setup_toml.rs - KORRIGIERTE TOML STRUKTUR
 // =====================================================
 
 use crate::core::prelude::*;
 use std::path::PathBuf;
 use tokio::fs;
 
-// ✅ SICHERE DEFAULT-CONFIG mit Performance-Kommentaren + PROMPT SEKTION
-
+// ✅ KORRIGIERTE DEFAULT-CONFIG mit neuer Struktur
 const DEFAULT_CONFIG: &str = r#"[general]
 max_messages = 100
 # Typewriter-Effekt: 50ms = 20 Zeichen/Sekunde (empfohlen: 30-100ms)
@@ -22,9 +21,9 @@ current_theme = "dark"
 [language]
 current = "en"
 
-[prompt]
-text = "/// "
-color = "Black"
+# =================================================================
+# THEME-DEFINITIONEN (mit integrierten Prompts)
+# =================================================================
 
 [theme.dark]
 input_text = "Black"
@@ -32,6 +31,8 @@ input_bg = "White"
 cursor = "Black"
 output_text = "White"
 output_bg = "Black"
+prompt_text = "/// "
+prompt_color = "Black"
 
 [theme.light]
 input_text = "White"
@@ -39,21 +40,40 @@ input_bg = "Black"
 cursor = "White"
 output_text = "Black"
 output_bg = "White"
+prompt_text = "/// "
+prompt_color = "White"
 
 [theme.green]
-input_text = "Black"
-input_bg = "Green"
-cursor = "Black"
+input_text = "LightGreen"
+input_bg = "Black"
+cursor = "LightGreen"
 output_text = "Green"
 output_bg = "Black"
+prompt_text = "$ "
+prompt_color = "LightGreen"
 
 [theme.blue]
 input_text = "White"
 input_bg = "Blue"
 cursor = "White"
-output_text = "Blue"
+output_text = "LightBlue"
 output_bg = "White"
+prompt_text = "> "
+prompt_color = "White"
 
+# =================================================================
+# HINWEIS: PROMPT IST JETZT TEIL DER THEMES!
+# =================================================================
+#
+# Jedes Theme definiert:
+#   - prompt_text  (Der Prompt-String z.B. "/// " oder "λ> ")
+#   - prompt_color (Die Prompt-Farbe z.B. "LightBlue")
+#
+# Dies löst das macOS Terminal Schwarz-Problem und macht
+# Prompts thematisch konsistent.
+#
+# ENTFERNT: [prompt] Section (war vorher separiert)
+#
 # =================================================================
 # PERFORMANCE-HINWEISE:
 # =================================================================
@@ -72,10 +92,16 @@ output_bg = "White"
 # current_theme:
 #   - "dark" = Dunkles Theme (Standard)
 #   - "light" = Helles Theme
-#   - "matrix" = Matrix-Style (Grün)
+#   - "matrix" = Matrix-Style (grün)
 #   - "blue" = Blaues Theme
-# =================================================================
-"#;
+#   - "hacker" = Hacker-Style (grün/rot)
+#   - "minimal" = Minimalistisches Theme
+#
+# NEUE FEATURE: THEME-INTEGRIERTE PROMPTS
+#   - Jedes Theme hat eigenen prompt_text und prompt_color
+#   - Löst macOS Terminal Schwarz-Problem
+#   - Thematisch konsistente Prompts
+# ================================================================="#;
 
 pub async fn ensure_config_exists() -> Result<PathBuf> {
     let exe_path = std::env::current_exe().map_err(AppError::Io)?;
@@ -114,6 +140,9 @@ pub async fn ensure_config_exists() -> Result<PathBuf> {
 
         // ✅ PERFORMANCE-TIPP für neue Nutzer
         log::info!("💡 Tipp: Für optimale Performance, behalte poll_rate >= 16ms");
+        log::info!(
+            "✨ NEU: Prompt ist jetzt Teil der Themes! Jedes Theme hat eigenen Prompt-Style."
+        );
     }
 
     Ok(config_path)

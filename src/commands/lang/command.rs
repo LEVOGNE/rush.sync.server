@@ -1,15 +1,25 @@
 // =====================================================
-// FILE: commands/lang/command.rs - ASYNC RICHTIG IMPLEMENTIERT
+// FILE: src/commands/lang/command.rs - VEREINFACHT
 // =====================================================
 
-use super::manager::LanguageManager;
+use super::LanguageService;
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 use std::future::Future;
 use std::pin::Pin;
 
 #[derive(Debug)]
-pub struct LanguageCommand;
+pub struct LanguageCommand {
+    service: std::sync::Mutex<LanguageService>,
+}
+
+impl LanguageCommand {
+    pub fn new() -> Self {
+        Self {
+            service: std::sync::Mutex::new(LanguageService::new()),
+        }
+    }
+}
 
 impl Command for LanguageCommand {
     fn name(&self) -> &'static str {
@@ -25,15 +35,17 @@ impl Command for LanguageCommand {
     }
 
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
+        let service = self.service.lock().unwrap();
+
         match args.first() {
-            None => Ok(LanguageManager::show_status()),
-            Some(&lang) => match LanguageManager::switch_language_only(lang) {
+            None => Ok(service.show_status()),
+            Some(&lang) => match service.switch_language_only(lang) {
                 Ok(()) => {
                     let msg = crate::i18n::get_command_translation(
                         "system.commands.language.changed",
                         &[&lang.to_uppercase()],
                     );
-                    Ok(LanguageManager::create_save_message_format(lang, &msg))
+                    Ok(service.create_save_message(lang, &msg))
                 }
                 Err(e) => Ok(crate::i18n::get_command_translation(
                     "system.commands.language.invalid",
@@ -43,24 +55,36 @@ impl Command for LanguageCommand {
         }
     }
 
-    /// ✅ ECHTES ASYNC - Override der Default-Implementierung
     fn execute_async<'a>(
         &'a self,
         args: &'a [&'a str],
     ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
         Box::pin(async move {
+            // ✅ MUTEX GUARD nicht über await halten
+            let mut service = {
+                let _service_guard = self.service.lock().unwrap();
+
+                LanguageService::new() // ✅ NEUER SERVICE für async
+            };
+
             match args.first() {
-                None => Ok(LanguageManager::show_status()),
-                Some(&lang) => LanguageManager::change_language(lang).await,
+                None => Ok(service.show_status()),
+                Some(&lang) => service.change_language(lang).await,
             }
         })
     }
 
     fn supports_async(&self) -> bool {
-        true // ✅ Unterstützt echtes async
+        true
     }
 
     fn priority(&self) -> u8 {
-        70 // Hohe Priorität für System-Commands
+        70
+    }
+}
+
+impl Default for LanguageCommand {
+    fn default() -> Self {
+        Self::new()
     }
 }

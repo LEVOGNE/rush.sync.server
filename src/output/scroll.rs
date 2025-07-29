@@ -44,7 +44,11 @@ impl ScrollState {
     }
 
     pub fn scroll_down(&mut self, amount: usize) {
-        let max_offset = self.content_height.saturating_sub(self.window_height);
+        let max_offset = if self.content_height > self.window_height {
+            self.content_height - self.window_height
+        } else {
+            0
+        };
 
         if self.offset >= max_offset {
             self.auto_scroll = true;
@@ -68,6 +72,7 @@ impl ScrollState {
 
         let start = self.offset;
         let end = (self.offset + self.window_height).min(self.content_height);
+
         (start, end)
     }
 
