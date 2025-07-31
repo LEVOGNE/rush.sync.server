@@ -1,29 +1,24 @@
 use log::LevelFilter;
 use std::sync::Mutex;
 
-/// Globaler Log-Level Manager für Runtime-Änderungen + Persistenz
 pub struct LogLevelManager;
 
-// Globaler STATE für aktuelles Log-Level
 static CURRENT_LOG_LEVEL: Mutex<LevelFilter> = Mutex::new(LevelFilter::Info);
 
 impl LogLevelManager {
-    /// Zeigt aktuelles Log-Level und verfügbare Optionen
     pub fn show_status() -> String {
         let current = Self::get_current_level();
         let current_name = Self::level_to_name(current);
         let current_number = Self::level_to_number(current);
 
         format!(
-            "{}: {} ({})\n{}",
-            crate::i18n::get_command_translation("system.commands.log_level.current", &[]),
+            "Current log level: {} ({})\n{}",
             current_name,
             current_number,
             Self::show_help()
         )
     }
 
-    /// Setzt neues Log-Level UND speichert in Config
     pub fn set_level_persistent(level_input: &str) -> Result<String, String> {
         let level_filter = match level_input {
             "1" => LevelFilter::Error,
@@ -37,17 +32,12 @@ impl LogLevelManager {
             "debug" | "DEBUG" => LevelFilter::Debug,
             "trace" | "TRACE" => LevelFilter::Trace,
             _ => {
-                return Err(crate::i18n::get_command_translation(
-                    "system.commands.log_level.invalid",
-                    &[level_input],
-                ));
+                return Err(format!("Invalid log level: {}", level_input));
             }
         };
 
-        // ✅ 1. SETZE RUNTIME LOG-LEVEL sofort
         Self::set_level_runtime(level_filter);
 
-        // ✅ 2. SPAWN BACKGROUND-TASK für Config-Save
         tokio::spawn(async move {
             if let Err(e) = Self::save_to_config(level_filter).await {
                 log::warn!("Failed to save log level to config: {}", e);
@@ -59,13 +49,12 @@ impl LogLevelManager {
         let level_name = Self::level_to_name(level_filter);
         let level_number = Self::level_to_number(level_filter);
 
-        Ok(crate::i18n::get_command_translation(
-            "system.commands.log_level.changed_persistent",
-            &[&level_name, &level_number],
+        Ok(format!(
+            "✅ Log level changed to: {} ({}) - Persistent saved",
+            level_name, level_number
         ))
     }
 
-    /// Setzt nur Runtime Log-Level (ohne Config-Save)
     pub fn set_level_runtime(level_filter: LevelFilter) {
         if let Ok(mut current) = CURRENT_LOG_LEVEL.lock() {
             *current = level_filter;
@@ -73,7 +62,6 @@ impl LogLevelManager {
         log::set_max_level(level_filter);
     }
 
-    /// Lädt Log-Level aus Config beim Startup
     pub async fn load_from_config() -> LevelFilter {
         match crate::core::config::Config::load_with_messages(false).await {
             Ok(config) => match Self::string_to_level_filter(&config.log_level) {
@@ -96,7 +84,6 @@ impl LogLevelManager {
         }
     }
 
-    /// Speichert Log-Level in Config-Datei
     async fn save_to_config(level_filter: LevelFilter) -> Result<(), String> {
         match crate::core::config::Config::load_with_messages(false).await {
             Ok(mut config) => {
@@ -110,7 +97,6 @@ impl LogLevelManager {
         }
     }
 
-    /// Aktuelles Log-Level abrufen
     pub fn get_current_level() -> LevelFilter {
         if let Ok(current) = CURRENT_LOG_LEVEL.lock() {
             *current
@@ -119,7 +105,6 @@ impl LogLevelManager {
         }
     }
 
-    /// Initialisiert Log-Level (für startup)
     pub fn init_with_level(level: LevelFilter) {
         if let Ok(mut current) = CURRENT_LOG_LEVEL.lock() {
             *current = level;
@@ -127,12 +112,10 @@ impl LogLevelManager {
         log::set_max_level(level);
     }
 
-    /// Hilfe-Text
     pub fn show_help() -> String {
-        crate::i18n::get_command_translation("system.commands.log_level.help", &[])
+        "Available log levels:\n  1 = ERROR   (Only critical errors)\n  2 = WARN    (Warnings and errors)\n  3 = INFO    (General information) [DEFAULT]\n  4 = DEBUG   (Debug information)\n  5 = TRACE   (Very detailed tracing)\n\nUsage:\n  log-level           Show current level\n  log-level 3         Set to INFO level\n  log-level DEBUG     Set to DEBUG level\n  log-level -h        Show this help".to_string()
     }
 
-    // ✅ HELPER: String zu LevelFilter
     fn string_to_level_filter(s: &str) -> Result<LevelFilter, ()> {
         match s.to_lowercase().as_str() {
             "error" | "1" => Ok(LevelFilter::Error),
@@ -145,7 +128,6 @@ impl LogLevelManager {
         }
     }
 
-    // ✅ HELPER: LevelFilter zu String
     fn level_filter_to_string(level: LevelFilter) -> String {
         match level {
             LevelFilter::Error => "error".to_string(),
@@ -157,7 +139,6 @@ impl LogLevelManager {
         }
     }
 
-    // ✅ HELPER: Level zu Name (Display)
     fn level_to_name(level: LevelFilter) -> String {
         match level {
             LevelFilter::Error => "ERROR".to_string(),
@@ -169,7 +150,6 @@ impl LogLevelManager {
         }
     }
 
-    // ✅ HELPER: Level zu Nummer
     fn level_to_number(level: LevelFilter) -> String {
         match level {
             LevelFilter::Error => "1".to_string(),

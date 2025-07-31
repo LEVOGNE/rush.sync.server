@@ -6,10 +6,27 @@
 ![Crates.io](https://img.shields.io/crates/v/rush-sync-server)
 
 > 🛠 **NOTE**: Version `0.2.2` on crates.io has a critical bug in language file loading (`*.json` not embedded correctly).
-> Please use **version `0.2.3+`** for a stable release!
+> Please use **version `0.2.5+`** for a stable release!
 
 **Rush Sync Server** is a modern, modular terminal application written in **Rust**, featuring an interactive TUI, internationalized interface, color-coded logging, and flexible configuration.
 Perfect for developers who need a **customizable, scriptable terminal UI**.
+
+---
+
+## 🆕 What's New in v0.2.5
+
+- ✅ **Live Theme Switching** at runtime (without restart)
+- ✅ **Advanced Cursor System** (PIPE, BLOCK, UNDERSCORE, DEFAULT)
+- ✅ **Unified Cursor Architecture** (input/output cursor with blinking, positioning, color)
+- ✅ **Centralized Viewport** for smooth layout handling and robust scrolling
+- ✅ **Improved Restart Logic** with UI reinitialization and state restore
+- ✅ **Theme-defined cursor styles and colors** via TOML
+- ✅ **Full i18n coverage** for logs, errors, and commands
+- ✅ **Experimental support** for dynamic output cursor in themes
+
+---
+
+<!-- KEEP OLD CONTENT BELOW UNCHANGED FOR CONTEXT -->
 
 ---
 

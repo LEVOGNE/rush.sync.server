@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: src/commands/lang/command.rs - VEREINFACHT
-// =====================================================
-
 use super::LanguageService;
 use crate::commands::command::Command;
 use crate::core::prelude::*;
@@ -60,12 +56,7 @@ impl Command for LanguageCommand {
         args: &'a [&'a str],
     ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
         Box::pin(async move {
-            // ✅ MUTEX GUARD nicht über await halten
-            let mut service = {
-                let _service_guard = self.service.lock().unwrap();
-
-                LanguageService::new() // ✅ NEUER SERVICE für async
-            };
+            let mut service = LanguageService::new();
 
             match args.first() {
                 None => Ok(service.show_status()),

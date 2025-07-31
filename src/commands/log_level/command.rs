@@ -25,17 +25,14 @@ impl Command for LogLevelCommand {
         match args.first() {
             None => Ok(LogLevelManager::show_status()),
             Some(&"--help" | &"-h" | &"help") => Ok(LogLevelManager::show_help()),
-            Some(&level) => {
-                // ✅ EINFACH: Verwende die umgebaute Methode
-                match LogLevelManager::set_level_persistent(level) {
-                    Ok(success_msg) => Ok(success_msg),
-                    Err(error_msg) => Ok(error_msg),
-                }
-            }
+            Some(&level) => match LogLevelManager::set_level_persistent(level) {
+                Ok(success_msg) => Ok(success_msg),
+                Err(error_msg) => Ok(error_msg),
+            },
         }
     }
 
     fn priority(&self) -> u8 {
-        75 // Hohe Priorität für System-Commands
+        75
     }
 }

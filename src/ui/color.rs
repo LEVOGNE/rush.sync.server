@@ -1,17 +1,11 @@
-// =====================================================
-// FILE: src/ui/color.rs - VOLLSTÄNDIG mit CLONE SUPPORT
-// =====================================================
-
 use crate::core::prelude::*;
 use log::Level;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
-use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq)] // ✅ CLONE ist bereits da
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AppColor(Color);
 
-// ✅ Zentrale Map für ALLE Farben & Kategorien
 static COLOR_MAP: Lazy<HashMap<&'static str, Color>> = Lazy::new(|| {
     let mut map = HashMap::new();
 
@@ -52,18 +46,15 @@ impl AppColor {
         Self(color)
     }
 
-    /// Universelle Umwandlung aus Kategorie oder Farbe
     pub fn from_any<T: Into<String>>(source: T) -> Self {
         let key = source.into().to_lowercase();
         Self(*COLOR_MAP.get(key.as_str()).unwrap_or(&Color::Gray))
     }
 
-    /// Aus explizitem Log-Level
     pub fn from_log_level(level: Level) -> Self {
         Self::from_any(level.to_string())
     }
 
-    /// String-Validierung für Config (bleibt Result)
     pub fn from_string(color_str: &str) -> crate::core::error::Result<Self> {
         COLOR_MAP
             .get(&color_str.to_lowercase().as_str())
@@ -112,12 +103,6 @@ impl AppColor {
             .find(|(_, &v)| v == self.0)
             .map(|(k, _)| *k)
             .unwrap_or("gray")
-    }
-}
-
-impl fmt::Display for AppColor {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_name())
     }
 }
 

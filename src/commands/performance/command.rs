@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: src/commands/performance/command.rs - TRAIT IMPL
-// =====================================================
-
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 
@@ -24,19 +20,13 @@ impl Command for PerformanceCommand {
 
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
         match args.first() {
-            Some(&"--help" | &"-h") => Ok(crate::i18n::get_command_translation(
-                "system.commands.performance.help",
-                &[],
-            )),
+            Some(&"--help" | &"-h") => Ok("Performance Command Help:\n  perf                   Show performance status\n  performance           Same as perf\n  stats                 Same as perf\n  perf -h               Show this help".to_string()),
             None => super::manager::PerformanceManager::get_status(),
-            _ => Ok(crate::i18n::get_command_translation(
-                "system.commands.performance.unknown",
-                &[],
-            )),
+            _ => Ok("Unknown performance parameter. Use 'perf -h' for help.".to_string()),
         }
     }
 
     fn priority(&self) -> u8 {
-        25 // Standard Priorität für System-Commands
+        25
     }
 }

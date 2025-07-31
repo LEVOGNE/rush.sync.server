@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: commands/handler.rs - BORROW-FEHLER BEHOBEN
-// =====================================================
-
 use super::registry::CommandRegistry;
 use crate::i18n;
 
@@ -12,25 +8,21 @@ pub struct CommandResult {
     pub should_exit: bool,
 }
 
-/// ✅ ULTRA-SMART: Handler nutzt nur noch Registry!
 pub struct CommandHandler {
     registry: CommandRegistry,
 }
 
 impl CommandHandler {
-    /// ✅ EINFACHSTE INITIALISIERUNG
     pub fn new() -> Self {
         Self {
             registry: crate::create_default_registry(),
         }
     }
 
-    /// ✅ CUSTOM Registry (für Tests/Extensions)
     pub fn with_registry(registry: CommandRegistry) -> Self {
         Self { registry }
     }
 
-    /// ✅ SYNCHRONE Verarbeitung - BORROW-SAFE
     pub fn handle_input(&self, input: &str) -> CommandResult {
         let input = input.trim();
         let parts: Vec<&str> = input.split_whitespace().collect();
@@ -43,12 +35,12 @@ impl CommandHandler {
             };
         }
 
-        // ✅ DELEGATION an Registry
+        // FIX: Handle String/&str conversion properly
         match self.registry.execute_sync(parts[0], &parts[1..]) {
             Some(Ok(msg)) => {
                 let should_exit = self.should_exit_on_message(&msg);
                 CommandResult {
-                    message: msg,
+                    message: msg, // FIX: msg is already String from execute_sync
                     success: true,
                     should_exit,
                 }
@@ -66,7 +58,6 @@ impl CommandHandler {
         }
     }
 
-    /// ✅ ASYNC Verarbeitung - BORROW-SAFE
     pub async fn handle_input_async(&self, input: &str) -> CommandResult {
         let input = input.trim();
         let parts: Vec<&str> = input.split_whitespace().collect();
@@ -79,12 +70,12 @@ impl CommandHandler {
             };
         }
 
-        // ✅ ASYNC DELEGATION an Registry
+        // FIX: Handle String/&str conversion properly
         match self.registry.execute_async(parts[0], &parts[1..]).await {
             Some(Ok(msg)) => {
                 let should_exit = self.should_exit_on_message(&msg);
                 CommandResult {
-                    message: msg,
+                    message: msg, // FIX: msg is already String from execute_async
                     success: true,
                     should_exit,
                 }
@@ -102,22 +93,18 @@ impl CommandHandler {
         }
     }
 
-    /// ✅ ERWEITERT: Command zu Registry hinzufügen (zur Laufzeit!)
     pub fn add_command<T: crate::commands::command::Command>(&mut self, command: T) {
         self.registry.register(command);
     }
 
-    /// ✅ INFO: Registry Informationen
     pub fn list_commands(&self) -> Vec<(&str, &str)> {
         self.registry.list_commands()
     }
 
-    /// ✅ DEBUG: Registry Debug-Info
     pub fn debug_info(&self) -> String {
         self.registry.debug_info()
     }
 
-    /// ✅ Helper bleibt gleich
     fn should_exit_on_message(&self, message: &str) -> bool {
         message.starts_with("__EXIT__")
             || message.starts_with("__CONFIRM_EXIT__")

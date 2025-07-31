@@ -1,5 +1,5 @@
 // =====================================================
-// FILE: src/ui/screen.rs - KORRIGIERTE CONSTRUCTOR CALLS
+// FILE: src/ui/screen.rs - MIT TERMINAL-CURSOR-SUPPORT
 // =====================================================
 
 use crate::commands::history::HistoryKeyboardHandler;
@@ -12,23 +12,22 @@ use crate::input::{
 };
 use crate::input::{AppEvent, EventHandler};
 use crate::output::{display::MessageDisplay, logging::AppLogger};
-use crate::ui::{color::AppColor, terminal::TerminalManager, widget::Widget};
+use crate::ui::{
+    color::AppColor, terminal::TerminalManager, viewport::ScrollDirection, widget::Widget,
+};
 
 use crossterm::event::KeyEvent;
-use ratatui::{
-    backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
-    Terminal,
-};
+use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io::{self, Stdout};
 
 pub type TerminalBackend = Terminal<CrosstermBackend<Stdout>>;
+
+use crossterm::execute;
 
 pub struct ScreenManager {
     terminal: TerminalBackend,
     message_display: MessageDisplay,
     input_state: Box<dyn Widget>,
-    terminal_size: (u16, u16),
     config: Config,
     terminal_mgr: TerminalManager,
     events: EventHandler,
@@ -45,11 +44,17 @@ impl ScreenManager {
         let terminal = Terminal::new(backend)?;
         let size = terminal.size()?;
 
-        let initial_height = size.height.saturating_sub(4) as usize;
-        let mut message_display = MessageDisplay::new(config);
-        message_display
-            .scroll_state
-            .update_dimensions(initial_height, 0);
+        let message_display = MessageDisplay::new(config, size.width, size.height);
+
+        log::info!(
+            "{}",
+            t!(
+                "screen.initialized",
+                &size.width.to_string(),
+                &size.height.to_string(),
+                &message_display.viewport().debug_info()
+            )
+        );
 
         let owned_config = config.clone();
 
@@ -57,9 +62,7 @@ impl ScreenManager {
             terminal,
             terminal_mgr,
             message_display,
-            // ✅ KORRIGIERT: InputState::new nimmt nur &Config
             input_state: Box::new(InputState::new(config)),
-            terminal_size: (size.width, size.height),
             config: owned_config,
             events: EventHandler::new(config.poll_rate),
             keyboard_manager: KeyboardManager::new(),
@@ -95,6 +98,7 @@ impl ScreenManager {
     }
 
     async fn handle_input_event(&mut self, key: KeyEvent) -> Result<bool> {
+        // HISTORY HANDLING ZUERST
         if HistoryKeyboardHandler::get_history_action(&key).is_some() {
             if let Some(new_input) = self.input_state.handle_input(key) {
                 if let Some(processed) = LanguageService::process_save_message(&new_input).await {
@@ -118,18 +122,28 @@ impl ScreenManager {
             return Ok(false);
         }
 
+        // SCROLL-HANDLING MIT VIEWPORT
         match self.keyboard_manager.get_action(&key) {
-            KeyAction::ScrollUp
-            | KeyAction::ScrollDown
-            | KeyAction::PageUp
-            | KeyAction::PageDown => {
-                let window_height = self.get_content_height();
+            KeyAction::ScrollUp => {
+                self.message_display.handle_scroll(ScrollDirection::Up, 1);
+                return Ok(false);
+            }
+            KeyAction::ScrollDown => {
+                self.message_display.handle_scroll(ScrollDirection::Down, 1);
+                return Ok(false);
+            }
+            KeyAction::PageUp => {
                 self.message_display
-                    .handle_scroll(self.keyboard_manager.get_action(&key), window_height);
+                    .handle_scroll(ScrollDirection::PageUp, 0);
+                return Ok(false);
+            }
+            KeyAction::PageDown => {
+                self.message_display
+                    .handle_scroll(ScrollDirection::PageDown, 0);
+                return Ok(false);
             }
             KeyAction::Submit => {
                 if let Some(new_input) = self.input_state.handle_input(key) {
-                    // ✅ DETECT Performance Commands BEFORE processing
                     let input_command = new_input.trim().to_lowercase();
                     let is_performance_command = input_command == "perf"
                         || input_command == "performance"
@@ -148,26 +162,21 @@ impl ScreenManager {
 
                     self.message_display.add_message(new_input.clone());
 
-                    // ✅ SANFTER FIX für Performance Commands (ohne terminal.clear)
                     if is_performance_command {
-                        log::info!("🔧 Performance command '{}' detected", input_command);
+                        log::debug!(
+                            "{}",
+                            t!("screen.performance_command_detected", &input_command)
+                        );
 
-                        // Warten bis Message verarbeitet ist
                         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+                        self.message_display.viewport_mut().force_auto_scroll();
 
-                        // Scroll-System sanft reparieren
-                        self.message_display.scroll_state.force_auto_scroll();
-
-                        let window_height = self.get_content_height();
-                        let content_height = self.message_display.get_content_height();
-                        self.message_display
-                            .scroll_state
-                            .update_dimensions(window_height, content_height);
-
-                        log::info!("✅ Performance command: scroll reset applied");
+                        log::debug!(
+                            "{}",
+                            t!("screen.performance_command_viewport_reset_applied")
+                        );
                     }
 
-                    // ✅ Standard Command-Verarbeitung
                     if new_input.starts_with("__CLEAR__") {
                         self.message_display.clear_messages();
                     } else if new_input.starts_with("__EXIT__") {
@@ -225,53 +234,89 @@ impl ScreenManager {
 
         let parts: Vec<&str> = message.split("__MESSAGE__").collect();
         if parts.len() != 2 {
-            log::error!("Invalid live theme update format: {}", message);
+            log::error!("{}", t!("screen.theme.invalid_format"));
             return None;
         }
 
         let theme_part = parts[0].replace("__LIVE_THEME_UPDATE__", "");
         let display_message = parts[1];
 
-        log::debug!("🎨 Processing live theme update: {}", theme_part);
+        log::info!(
+            "🎨 LIVE THEME UPDATE STARTING: '{}' → '{}'",
+            self.config.current_theme_name,
+            theme_part
+        );
 
         let theme_system = match ThemeSystem::load() {
             Ok(system) => system,
             Err(e) => {
-                log::error!("Failed to load theme system: {}", e);
-                return Some(format!("❌ Theme update failed: {}", e));
+                log::error!("{} {}", t!("screen.theme.load_failed"), e);
+                return Some(tc!("screen.theme.failed", &e.to_string()));
             }
         };
 
         if let Some(theme_def) = theme_system.get_theme(&theme_part) {
+            // ✅ DETAILED LOGGING: Jetzt mit theme_def im Scope
+            log::info!(
+                "🔍 THEME DETAILS: prefix: '{}' → '{}' | input_cursor: '{}' → '{}'",
+                self.config.theme.input_cursor_prefix,
+                theme_def.input_cursor_prefix,
+                self.config.theme.input_cursor,
+                theme_def.input_cursor
+            );
             match self.create_theme_from_definition(theme_def) {
                 Ok(new_theme) => {
                     let backup = self.input_state.get_backup_data().unwrap_or_default();
 
+                    // ✅ DETAILED LOGGING: Show exact cursor transition
+                    log::info!(
+                        "🔄 THEME TRANSITION: old='{}'/prefix='{}'/input_cursor='{}'/output_cursor='{}' → new='{}'/prefix='{}'/input_cursor='{}'/output_cursor='{}'",
+                        self.config.current_theme_name,
+                        self.config.theme.input_cursor_prefix,
+                        self.config.theme.input_cursor,
+                        self.config.theme.output_cursor,
+                        theme_part,
+                        theme_def.input_cursor_prefix,
+                        theme_def.input_cursor,
+                        theme_def.output_cursor
+                    );
+
+                    // ✅ CRITICAL: Clear ALL UI state first
+                    self.message_display.clear_messages();
+
+                    // ✅ UPDATE CONFIG COMPLETELY
                     self.config.theme = new_theme;
                     self.config.current_theme_name = theme_part.clone();
 
-                    // ✅ KORRIGIERT: InputState::new nimmt nur &config
+                    // ✅ FORCE COMPLETE UI RECREATION mit zentraler Cursor-API
+                    log::info!("🔄 FORCING MessageDisplay config update...");
+                    self.message_display.update_config(&self.config);
+
+                    log::info!("🔄 RECREATING InputState with central cursor API...");
                     self.input_state = Box::new(InputState::new(&self.config));
                     self.input_state.restore_backup_data(backup.clone());
 
-                    self.message_display.update_config(&self.config);
-
+                    // ✅ FINAL VERIFICATION
                     log::info!(
-                        "✅ Live theme '{}' applied with prompt '{}' - {} history entries preserved!",
+                        "✅ LIVE THEME APPLIED: theme='{}' | prefix='{}' | input_cursor='{}' | output_cursor='{}' | output_cursor_color='{}' | history={}",
                         theme_part.to_uppercase(),
-                        self.config.theme.prompt_text,
+                        self.config.theme.input_cursor_prefix,
+                        self.config.theme.input_cursor,
+                        self.config.theme.output_cursor,
+                        self.config.theme.output_cursor_color.to_name(),
                         backup.history.len()
                     );
+
                     Some(display_message.to_string())
                 }
                 Err(e) => {
-                    log::error!("❌ Failed to create theme: {}", e);
-                    Some(format!("❌ Theme update failed: {}", e))
+                    log::error!("{} {}", t!("screen.theme.load_failed"), e);
+                    Some(tc!("screen.theme.failed", &e.to_string()))
                 }
             }
         } else {
-            log::error!("❌ Theme '{}' not found in TOML", theme_part);
-            Some(format!("❌ Theme '{}' not found in config", theme_part))
+            log::error!("{} {}", t!("screen.theme.not_found"), theme_part);
+            Some(tc!("screen.theme.not_found_feedback", theme_part.as_str()))
         }
     }
 
@@ -287,49 +332,63 @@ impl ScreenManager {
             cursor: AppColor::from_string(&theme_def.cursor)?,
             output_text: AppColor::from_string(&theme_def.output_text)?,
             output_bg: AppColor::from_string(&theme_def.output_bg)?,
-            prompt_text: theme_def.prompt_text.clone(),
-            prompt_color: AppColor::from_string(&theme_def.prompt_color)?,
+
+            // ✅ PERFEKTE CURSOR-KONFIGURATION
+            input_cursor_prefix: theme_def.input_cursor_prefix.clone(),
+            input_cursor_color: AppColor::from_string(&theme_def.input_cursor_color)?,
+            input_cursor: theme_def.input_cursor.clone(),
+            output_cursor: theme_def.output_cursor.clone(),
+            output_cursor_color: AppColor::from_string(&theme_def.output_cursor_color)
+                .unwrap_or_default(),
         })
     }
 
     async fn handle_resize_event(&mut self, width: u16, height: u16) -> Result<()> {
-        eprintln!(
-            "🔄 RESIZE EVENT: {}x{} → {}x{}",
-            self.terminal_size.0, self.terminal_size.1, width, height
+        log::info!(
+            "{}",
+            t!(
+                "screen.resize_event",
+                &self
+                    .message_display
+                    .viewport()
+                    .terminal_size()
+                    .0
+                    .to_string(),
+                &self
+                    .message_display
+                    .viewport()
+                    .terminal_size()
+                    .1
+                    .to_string(),
+                &width.to_string(),
+                &height.to_string()
+            )
         );
 
-        self.terminal_size = (width, height);
-        let window_height = self.get_content_height();
-        let content_height = self.message_display.get_content_height();
+        let changed = self.message_display.handle_resize(width, height);
 
-        self.message_display
-            .scroll_state
-            .update_dimensions(window_height, content_height);
+        if changed {
+            log::info!(
+                "{}",
+                t!(
+                    "screen.resize_completed",
+                    &self.message_display.viewport().debug_info()
+                )
+            );
+        }
 
-        eprintln!(
-            "   Window height: {}, Content height: {}",
-            window_height, content_height
-        );
         Ok(())
     }
 
     async fn handle_tick_event(&mut self) -> Result<()> {
+        // ✅ TYPEWRITER-CURSOR UPDATE: Blinken + Progression
         self.message_display.update_typewriter();
+
+        // ✅ INPUT-CURSOR UPDATE: Nur blinken (zentrale API)
         if let Some(input_state) = self.input_state.as_input_state() {
             input_state.update_cursor_blink();
         }
         Ok(())
-    }
-
-    fn get_content_height(&self) -> usize {
-        // Berechne verfügbare Höhe für Output-Bereich
-        let total_height = self.terminal_size.1 as usize;
-        let margin = 2; // top + bottom margin
-        let input_area = 3; // Input braucht 3 Zeilen
-
-        total_height
-            .saturating_sub(margin)
-            .saturating_sub(input_area)
     }
 
     async fn process_pending_logs(&mut self) {
@@ -348,90 +407,223 @@ impl ScreenManager {
         }
     }
 
+    /// ✅ RENDER mit korrektem Cursor-Hide/Show
     async fn render(&mut self) -> Result<()> {
+        // ✅ 1. CURSOR-INFO VOR draw() holen
+        let (input_widget, cursor_pos) = self.input_state.render_with_cursor();
+
         self.terminal.draw(|frame| {
             let size = frame.size();
 
-            if size.width < 30 || size.height < 8 {
+            if size.width < 10 || size.height < 5 {
+                log::error!(
+                    "{}",
+                    t!(
+                        "screen.render.too_small_log",
+                        &size.width.to_string(),
+                        &size.height.to_string()
+                    )
+                );
+
+                let emergency_area = ratatui::layout::Rect {
+                    x: 0,
+                    y: 0,
+                    width: size.width.max(1),
+                    height: size.height.max(1),
+                };
+
+                let emergency_widget =
+                    ratatui::widgets::Paragraph::new(t!("screen.render.too_small.text"))
+                        .block(ratatui::widgets::Block::default());
+
+                frame.render_widget(emergency_widget, emergency_area);
                 return;
             }
 
-            // ✅ KORRIGIERT: Berücksichtige margin in Berechnung
-            let total_available = size.height.saturating_sub(2); // margin(1) = top+bottom = 2
-            let input_needs = 3; // Input braucht minimal 3 Zeilen
-            let output_gets = total_available.saturating_sub(input_needs);
+            let viewport = self.message_display.viewport();
 
-            // ✅ SICHERE LAYOUT-CONSTRAINTS - mathematisch korrekt
-            let chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .margin(1)
-                .constraints([
-                    Constraint::Length(output_gets), // ✅ Output: Berechnet
-                    Constraint::Length(input_needs), // ✅ Input: Fest 3 Zeilen
-                ])
-                .split(size);
+            if !viewport.is_usable() {
+                log::error!("{}", t!("screen.render.viewport_not_usable_log"));
 
-            let output_chunk = chunks[0];
-            let input_chunk = chunks[1];
+                let error_area = ratatui::layout::Rect {
+                    x: 0,
+                    y: 0,
+                    width: size.width,
+                    height: size.height,
+                };
 
-            // ✅ DEBUG: Prüfe Layout-Math
-            let total_used = output_chunk.height + input_chunk.height + 2; // +2 für margin
-            if total_used != size.height {
-                // Verwende dein Log-System statt eprintln!
-                log::warn!(
-                    "⚠️ Layout-Math ERROR: terminal={}, used={}, output={}, input={}",
-                    size.height,
-                    total_used,
-                    output_chunk.height,
-                    input_chunk.height
-                );
+                let error_widget =
+                    ratatui::widgets::Paragraph::new(t!("screen.render.viewport_error.text"))
+                        .block(ratatui::widgets::Block::default());
+
+                frame.render_widget(error_widget, error_area);
+                return;
             }
 
-            // ✅ UPDATE Scroll-Dimensionen mit korrekter Output-Höhe
-            let total_lines = self.message_display.get_content_height();
-            self.message_display
-                .scroll_state
-                .update_dimensions(output_chunk.height as usize, total_lines);
+            let output_area = viewport.output_area();
+            let input_area = viewport.input_area();
 
-            // ✅ RENDER
-            let (messages_data, config) = self
-                .message_display
-                .create_output_widget_for_rendering(output_chunk.height);
-            let messages_refs: Vec<(&String, usize)> =
-                messages_data.iter().map(|(s, l)| (s, *l)).collect();
+            if !output_area.is_valid() || !input_area.is_valid() {
+                log::error!(
+                    "{}",
+                    t!(
+                        "screen.render.invalid_layout_log",
+                        &output_area.width.to_string(),
+                        &output_area.height.to_string(),
+                        &output_area.x.to_string(),
+                        &output_area.y.to_string(),
+                        &input_area.width.to_string(),
+                        &input_area.height.to_string(),
+                        &input_area.x.to_string(),
+                        &input_area.y.to_string()
+                    )
+                );
+                return;
+            }
+
+            if output_area.x + output_area.width > size.width
+                || output_area.y + output_area.height > size.height
+                || input_area.x + input_area.width > size.width
+                || input_area.y + input_area.height > size.height
+            {
+                log::error!(
+                    "{}",
+                    t!(
+                        "screen.render.exceed_bounds_log",
+                        &size.width.to_string(),
+                        &size.height.to_string()
+                    )
+                );
+                return;
+            }
+
+            // ✅ TYPEWRITER-CURSOR AWARE RENDERING
+            let (visible_messages, config, output_layout, cursor_state) =
+                self.message_display.create_output_widget_for_rendering();
+
+            let message_refs: Vec<(String, usize, bool, bool, bool)> = visible_messages;
 
             let output_widget = crate::output::display::create_output_widget(
-                &messages_refs,
-                output_chunk.height,
+                &message_refs,
+                output_layout,
                 &config,
+                cursor_state,
             );
-            frame.render_widget(output_widget, output_chunk);
 
-            let input_widget = self.input_state.render();
-            frame.render_widget(input_widget, input_chunk);
+            frame.render_widget(output_widget, output_area.as_rect());
+            frame.render_widget(input_widget, input_area.as_rect());
+
+            // ✅ CURSOR POSITION setzen (cursor_pos ist hier verfügbar durch Closure-Capture)
+            if let Some((cursor_x, cursor_y)) = cursor_pos {
+                let absolute_x = input_area.x + cursor_x;
+                let absolute_y = input_area.y + cursor_y;
+                frame.set_cursor(absolute_x, absolute_y);
+            }
         })?;
+
+        // ✅ 2. CURSOR-STIL setzen (NACH dem draw!)
+        if cursor_pos.is_some() {
+            // Cursor ist sichtbar → Cursor-Stil setzen
+            let cursor_commands = self.get_terminal_cursor_commands();
+            for command in cursor_commands {
+                execute!(std::io::stdout(), crossterm::style::Print(command))?;
+            }
+        } else {
+            // Cursor ist unsichtbar (Blinken) → Cursor verstecken
+            execute!(
+                std::io::stdout(),
+                crossterm::style::Print("\x1B[?25l") // Hide cursor
+            )?;
+        }
+
         Ok(())
     }
 
+    /// ✅ FIXED: Terminal-Cursor-Kommandos für korrekte Layer-Darstellung
+    fn get_terminal_cursor_commands(&self) -> Vec<&'static str> {
+        match self.config.theme.input_cursor.to_uppercase().as_str() {
+            "PIPE" | "DEFAULT" => vec![
+                "\x1B[6 q",  // Blinking bar (pipe)
+                "\x1B[?25h", // Show cursor
+            ],
+            "UNDERSCORE" => vec![
+                "\x1B[4 q",  // Blinking underscore
+                "\x1B[?25h", // Show cursor
+            ],
+            "BLOCK" => vec![
+                "\x1B[2 q",  // Blinking block (fallback, sollte nie erreicht werden)
+                "\x1B[?25h", // Show cursor
+            ],
+            _ => vec![
+                "\x1B[6 q",  // Default: Blinking bar
+                "\x1B[?25h", // Show cursor
+            ],
+        }
+    }
+
     async fn perform_restart(&mut self) -> Result<()> {
+        log::info!("{}", t!("screen.restart.start"));
+
         self.terminal_mgr.cleanup().await?;
         self.terminal_mgr = TerminalManager::new().await?;
         self.terminal_mgr.setup().await?;
 
         let backend = CrosstermBackend::new(io::stdout());
         self.terminal = Terminal::new(backend)?;
+        let size = self.terminal.size()?;
 
-        self.message_display.clear_messages();
-        // ✅ KORRIGIERT: InputState::new nimmt nur &config
+        self.message_display = MessageDisplay::new(&self.config, size.width, size.height);
         self.input_state = Box::new(InputState::new(&self.config));
         self.waiting_for_restart_confirmation = false;
 
         self.message_display
-            .add_message(crate::i18n::get_command_translation(
-                "system.commands.restart.success",
-                &[],
-            ));
-        log::info!("Internal restart completed successfully");
+            .add_message(tc!("system.commands.restart.success"));
+
+        log::info!("{}", t!("screen.restart.done"));
         Ok(())
+    }
+}
+
+/// ✅ i18n Integration Helper (unverändert)
+impl ScreenManager {
+    pub fn validate_i18n_keys() -> Vec<String> {
+        let required_keys = [
+            "screen.performance_command_detected",
+            "screen.performance_command_viewport_reset_applied",
+            "screen.theme.invalid_format",
+            "screen.theme.processing",
+            "screen.theme.load_failed",
+            "screen.theme.failed",
+            "screen.theme.applied",
+            "screen.theme.not_found",
+            "screen.theme.not_found_feedback",
+            "screen.render.too_small_log",
+            "screen.render.too_small.text",
+            "screen.render.viewport_not_usable_log",
+            "screen.render.viewport_error.text",
+            "screen.render.invalid_layout_log",
+            "screen.render.exceed_bounds_log",
+            "screen.restart.start",
+            "screen.restart.done",
+            "system.commands.restart.success",
+        ];
+
+        let mut missing = Vec::new();
+        for key in required_keys {
+            if !crate::i18n::has_translation(key) {
+                missing.push(key.to_string());
+            }
+        }
+        missing
+    }
+
+    pub fn get_i18n_debug_info() -> HashMap<String, usize> {
+        let mut info = HashMap::new();
+        let stats = crate::i18n::get_translation_stats();
+
+        info.insert("screen_manager_keys".to_string(), 18);
+        info.extend(stats);
+
+        info
     }
 }

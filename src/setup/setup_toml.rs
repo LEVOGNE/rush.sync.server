@@ -31,8 +31,11 @@ input_bg = "White"
 cursor = "Black"
 output_text = "White"
 output_bg = "Black"
-prompt_text = "/// "
-prompt_color = "Black"
+input_cursor_prefix = "/// "
+input_cursor_color = "Black"
+input_cursor = "DEFAULT"
+output_cursor = "DEFAULT"
+output_cursor_color = "White"
 
 [theme.light]
 input_text = "White"
@@ -40,8 +43,11 @@ input_bg = "Black"
 cursor = "White"
 output_text = "Black"
 output_bg = "White"
-prompt_text = "/// "
-prompt_color = "White"
+input_cursor_prefix = "/// "
+input_cursor_color = "White"
+input_cursor = "PIPE"
+output_cursor = "PIPE"
+output_cursor_color = "Black"
 
 [theme.green]
 input_text = "LightGreen"
@@ -49,8 +55,12 @@ input_bg = "Black"
 cursor = "LightGreen"
 output_text = "Green"
 output_bg = "Black"
-prompt_text = "$ "
-prompt_color = "LightGreen"
+input_cursor_prefix = "$ "
+input_cursor_color = "LightGreen"
+input_cursor = "BLOCK"
+output_cursor = "BLOCK"
+output_cursor_color = "Green"
+
 
 [theme.blue]
 input_text = "White"
@@ -58,8 +68,12 @@ input_bg = "Blue"
 cursor = "White"
 output_text = "LightBlue"
 output_bg = "White"
-prompt_text = "> "
-prompt_color = "White"
+input_cursor_prefix = "> "
+input_cursor_color = "White"
+input_cursor = "UNDERSCORE"
+output_cursor = "UNDERSCORE"
+output_cursor_color = "Blue"
+
 
 # =================================================================
 # HINWEIS: PROMPT IST JETZT TEIL DER THEMES!

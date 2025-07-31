@@ -1,5 +1,6 @@
 use crate::core::constants::APP_TITLE;
 use crate::core::prelude::*;
+use crate::i18n::get_translation;
 use crossterm::{
     cursor, execute,
     style::ResetColor,
@@ -31,6 +32,7 @@ impl TerminalManager {
             terminal::SetTitle(APP_TITLE),
             cursor::Hide
         )?;
+        log::info!("{}", get_translation("terminal.setup.done", &[]));
 
         Ok(())
     }
@@ -52,6 +54,8 @@ impl TerminalManager {
 
         // Buffer explizit leeren
         self.stdout.flush()?;
+
+        log::info!("{}", get_translation("terminal.cleanup.done", &[]));
 
         Ok(())
     }

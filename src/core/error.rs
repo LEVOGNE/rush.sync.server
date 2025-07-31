@@ -15,27 +15,16 @@ impl From<io::Error> for AppError {
     }
 }
 
-// In src/error.rs
-
 impl std::fmt::Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AppError::Io(err) => write!(
-                f,
-                "{}",
-                get_translation("system.error.io", &[&err.to_string()])
-            ),
-            AppError::Validation(msg) => {
-                write!(f, "{}", get_translation("system.error.validation", &[msg]))
-            }
-            AppError::Terminal(msg) => {
-                write!(f, "{}", get_translation("system.error.terminal", &[msg]))
-            }
-            AppError::Translation(err) => write!(f, "{}", err),
+            AppError::Io(err) => write!(f, "IO Error: {}", err),
+            AppError::Validation(msg) => write!(f, "Validation Error: {}", msg),
+            AppError::Terminal(msg) => write!(f, "Terminal Error: {}", msg),
+            AppError::Translation(err) => write!(f, "Translation Error: {}", err),
         }
     }
 }
 
 impl std::error::Error for AppError {}
-
 pub type Result<T> = std::result::Result<T, AppError>;

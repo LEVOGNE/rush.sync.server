@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: src/commands/theme/command.rs - VEREINFACHT
-// =====================================================
-
 use super::ThemeSystem;
 use crate::commands::command::Command;
 use crate::core::prelude::*;
@@ -78,7 +74,7 @@ impl ThemeCommand {
         let available_themes = theme_system.get_available_names();
 
         if available_themes.is_empty() {
-            return "❌ Keine Themes verfügbar!\n\n📝 Füge [theme.xyz] Sektionen zur rush.toml hinzu:\n\n[theme.mein_theme]\ninput_text = \"White\"\ninput_bg = \"Black\"\ncursor = \"Green\"\noutput_text = \"Gray\"\noutput_bg = \"Black\"\nprompt_text = \">> \"\nprompt_color = \"Cyan\"".to_string();
+            return "❌ Keine Themes verfügbar!\n\n📝 Füge [theme.xyz] Sektionen zur rush.toml hinzu:\n\n[theme.mein_theme]\ninput_text = \"White\"\ninput_bg = \"Black\"\ncursor = \"Green\"\noutput_text = \"Gray\"\noutput_bg = \"Black\"\nprompt_text = \">> \"\nprompt_color = \"Cyan\"\noutput_cursor = \"BLOCK\"    # ✅ NEU!\noutput_color = \"LightGreen\" # ✅ NEU!".to_string();
         }
 
         let themes_list = available_themes.join(", ");
@@ -87,11 +83,15 @@ impl ThemeCommand {
             "🎨 TOML-Theme Commands (Live Update - Geladen aus rush.toml!):\n\
             theme                Show available TOML-themes\n\
             theme <name>         Select theme: {}\n\
-            theme preview <name> Preview theme colors\n\
+            theme preview <name> Preview theme colors + cursor config ✅ NEW!\n\
             theme -h             Show this help\n\n\
             ✨ Alle Themes werden LIVE aus [theme.*] Sektionen der rush.toml geladen!\n\
+            🎯 NEU: Cursor-Konfiguration per output_cursor + output_color!\n\
             📁 Füge beliebige [theme.dein_name] Sektionen hinzu für neue Themes\n\
-            🔄 Änderungen werden sofort angewendet (kein Restart nötig)",
+            🔄 Änderungen werden sofort angewendet (kein Restart nötig)\n\n\
+            🎛️ Cursor-Optionen:\n\
+            • output_cursor: DEFAULT, BLOCK, PIPE, UNDERSCORE\n\
+            • output_color: Jede unterstützte Farbe (White, Green, etc.)",
             themes_list
         )
     }

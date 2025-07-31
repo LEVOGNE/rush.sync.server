@@ -1,5 +1,5 @@
 // =====================================================
-// FILE: src/input/input.rs - KORRIGIERTE CONSTRUCTOR
+// FILE: src/input/input.rs - COMPLETE FIXED (Single Widget Impl)
 // =====================================================
 
 use crate::commands::handler::CommandHandler;
@@ -9,28 +9,24 @@ use crate::commands::history::{
 };
 use crate::core::prelude::*;
 use crate::input::keyboard::{KeyAction, KeyboardManager};
-use crate::ui::cursor::CursorState;
+use crate::ui::cursor::{CursorKind, CursorType, UiCursor};
 use crate::ui::widget::{InputWidget, Widget};
-use ratatui::{
-    style::Style,
-    text::{Line, Span},
-    widgets::{Block, Borders, Padding, Paragraph},
-};
+use ratatui::prelude::*;
+use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 use unicode_segmentation::UnicodeSegmentation;
 
 pub struct InputState {
     content: String,
-    cursor: CursorState,
+    cursor: UiCursor,
     prompt: String,
     history_manager: HistoryManager,
-    config: Config, // nun eigener Clone
+    config: Config,
     command_handler: CommandHandler,
     keyboard_manager: KeyboardManager,
     waiting_for_exit_confirmation: bool,
     waiting_for_restart_confirmation: bool,
 }
 
-/// ✅ Backup structure für InputState
 #[derive(Debug, Clone, Default)]
 pub struct InputStateBackup {
     pub content: String,
@@ -39,14 +35,13 @@ pub struct InputStateBackup {
 }
 
 impl InputState {
-    // ✅ KORRIGIERTER CONSTRUCTOR - nimmt nur Config
     pub fn new(config: &Config) -> Self {
         let history_config = HistoryConfig::from_main_config(config);
 
         Self {
             content: String::with_capacity(100),
-            cursor: CursorState::new(),
-            prompt: config.theme.prompt_text.clone(), // ✅ GEÄNDERT: Von theme.prompt_text
+            cursor: UiCursor::from_config(config, CursorKind::Input),
+            prompt: config.theme.input_cursor_prefix.clone(),
             history_manager: HistoryManager::new(history_config.max_entries),
             config: config.clone(),
             command_handler: CommandHandler::new(),
@@ -56,6 +51,17 @@ impl InputState {
         }
     }
 
+    pub fn update_from_config(&mut self, config: &Config) {
+        self.cursor.update_from_config(config);
+        self.prompt = config.theme.input_cursor_prefix.clone();
+        self.config = config.clone();
+
+        log::debug!(
+            "✅ InputState cursor updated via central API: {}",
+            self.cursor.debug_info()
+        );
+    }
+
     pub fn validate_input(&self, input: &str) -> crate::core::error::Result<()> {
         if input.trim().is_empty() {
             return Err(AppError::Validation(get_translation(
@@ -63,7 +69,6 @@ impl InputState {
                 &[],
             )));
         }
-
         let grapheme_count = input.graphemes(true).count();
         let max_length = 1024;
 
@@ -73,7 +78,6 @@ impl InputState {
                 &[&max_length.to_string()],
             )));
         }
-
         Ok(())
     }
 
@@ -90,10 +94,8 @@ impl InputState {
         match action {
             KeyAction::Submit => {
                 self.waiting_for_exit_confirmation = false;
-
                 let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
                 let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
-
                 match self.content.trim().to_lowercase().as_str() {
                     input if input == confirm_short.to_lowercase() => {
                         self.content.clear();
@@ -112,7 +114,6 @@ impl InputState {
             KeyAction::InsertChar(c) => {
                 let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
                 let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
-
                 if c.to_lowercase().to_string() == confirm_short.to_lowercase()
                     || c.to_lowercase().to_string() == cancel_short.to_lowercase()
                 {
@@ -135,10 +136,8 @@ impl InputState {
         match action {
             KeyAction::Submit => {
                 self.waiting_for_restart_confirmation = false;
-
                 let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
                 let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
-
                 match self.content.trim().to_lowercase().as_str() {
                     input if input == confirm_short.to_lowercase() => {
                         self.content.clear();
@@ -157,7 +156,6 @@ impl InputState {
             KeyAction::InsertChar(c) => {
                 let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
                 let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
-
                 if c.to_lowercase().to_string() == confirm_short.to_lowercase()
                     || c.to_lowercase().to_string() == cancel_short.to_lowercase()
                 {
@@ -224,31 +222,67 @@ impl InputState {
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Option<String> {
-        // ✅ 1. PRÜFE ZUERST auf History-Actions
         if let Some(history_action) = HistoryKeyboardHandler::get_history_action(&key) {
             return self.handle_history_action(history_action);
         }
 
-        // ✅ 2. ESC wird NICHT hier behandelt - nur in ScreenManager!
         if key.code == KeyCode::Esc {
             return None;
         }
 
-        // ✅ 3. NORMALE Keyboard-Actions (ohne ESC!)
         let action = self.keyboard_manager.get_action(&key);
 
-        // ✅ 4. CONFIRMATION HANDLING erweitert
         if self.waiting_for_exit_confirmation {
             return self.handle_exit_confirmation(action);
         }
-
         if self.waiting_for_restart_confirmation {
             return self.handle_restart_confirmation(action);
         }
 
-        // ✅ 5. NORMALE Eingabeverarbeitung
         match action {
             KeyAction::Submit => {
+                if self.content.trim() == "full-debug" {
+                    let (_, cursor_pos) = self.render_with_cursor();
+                    let debug_info = format!(
+                        "🔍 FULL CURSOR DEBUG:\n\
+                        🎨 Config Theme: '{}'\n\
+                        📝 input_cursor: '{}'\n\
+                        🎯 Parsed Type: {:?}\n\
+                        🔤 Symbol: '{}'\n\
+                        👁️ Is Visible: {}\n\
+                        📍 Position: {}\n\
+                        🖥️ Terminal Pos: {:?}\n\
+                        🔧 Match Block: {}\n\
+                        ⚡ Should Use Terminal: {}",
+                        self.config.current_theme_name,
+                        self.config.theme.input_cursor,
+                        self.cursor.ctype,
+                        self.cursor.get_symbol(),
+                        self.cursor.is_visible(),
+                        self.cursor.get_position(),
+                        cursor_pos,
+                        matches!(self.cursor.ctype, CursorType::Block),
+                        !matches!(self.cursor.ctype, CursorType::Block)
+                    );
+                    self.content.clear();
+                    self.cursor.reset_for_empty_text();
+                    return Some(debug_info);
+                }
+
+                if self.content.trim() == "term-test" {
+                    let info = format!(
+                        "🖥️ TERMINAL INFO:\n\
+                        📺 Terminal: {:?}\n\
+                        🎯 Cursor Support: Testing...\n\
+                        💡 Try: ESC[?25h (show cursor)\n\
+                        💡 Or: Different terminal app",
+                        std::env::var("TERM").unwrap_or_else(|_| "unknown".to_string())
+                    );
+                    self.content.clear();
+                    self.cursor.reset_for_empty_text();
+                    return Some(info);
+                }
+
                 if self.content.is_empty() {
                     return None;
                 }
@@ -262,17 +296,14 @@ impl InputState {
                     {
                         return Some(self.handle_history_event(event));
                     }
-
                     if result.message.starts_with("__CONFIRM_EXIT__") {
                         self.waiting_for_exit_confirmation = true;
                         return Some(result.message.replace("__CONFIRM_EXIT__", ""));
                     }
-
                     if result.message.starts_with("__CONFIRM_RESTART__") {
                         self.waiting_for_restart_confirmation = true;
                         return Some(result.message.replace("__CONFIRM_RESTART__", ""));
                     }
-
                     if result.message.starts_with("__RESTART_FORCE__")
                         || result.message.starts_with("__RESTART__")
                     {
@@ -285,14 +316,12 @@ impl InputState {
                         } else {
                             result.message.replace("__RESTART__", "").trim().to_string()
                         };
-
                         if !feedback_text.is_empty() {
                             return Some(format!("__RESTART_WITH_MSG__{}", feedback_text));
                         } else {
                             return Some("__RESTART__".to_string());
                         }
                     }
-
                     if result.should_exit {
                         return Some(format!("__EXIT__{}", result.message));
                     }
@@ -329,20 +358,16 @@ impl InputState {
                 if self.content.is_empty() || self.cursor.get_position() == 0 {
                     return None;
                 }
-
                 let current_byte_pos = self.cursor.get_byte_position(&self.content);
                 let prev_byte_pos = self.cursor.get_prev_byte_position(&self.content);
-
                 if prev_byte_pos >= current_byte_pos || current_byte_pos > self.content.len() {
                     self.cursor.update_text_length(&self.content);
                     return None;
                 }
-
                 self.cursor.move_left();
                 self.content
                     .replace_range(prev_byte_pos..current_byte_pos, "");
                 self.cursor.update_text_length(&self.content);
-
                 if self.content.is_empty() {
                     self.cursor.reset_for_empty_text();
                 }
@@ -353,25 +378,20 @@ impl InputState {
                 if self.cursor.get_position() >= text_length || text_length == 0 {
                     return None;
                 }
-
                 let current_byte_pos = self.cursor.get_byte_position(&self.content);
                 let next_byte_pos = self.cursor.get_next_byte_position(&self.content);
-
                 if current_byte_pos >= next_byte_pos || next_byte_pos > self.content.len() {
                     self.cursor.update_text_length(&self.content);
                     return None;
                 }
-
                 self.content
                     .replace_range(current_byte_pos..next_byte_pos, "");
                 self.cursor.update_text_length(&self.content);
-
                 if self.content.is_empty() {
                     self.cursor.reset_for_empty_text();
                 }
                 None
             }
-
             KeyAction::ClearLine
             | KeyAction::ScrollUp
             | KeyAction::ScrollDown
@@ -397,7 +417,6 @@ impl InputState {
         self.content = backup.content;
         self.history_manager.import_entries(backup.history);
         self.cursor.update_text_length(&self.content);
-
         log::debug!(
             "✅ InputState imported: {} chars, {} history entries",
             self.content.len(),
@@ -412,21 +431,105 @@ impl InputState {
     pub fn get_history_count(&self) -> usize {
         self.history_manager.entry_count()
     }
+
+    // =====================================================
+    // ✅ RENDERING METHODS (IN InputState impl, NICHT Widget trait!)
+    // =====================================================
+
+    /// ✅ FIXED: BLOCK-CURSOR mit korrekter Farbe
+    fn render_block_cursor(
+        &self,
+        spans: &mut Vec<Span<'static>>,
+        graphemes: &[&str],
+        cursor_pos: usize,
+        viewport_start: usize,
+        available_width: usize,
+    ) {
+        // Text vor Cursor
+        if cursor_pos > viewport_start {
+            let visible_text = graphemes[viewport_start..cursor_pos].join("");
+            if !visible_text.is_empty() {
+                spans.push(Span::styled(
+                    visible_text,
+                    Style::default().fg(self.config.theme.input_text.into()),
+                ));
+            }
+        }
+
+        // ✅ ZEICHEN AM CURSOR: Invertiert wenn sichtbar
+        let char_at_cursor = graphemes.get(cursor_pos).copied().unwrap_or(" ");
+        if self.cursor.is_visible() {
+            // Invertierung: Farben tauschen
+            spans.push(Span::styled(
+                char_at_cursor.to_string(),
+                Style::default()
+                    .fg(self.config.theme.input_bg.into()) // Hintergrund wird Vordergrund
+                    .bg(self.config.theme.input_cursor_color.into()), // ✅ FIXED: Richtige Cursor-Farbe
+            ));
+        } else {
+            // Normal: Kein Cursor sichtbar
+            spans.push(Span::styled(
+                char_at_cursor.to_string(),
+                Style::default().fg(self.config.theme.input_text.into()),
+            ));
+        }
+
+        // Text nach Cursor
+        let end_pos = (viewport_start + available_width).min(graphemes.len());
+        if cursor_pos + 1 < end_pos {
+            let remaining_text = graphemes[cursor_pos + 1..end_pos].join("");
+            if !remaining_text.is_empty() {
+                spans.push(Span::styled(
+                    remaining_text,
+                    Style::default().fg(self.config.theme.input_text.into()),
+                ));
+            }
+        }
+    }
+
+    /// ✅ FIXED: TERMINAL-CURSOR - Text komplett normal
+    fn render_normal_text(
+        &self,
+        spans: &mut Vec<Span<'static>>,
+        graphemes: &[&str],
+        viewport_start: usize,
+        available_width: usize,
+    ) {
+        // ✅ WICHTIG: Kompletter Text OHNE Cursor-Symbol
+        // Der Cursor wird später über Terminal-Cursor dargestellt
+        let end_pos = (viewport_start + available_width).min(graphemes.len());
+        if viewport_start < end_pos {
+            let visible_text = graphemes[viewport_start..end_pos].join("");
+            if !visible_text.is_empty() {
+                spans.push(Span::styled(
+                    visible_text,
+                    Style::default().fg(self.config.theme.input_text.into()),
+                ));
+            }
+        }
+    }
 }
 
+// ✅ SINGLE Widget Implementation - NO DUPLICATES!
 impl Widget for InputState {
     fn render(&self) -> Paragraph {
+        self.render_with_cursor().0
+    }
+
+    /// ✅ FIXED: Mit korrektem Layer-System
+    fn render_with_cursor(&self) -> (Paragraph, Option<(u16, u16)>) {
         let graphemes: Vec<&str> = self.content.graphemes(true).collect();
         let cursor_pos = self.cursor.get_position();
-        let mut spans = Vec::with_capacity(4);
+        let mut spans = Vec::with_capacity(8);
 
-        // ✅ KORRIGIERT: Nutze config.theme.prompt_color
+        // Prompt-Text aus Theme
+        let prompt_display = self.config.theme.input_cursor_prefix.clone();
+        let prompt_width = prompt_display.graphemes(true).count();
         spans.push(Span::styled(
-            &self.prompt,
-            Style::default().fg(self.config.theme.prompt_color.into()),
+            prompt_display,
+            Style::default().fg(self.config.theme.input_cursor_color.into()),
         ));
 
-        let prompt_width = self.prompt.graphemes(true).count();
         let available_width = self
             .config
             .input_max_length
@@ -438,47 +541,53 @@ impl Widget for InputState {
             0
         };
 
-        if cursor_pos > 0 {
-            let visible_text = if viewport_start < cursor_pos {
-                graphemes[viewport_start..cursor_pos].join("")
-            } else {
-                String::new()
-            };
+        // ✅ FIXED: Cursor-Layer-System - Text bleibt IMMER gleich!
+        match self.cursor.ctype {
+            CursorType::Block => {
+                // BLOCK: Invertiere das Zeichen unter dem Cursor (Original-System)
+                self.render_block_cursor(
+                    &mut spans,
+                    &graphemes,
+                    cursor_pos,
+                    viewport_start,
+                    available_width,
+                );
+                // Kein Terminal-Cursor
+                let paragraph = Paragraph::new(Line::from(spans)).block(
+                    Block::default()
+                        .padding(Padding::new(3, 1, 1, 1))
+                        .borders(Borders::NONE)
+                        .style(Style::default().bg(self.config.theme.input_bg.into())),
+                );
+                (paragraph, None)
+            }
+            _ => {
+                // ✅ PIPE/UNDERSCORE/DEFAULT: Text KOMPLETT normal rendern
+                self.render_normal_text(&mut spans, &graphemes, viewport_start, available_width);
 
-            spans.push(Span::styled(
-                visible_text,
-                Style::default().fg(self.config.theme.input_text.into()),
-            ));
-        }
+                let paragraph = Paragraph::new(Line::from(spans)).block(
+                    Block::default()
+                        .padding(Padding::new(3, 1, 1, 1))
+                        .borders(Borders::NONE)
+                        .style(Style::default().bg(self.config.theme.input_bg.into())),
+                );
 
-        let cursor_char = graphemes.get(cursor_pos).map_or(" ", |&c| c);
-        let cursor_style = if self.cursor.is_visible() {
-            Style::default()
-                .fg(self.config.theme.input_text.into())
-                .bg(self.config.theme.cursor.into())
-        } else {
-            Style::default().fg(self.config.theme.input_text.into())
-        };
-        spans.push(Span::styled(cursor_char, cursor_style));
+                // ✅ CURSOR AUF SEPARATEM LAYER (Terminal-Cursor)
+                let terminal_cursor_pos = if self.cursor.is_visible() {
+                    let visible_chars_before_cursor = if cursor_pos > viewport_start {
+                        cursor_pos - viewport_start
+                    } else {
+                        0
+                    };
+                    let cursor_x = 3 + prompt_width + visible_chars_before_cursor;
+                    Some((cursor_x as u16, 1))
+                } else {
+                    None // Blinken: Cursor verschwindet
+                };
 
-        if cursor_pos < graphemes.len() {
-            let remaining_width = available_width.saturating_sub(cursor_pos - viewport_start);
-            let end_pos = (cursor_pos + 1 + remaining_width).min(graphemes.len());
-
-            if cursor_pos + 1 < end_pos {
-                spans.push(Span::styled(
-                    graphemes[cursor_pos + 1..end_pos].join(""),
-                    Style::default().fg(self.config.theme.input_text.into()),
-                ));
+                (paragraph, terminal_cursor_pos)
             }
         }
-
-        Paragraph::new(Line::from(spans)).block(
-            Block::default()
-                .padding(Padding::new(3, 1, 1, 1))
-                .borders(Borders::NONE)
-                .style(Style::default().bg(self.config.theme.input_bg.into())),
-        )
     }
 
     fn handle_input(&mut self, key: KeyEvent) -> Option<String> {

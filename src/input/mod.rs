@@ -1,14 +1,9 @@
-// =====================================================
-// FILE: src/input/mod.rs - EVENTS INTEGRIERT
-// =====================================================
-
 pub mod input;
 pub mod keyboard;
 
-// ✅ EVENTS direkt hier statt eigene Datei
 use crossterm::event::{self as crossterm_event, Event as CrosstermEvent, KeyEvent};
 use tokio::sync::mpsc::{self, Sender};
-use tokio::time::{interval, Duration};
+use tokio::time::{interval, Duration, Instant};
 
 #[derive(Debug)]
 pub enum AppEvent {
@@ -27,34 +22,49 @@ impl EventHandler {
         let (tx, rx) = mpsc::channel(100);
         let mut shutdown_tx = Vec::new();
 
-        // Shutdown-Kanal für Input-Task
         let (input_shutdown_tx, mut input_shutdown_rx) = mpsc::channel(1);
         shutdown_tx.push(input_shutdown_tx);
 
-        // Input-Handler Task
         let input_tx = tx.clone();
         tokio::spawn(async move {
-            let mut last_event_time = tokio::time::Instant::now();
-            let min_event_interval = Duration::from_millis(33);
+            let mut last_event_time = Instant::now();
+            let min_event_interval = Duration::from_millis(16);
+            let mut last_resize_time = Instant::now();
+            let min_resize_interval = Duration::from_millis(50);
 
             loop {
                 tokio::select! {
                     _ = input_shutdown_rx.recv() => break,
                     _ = async {
                         if crossterm_event::poll(Duration::from_millis(99)).unwrap() {
-                            let now = tokio::time::Instant::now();
-                            if now.duration_since(last_event_time) >= min_event_interval {
-                                if let Ok(event) = crossterm_event::read() {
-                                    match event {
-                                        CrosstermEvent::Key(key) => {
+                            let now = Instant::now();
+
+                            if let Ok(event) = crossterm_event::read() {
+                                match event {
+                                    CrosstermEvent::Key(key) => {
+                                        if now.duration_since(last_event_time) >= min_event_interval {
                                             let _ = input_tx.send(AppEvent::Input(key)).await;
+                                            last_event_time = now;
                                         }
-                                        CrosstermEvent::Resize(width, height) => {
-                                            let _ = input_tx.send(AppEvent::Resize(width, height)).await;
-                                        }
-                                        _ => {}
                                     }
-                                    last_event_time = now;
+                                    CrosstermEvent::Resize(width, height) => {
+                                        if now.duration_since(last_resize_time) >= min_resize_interval {
+                                            let _ = input_tx.send(AppEvent::Resize(width, height)).await;
+                                            last_resize_time = now;
+
+                                            log::trace!(
+                                                "🔄 Resize event throttled: {}x{} ({}ms since last)",
+                                                width, height,
+                                                now.duration_since(last_resize_time).as_millis()
+                                            );
+                                        } else {
+                                            log::trace!(
+                                                "⏭️ Resize event dropped (too fast): {}x{}",
+                                                width, height
+                                            );
+                                        }
+                                    }
+                                    _ => {}
                                 }
                             }
                         }
@@ -63,7 +73,6 @@ impl EventHandler {
             }
         });
 
-        // Tick-Handler Task
         let (tick_shutdown_tx, mut tick_shutdown_rx) = mpsc::channel(1);
         shutdown_tx.push(tick_shutdown_tx);
 
