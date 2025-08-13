@@ -6,14 +6,22 @@
 ![Crates.io](https://img.shields.io/crates/v/rush-sync-server)
 
 > 🛠 **NOTE**: Version `0.2.2` on crates.io has a critical bug in language file loading (`*.json` not embedded correctly).
-> Please use **version `0.2.5+`** for a stable release!
+> Please use **version `0.2.6+`** for a stable release!
 
 **Rush Sync Server** is a modern, modular terminal application written in **Rust**, featuring an interactive TUI, internationalized interface, color-coded logging, and flexible configuration.
 Perfect for developers who need a **customizable, scriptable terminal UI**.
 
 ---
 
-## 🆕 What's New in v0.2.5
+## 🆕 What's New in v0.2.6
+
+- ✅ **Fixed PIPE Cursor Rendering** - PIPE cursor now renders its own symbol instead of using terminal cursor, enabling **full color support** from TOML themes
+- ✅ **Reorganized Configuration** - `.rss/rush.toml` has been completely restructured and sorted for better readability and organization
+- ✅ **Zero Warnings & Errors** - All `cargo clippy` and `cargo check` warnings have been resolved - completely clean codebase!
+- ✅ **Improved Cursor System** - Complete separation between terminal cursor and application cursor rendering for better control
+- ✅ **Enhanced Theme Support** - All cursor colors and styles now work perfectly via TOML configuration
+
+### Previous Features (v0.2.5)
 
 - ✅ **Live Theme Switching** at runtime (without restart)
 - ✅ **Advanced Cursor System** (PIPE, BLOCK, UNDERSCORE, DEFAULT)
@@ -22,17 +30,12 @@ Perfect for developers who need a **customizable, scriptable terminal UI**.
 - ✅ **Improved Restart Logic** with UI reinitialization and state restore
 - ✅ **Theme-defined cursor styles and colors** via TOML
 - ✅ **Full i18n coverage** for logs, errors, and commands
-- ✅ **Experimental support** for dynamic output cursor in themes
-
----
-
-<!-- KEEP OLD CONTENT BELOW UNCHANGED FOR CONTEXT -->
 
 ---
 
 ## 🚀 Installation & Usage
 
-### 📦 **As Binary (End Users) - Version 0.2.3+**
+### 📦 **As Binary (End Users) - Version 0.2.6+**
 
 ```bash
 # Install directly from crates.io
@@ -42,13 +45,13 @@ cargo install rush-sync-server
 rush-sync
 ```
 
-### 📚 **As Library (Developers) - Version 0.2.3+**
+### 📚 **As Library (Developers) - Version 0.2.6+**
 
 Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rush-sync-server = "0.2.3"
+rush-sync-server = "0.2.6"
 tokio = { version = "1.36", features = ["full"] }
 ```
 
@@ -138,6 +141,7 @@ rush-sync
 - **Color-coded logging** with level detection (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`)
 - **Runtime log-level switching** with persistent config saving
 - **Performance monitoring** with real-time FPS & config analysis
+- **Advanced cursor system** with full color support via TOML themes
 - **Internationalization (i18n):**
   - Multilingual markers are automatically mapped to standard colors (`[SPRACHE]`, `[IDIOMA]` → `lang` → Cyan)
   - Dynamic language switching at runtime (German/English)
@@ -150,6 +154,7 @@ rush-sync
 - **Unicode support (grapheme-based)**
 - **Restart function** without external process restart
 - **Smart bounds checking** with automatic config correction
+- **Zero warnings codebase** - completely clean `cargo clippy` and `cargo check`
 
 ---
 
@@ -159,12 +164,25 @@ rush-sync
 | ---------------------- | ----------------------------------------------- | -------------------------------- |
 | `version` / `ver`      | Show application version                        | `version`                        |
 | `lang` / `language`    | Switch language (EN/DE) with config persistence | `lang de`, `lang en`             |
+| `theme`                | Change themes live (from TOML configuration)    | `theme dark`, `theme light`      |
 | `clear` / `cls`        | Clear all messages                              | `clear`                          |
 | `exit` / `q`           | Exit with confirmation                          | `exit`                           |
 | `restart`              | Internal restart (reloads config)               | `restart`, `restart --force`     |
 | `history -c`           | Clear input history                             | `history -c`                     |
 | `log-level`            | Change log level (runtime + persistent)         | `log-level 3`, `log-level debug` |
 | `perf` / `performance` | Show performance & config status                | `perf`, `performance`            |
+
+### Theme Command Details
+
+```bash
+theme                # Show available themes from TOML
+theme dark           # Switch to dark theme
+theme light          # Switch to light theme
+theme blue           # Switch to blue theme
+theme green          # Switch to green theme
+theme preview <name> # Preview theme without switching
+theme -h             # Show help
+```
 
 ### Log-Level Command Details
 
@@ -219,48 +237,90 @@ perf -h             # Show help
 
 The **`rush.toml`** file is automatically created in the `.rss` directory on first start.
 
-### Complete Default Configuration
+### Complete Default Configuration (v0.2.6 - Reorganized & Sorted)
 
 ```toml
 [general]
 max_messages = 100
-# Typewriter-Effekt: 50ms = 20 Zeichen/Sekunde (empfohlen: 30-100ms)
-typewriter_delay = 50
+typewriter_delay = 5
 input_max_length = 100
 max_history = 30
-# Poll-Rate: 16ms = 60 FPS (empfohlen: 16-33ms, NICHT unter 16!)
 poll_rate = 16
 log_level = "info"
-
-[theme]
-input_text = "Black"
-input_bg = "White"
-cursor = "Black"
-output_text = "DarkGray"
-output_bg = "Black"
-
-[prompt]
-text = "/// "
-color = "Black"
+current_theme = "dark"
 
 [language]
 current = "en"
 
-# =================================================================
-# PERFORMANCE-HINWEISE:
-# =================================================================
-# poll_rate:
-#   - 16ms = 60 FPS (EMPFOHLEN für flüssiges UI)
-#   - 33ms = 30 FPS (akzeptabel für langsamere Systeme)
-#   - 1-15ms = NICHT empfohlen (hohe CPU-Last!)
-#   - 0ms = CRASH! (Tokio interval panic)
-#
-# typewriter_delay:
-#   - 50ms = 20 Zeichen/Sekunde (gut lesbar)
-#   - 30ms = 33 Zeichen/Sekunde (schnell)
-#   - 100ms = 10 Zeichen/Sekunde (langsam)
-#   - 0ms = Typewriter-Effekt deaktiviert
-# =================================================================
+[theme.dark]
+output_bg = "Black"
+output_text = "White"
+output_cursor = "PIPE"
+output_cursor_color = "White"
+input_bg = "White"
+input_text = "Black"
+input_cursor_prefix = "/// "
+input_cursor = "PIPE"
+input_cursor_color = "Black"
+
+[theme.light]
+output_bg = "White"
+output_text = "Black"
+output_cursor = "PIPE"
+output_cursor_color = "Black"
+input_bg = "Black"
+input_text = "White"
+input_cursor_prefix = "/// "
+input_cursor = "PIPE"
+input_cursor_color = "White"
+
+[theme.green]
+output_bg = "Black"
+output_text = "Green"
+output_cursor = "BLOCK"
+output_cursor_color = "Green"
+input_bg = "LightGreen"
+input_text = "Black"
+input_cursor_prefix = "$ "
+input_cursor = "BLOCK"
+input_cursor_color = "Black"
+
+[theme.blue]
+output_bg = "White"
+output_text = "LightBlue"
+output_cursor = "UNDERSCORE"
+output_cursor_color = "Blue"
+input_bg = "Blue"
+input_text = "White"
+input_cursor_prefix = "> "
+input_cursor = "UNDERSCORE"
+input_cursor_color = "White"
+```
+
+### 🎨 Theme Configuration Details
+
+**New in v0.2.6:**
+
+- **Perfect cursor color support** - All cursor colors now work correctly via TOML
+- **Clean theme structure** - Organized output-first, then input configuration
+- **Multiple cursor types** - PIPE, BLOCK, UNDERSCORE all fully supported with colors
+
+**Theme Structure:**
+
+```toml
+[theme.your_theme_name]
+# Output area configuration
+output_bg = "Background color for output area"
+output_text = "Text color for output messages"
+output_cursor = "PIPE|BLOCK|UNDERSCORE"
+output_cursor_color = "Color for output cursor"
+
+# Input area configuration
+input_bg = "Background color for input area"
+input_text = "Text color for input"
+input_cursor_prefix = "Prompt text (e.g., '/// ')"
+input_cursor = "PIPE|BLOCK|UNDERSCORE"
+input_cursor_color = "Color for input cursor"
 ```
 
 ### Performance Optimization
@@ -306,7 +366,7 @@ src/
 ├── ui/          # Terminal UI (ScreenManager, TerminalManager, Widgets)
 ├── input/       # Input handling (Keyboard, EventHandler)
 ├── output/      # Logging, MessageManager, Color, Performance
-├── commands/    # Modular commands (exit, lang, history, restart, log-level, performance)
+├── commands/    # Modular commands (exit, lang, history, restart, log-level, performance, theme)
 ├── setup/       # Auto-configuration (TOML setup)
 └── i18n/        # Internationalization (German/English)
     └── langs/   # Language files (de.json, en.json)
@@ -324,6 +384,11 @@ src/
   - Global `AppLogger` (intercepts all `log::*` calls)
   - Runtime log-level switching with config persistence
   - `LogMessage` stores level + text → color-coded output
+- **Cursor System (v0.2.6):**
+  - Complete separation between terminal cursor and application cursor
+  - PIPE cursor renders its own symbol with full color support
+  - BLOCK and UNDERSCORE cursors with configurable colors
+  - Blinking animation and positioning independent of terminal
 - **Performance Monitoring:**
   - Real-time FPS calculation based on poll_rate
   - Typewriter speed analysis (chars/second)
@@ -335,6 +400,7 @@ src/
   - Persistent language switching with config save
 - **Restart:** Internal, without external process restart
 - **Memory Management:** Bounded message buffers with automatic cleanup
+- **Code Quality:** Zero warnings from `cargo clippy` and `cargo check`
 
 ---
 
@@ -348,19 +414,42 @@ RUST_LOG=debug cargo test
 cargo test command_system_tests
 cargo test performance
 cargo test config
+cargo test theme_system
+
+# Code quality checks (all pass with zero warnings!)
+cargo clippy
+cargo check
 ```
 
 Available tests:
-✔ Commands (including new log-level & performance)
+✔ Commands (including theme, log-level & performance)
 ✔ Event loop
 ✔ Config setup & bounds checking
 ✔ i18n translations (German/English)
 ✔ Performance monitoring
 ✔ Language switching
+✔ Theme system
+✔ Cursor rendering
 
 ---
 
 ## 🎛 Advanced Usage
+
+### Live Theme Switching
+
+```bash
+# Show available themes from TOML
+theme
+
+# Switch themes instantly (no restart required)
+theme dark           # Professional dark theme
+theme light          # Clean light theme
+theme green          # Terminal green theme with BLOCK cursor
+theme blue           # Modern blue theme with UNDERSCORE cursor
+
+# Preview before switching
+theme preview green  # See theme details without changing
+```
 
 ### Performance Monitoring
 
@@ -369,18 +458,24 @@ Available tests:
 perf
 
 # Output example:
-📊 PERFORMANCE & CONFIG STATUS:
-🎯 Poll Rate: 16ms (60.0 FPS) ✅ Optimal
-⌨️ Typewriter: 50ms (20.0 chars/sec)
-📈 Max Messages: 100
-📜 Max History: 30
-🎨 Log Level: INFO
-📍 Config: rush.toml
+📊 COMPREHENSIVE PERFORMANCE REPORT
+==================================================
 
-💡 EMPFEHLUNGEN:
-• poll_rate: 16ms (optimal) oder 33ms (gut)
-• typewriter_delay: 0ms (aus) oder 30-100ms
-• Für beste Performance: poll_rate >= 16ms
+🎯 System Performance
+   • Poll Rate: 16ms (60.0 FPS) ✅
+   • Typewriter Speed: 5ms (200.0 chars/sec)
+
+💾 Memory Usage
+   • Total Estimated: 0.05 MB
+   • Message Buffer: 0.01 MB
+   • History Buffer: 0.00 MB
+   • i18n Cache: 0.50 MB
+
+💡 Recommendations
+   • ✅ All settings optimally configured
+
+🔧 Related Commands
+   • log-level debug - Enable debug logging
 ```
 
 ### Dynamic Log-Level Management
@@ -476,14 +571,31 @@ async fn main() -> Result<()> {
 - [x] ~~Live log-level configuration~~ ✓ Implemented
 - [x] ~~Performance monitoring~~ ✓ Implemented
 - [x] ~~Binary & Library distribution~~ ✓ Implemented (v0.2.3+)
-- [ ] Live UI configuration changes
+- [x] ~~Live theme switching~~ ✓ Implemented (v0.2.5+)
+- [x] ~~Advanced cursor system with colors~~ ✓ Implemented (v0.2.6+)
 - [ ] Config hot-reload without restart
-- [ ] Custom color themes
+- [ ] Custom color themes editor
 - [ ] Command aliases & macros
+- [ ] Plugin marketplace
 
 ---
 
-## 📊 **What's New in v0.2.3**
+## 📊 **Version History**
+
+### **v0.2.6 (Latest) - Cursor & Quality Update**
+
+- ✅ **Fixed PIPE cursor rendering** with full color support from TOML
+- ✅ **Reorganized `.rss/rush.toml`** configuration with sorted structure
+- ✅ **Zero warnings codebase** - all `cargo clippy` and `cargo check` issues resolved
+- ✅ **Enhanced cursor system** with complete terminal separation
+
+### **v0.2.5 - Live Theme Update**
+
+- ✅ **Live theme switching** at runtime without restart
+- ✅ **Advanced cursor architecture** with unified input/output handling
+- ✅ **Centralized viewport** with smooth scrolling
+
+### **v0.2.3 - Library Release**
 
 - ✅ **Binary distribution**: Install with `cargo install rush-sync-server`
 - ✅ **Library API**: Use as dependency in your Rust projects
@@ -523,3 +635,18 @@ This project is distributed under a **dual license**:
 - Add i18n support for new features (de.json + en.json)
 - Include performance tests for new commands
 - Update config bounds checking for new parameters
+- Ensure zero warnings with `cargo clippy`
+- Test theme configurations thoroughly
+
+---
+
+## 🏆 Code Quality
+
+**Rush Sync Server v0.2.6** maintains the highest code quality standards:
+
+- ✅ **Zero Clippy Warnings** - Complete compliance with Rust best practices
+- ✅ **Zero Cargo Check Errors** - All code compiles cleanly
+- ✅ **100% Functional** - All features work as documented
+- ✅ **Comprehensive Tests** - Full test coverage for critical components
+- ✅ **Clean Architecture** - Well-structured, modular codebase
+- ✅ **Memory Safe** - No unsafe code, bounded buffers, proper cleanup

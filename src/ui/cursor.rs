@@ -1,5 +1,5 @@
 // =====================================================
-// FILE: src/ui/cursor.rs - FIXED INPUT CURSOR IMPLEMENTATION
+// FILE: src/ui/cursor.rs - FIXED CLIPPY WARNING
 // =====================================================
 
 use crate::core::config::Config;
@@ -18,30 +18,29 @@ pub enum CursorKind {
 /// Cursor-Darstellung - einheitlich für beide Bereiche
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CursorType {
-    Block,      // █
-    Pipe,       // |
-    Underscore, // _
-    Default,    // ✅ FIXED: Jetzt wird das korrekte Symbol verwendet
+    Block,
+    Pipe,
+    Underscore,
+}
+
+// ✅ PROPER IMPLEMENTATION of FromStr trait
+impl std::str::FromStr for CursorType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "BLOCK" => Ok(CursorType::Block),
+            "PIPE" => Ok(CursorType::Pipe),
+            "UNDERSCORE" => Ok(CursorType::Underscore),
+            _ => Ok(CursorType::Pipe), // Default fallback
+        }
+    }
 }
 
 impl CursorType {
-    pub fn from_str(s: &str) -> CursorType {
-        let result = match s.to_uppercase().as_str() {
-            "BLOCK" => CursorType::Block,
-            "PIPE" => CursorType::Pipe,
-            "UNDERSCORE" => CursorType::Underscore,
-            _ => CursorType::Default, // ✅ FIXED: Default wird korrekt behandelt
-        };
-
-        // ✅ DEBUG für Parsing-Verifizierung
-        if std::env::var("RUST_LOG")
-            .unwrap_or_default()
-            .contains("debug")
-        {
-            eprintln!("🔍 CursorType::from_str('{}') → {:?}", s, result);
-        }
-
-        result
+    // ✅ RENAMED to avoid confusion with FromStr::from_str
+    pub fn parse_type(s: &str) -> CursorType {
+        s.parse().unwrap_or(CursorType::Pipe)
     }
 
     pub fn symbol(self) -> &'static str {
@@ -49,7 +48,6 @@ impl CursorType {
             CursorType::Block => "█",
             CursorType::Pipe => "|",
             CursorType::Underscore => "_",
-            CursorType::Default => "|", // ✅ FIXED: Default = PIPE Symbol statt "///"
         }
     }
 }
@@ -75,7 +73,7 @@ impl UiCursor {
         let (cursor_type_str, color, fg) = match kind {
             CursorKind::Input => (
                 &config.theme.input_cursor,
-                config.theme.input_cursor_color, // ✅ FIXED: Richtige Farbe für Input-Cursor
+                config.theme.input_cursor_color,
                 config.theme.input_text,
             ),
             CursorKind::Output => (
@@ -85,24 +83,22 @@ impl UiCursor {
             ),
         };
 
-        // ✅ DEBUG: Verifiziere Config-Werte
-        if std::env::var("RUST_LOG")
-            .unwrap_or_default()
-            .contains("debug")
-        {
-            eprintln!(
-                "🔧 UiCursor::from_config({:?}): type='{}', color='{}', fg='{}'",
-                kind,
-                cursor_type_str,
-                color.to_name(),
-                fg.to_name()
-            );
-        }
+        let cursor_type = CursorType::parse_type(cursor_type_str);
+
+        log::debug!(
+            "🔧 UiCursor::from_config({:?}): type_str='{}' → type={:?} → symbol='{}', color='{}', fg='{}'",
+            kind,
+            cursor_type_str,
+            cursor_type,
+            cursor_type.symbol(),
+            color.to_name(),
+            fg.to_name()
+        );
 
         Self {
             kind,
-            ctype: CursorType::from_str(cursor_type_str),
-            color, // ✅ FIXED: Jetzt wird die richtige Farbe verwendet
+            ctype: cursor_type,
+            color,
             fg,
             position: 0,
             text_length: 0,
@@ -116,7 +112,7 @@ impl UiCursor {
     pub fn for_typewriter() -> Self {
         Self {
             kind: CursorKind::Output,
-            ctype: CursorType::Default,
+            ctype: CursorType::Pipe,
             color: AppColor::default(),
             fg: AppColor::default(),
             position: 0,
@@ -132,7 +128,7 @@ impl UiCursor {
         let (cursor_type_str, color, fg) = match self.kind {
             CursorKind::Input => (
                 &config.theme.input_cursor,
-                config.theme.input_cursor_color, // ✅ FIXED: Richtige Farbe
+                config.theme.input_cursor_color,
                 config.theme.input_text,
             ),
             CursorKind::Output => (
@@ -142,8 +138,8 @@ impl UiCursor {
             ),
         };
 
-        self.ctype = CursorType::from_str(cursor_type_str);
-        self.color = color; // ✅ FIXED: Jetzt wird die richtige Farbe gesetzt
+        self.ctype = CursorType::parse_type(cursor_type_str);
+        self.color = color;
         self.fg = fg;
 
         log::debug!(
@@ -155,9 +151,14 @@ impl UiCursor {
         );
     }
 
+    /// ✅ NEUE METHODE: Update mit explizitem CursorKind (für Klarheit)
+    pub fn update_from_config_explicit(&mut self, config: &Config, kind: CursorKind) {
+        self.kind = kind;
+        self.update_from_config(config);
+    }
+
     // ==================== BLINK-VERWALTUNG ====================
 
-    /// ✅ FIXED: Blink-Status aktualisieren
     pub fn update_blink(&mut self) {
         if self.last_blink.elapsed() >= self.blink_interval {
             self.blink_visible = !self.blink_visible;
@@ -165,7 +166,6 @@ impl UiCursor {
         }
     }
 
-    /// Cursor sichtbar machen (nach Screen-Clear)
     pub fn show_cursor(&mut self) {
         self.blink_visible = true;
         self.last_blink = Instant::now();
@@ -177,14 +177,6 @@ impl UiCursor {
 
     // ==================== POSITION-VERWALTUNG ====================
 
-    pub fn move_to_start(&mut self) {
-        self.position = 0;
-    }
-
-    pub fn move_to_end(&mut self) {
-        self.position = self.text_length;
-    }
-
     pub fn move_left(&mut self) {
         if self.position > 0 {
             self.position -= 1;
@@ -195,6 +187,14 @@ impl UiCursor {
         if self.position < self.text_length {
             self.position += 1;
         }
+    }
+
+    pub fn move_to_start(&mut self) {
+        self.position = 0;
+    }
+
+    pub fn move_to_end(&mut self) {
+        self.position = self.text_length;
     }
 
     pub fn get_position(&self) -> usize {
@@ -247,11 +247,9 @@ impl UiCursor {
 
     // ==================== RENDERING ====================
 
-    /// ✅ FIXED: INTELLIGENTE SPAN-ERSTELLUNG für Input-Bereich
-    /// Nur für BLOCK-Cursor (wird nur noch für Block verwendet)
+    /// ✅ BLOCK-CURSOR: Zeichen unter Cursor invertieren
     pub fn as_span(&self, text: &str, blink: bool) -> Span<'static> {
         if !blink || !self.blink_visible {
-            // Cursor nicht sichtbar → normales Zeichen anzeigen
             let graphemes: Vec<&str> = text.graphemes(true).collect();
             let ch = graphemes.get(self.position).copied().unwrap_or(" ");
             return Span::styled(ch.to_string(), Style::default().fg(self.fg.into()));
@@ -266,16 +264,19 @@ impl UiCursor {
         )
     }
 
-    /// ✅ ZENTRALE CURSOR-SYMBOL-ERSTELLUNG
-    /// Rendert den Cursor als separates Symbol (für Output-Bereich UND Input-non-BLOCK)
+    /// ✅ CURSOR-SYMBOL-ERSTELLUNG für PIPE und UNDERSCORE
     pub fn create_cursor_span(&self, config: &Config) -> Span<'static> {
         let symbol = self.get_symbol();
+        let cursor_color = self.color;
+
+        let bg_color = match self.kind {
+            CursorKind::Input => config.theme.input_bg.into(),
+            CursorKind::Output => config.theme.output_bg.into(),
+        };
 
         Span::styled(
             symbol.to_string(),
-            Style::default()
-                .fg(self.color.into()) // ✅ FIXED: Richtige Cursor-Farbe
-                .bg(config.theme.input_bg.into()), // ✅ FIXED: Input-Hintergrund für Input-Cursor
+            Style::default().fg(cursor_color.into()).bg(bg_color),
         )
     }
 
@@ -287,31 +288,68 @@ impl UiCursor {
 
     pub fn debug_info(&self) -> String {
         format!(
-            "UiCursor({:?}): type={}, pos={}/{}, visible={}, symbol='{}', color='{}'",
+            "UiCursor({:?}): type={:?}, pos={}/{}, visible={}, symbol='{}', color='{}', fg='{}'",
             self.kind,
-            match self.ctype {
-                CursorType::Block => "BLOCK",
-                CursorType::Pipe => "PIPE",
-                CursorType::Underscore => "UNDERSCORE",
-                CursorType::Default => "DEFAULT",
-            },
+            self.ctype,
             self.position,
             self.text_length,
             self.blink_visible,
             self.get_symbol(),
-            self.color.to_name()
+            self.color.to_name(),
+            self.fg.to_name()
+        )
+    }
+
+    pub fn full_debug(&self) -> String {
+        format!(
+            "🔍 FULL CURSOR DEBUG:\n\
+            Kind: {:?}\n\
+            Type: {:?}\n\
+            Symbol: '{}'\n\
+            Cursor Color: '{}'\n\
+            Text Color: '{}'\n\
+            Position: {}/{}\n\
+            Visible: {}",
+            self.kind,
+            self.ctype,
+            self.get_symbol(),
+            self.color.to_name(),
+            self.fg.to_name(),
+            self.position,
+            self.text_length,
+            self.blink_visible,
+        )
+    }
+
+    pub fn detailed_debug(&self) -> String {
+        format!(
+            "🔍 DETAILED CURSOR DEBUG:\n\
+            🏷️ Kind: {:?}\n\
+            🎯 Type: {:?} (symbol: '{}')\n\
+            🎨 Cursor Color: '{}' ⬅️ IST DAS RICHTIG?\n\
+            🎨 Text Color (fg): '{}'\n\
+            📍 Position: {}/{}\n\
+            👁️ Visible: {}\n\
+            ⏱️ Last Blink: {:?}",
+            self.kind,
+            self.ctype,
+            self.get_symbol(),
+            self.color.to_name(), // ⬅️ Das sollte "lightblue" sein!
+            self.fg.to_name(),
+            self.position,
+            self.text_length,
+            self.blink_visible,
+            self.last_blink.elapsed()
         )
     }
 }
 
 // ==================== FACTORY-FUNKTIONEN ====================
 
-/// ✅ Erstelle Input-Cursor
 pub fn create_input_cursor(config: &Config) -> UiCursor {
     UiCursor::from_config(config, CursorKind::Input)
 }
 
-/// ✅ Erstelle Output-Cursor
 pub fn create_output_cursor(config: &Config) -> UiCursor {
     UiCursor::from_config(config, CursorKind::Output)
 }
@@ -322,11 +360,21 @@ mod tests {
 
     #[test]
     fn test_cursor_types() {
-        assert_eq!(CursorType::from_str("BLOCK").symbol(), "█");
-        assert_eq!(CursorType::from_str("PIPE").symbol(), "|");
-        assert_eq!(CursorType::from_str("UNDERSCORE").symbol(), "_");
-        assert_eq!(CursorType::from_str("DEFAULT").symbol(), "|"); // ✅ FIXED
-        assert_eq!(CursorType::from_str("unknown").symbol(), "|"); // ✅ FIXED
+        assert_eq!(CursorType::parse_type("BLOCK").symbol(), "█");
+        assert_eq!(CursorType::parse_type("PIPE").symbol(), "|");
+        assert_eq!(CursorType::parse_type("UNDERSCORE").symbol(), "_");
+        assert_eq!(CursorType::parse_type("unknown").symbol(), "|"); // Fallback to PIPE
+    }
+
+    #[test]
+    fn test_fromstr_trait() {
+        assert_eq!("BLOCK".parse::<CursorType>().unwrap(), CursorType::Block);
+        assert_eq!("PIPE".parse::<CursorType>().unwrap(), CursorType::Pipe);
+        assert_eq!(
+            "UNDERSCORE".parse::<CursorType>().unwrap(),
+            CursorType::Underscore
+        );
+        assert_eq!("unknown".parse::<CursorType>().unwrap(), CursorType::Pipe); // Fallback
     }
 
     #[test]
@@ -353,7 +401,6 @@ mod tests {
         let config = crate::core::config::Config::default();
         let cursor = UiCursor::from_config(&config, CursorKind::Input);
 
-        // ✅ FIXED: Test dass Input-Cursor die richtige Farbe bekommt
         assert_eq!(
             cursor.color.to_name(),
             config.theme.input_cursor_color.to_name()

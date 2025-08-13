@@ -241,93 +241,189 @@ impl InputState {
 
         match action {
             KeyAction::Submit => {
-                if self.content.trim() == "full-debug" {
-                    let (_, cursor_pos) = self.render_with_cursor();
-                    let debug_info = format!(
-                        "🔍 FULL CURSOR DEBUG:\n\
-                        🎨 Config Theme: '{}'\n\
-                        📝 input_cursor: '{}'\n\
-                        🎯 Parsed Type: {:?}\n\
-                        🔤 Symbol: '{}'\n\
-                        👁️ Is Visible: {}\n\
-                        📍 Position: {}\n\
-                        🖥️ Terminal Pos: {:?}\n\
-                        🔧 Match Block: {}\n\
-                        ⚡ Should Use Terminal: {}",
-                        self.config.current_theme_name,
-                        self.config.theme.input_cursor,
-                        self.cursor.ctype,
-                        self.cursor.get_symbol(),
-                        self.cursor.is_visible(),
-                        self.cursor.get_position(),
-                        cursor_pos,
-                        matches!(self.cursor.ctype, CursorType::Block),
-                        !matches!(self.cursor.ctype, CursorType::Block)
-                    );
-                    self.content.clear();
-                    self.cursor.reset_for_empty_text();
-                    return Some(debug_info);
-                }
-
-                if self.content.trim() == "term-test" {
-                    let info = format!(
-                        "🖥️ TERMINAL INFO:\n\
-                        📺 Terminal: {:?}\n\
-                        🎯 Cursor Support: Testing...\n\
-                        💡 Try: ESC[?25h (show cursor)\n\
-                        💡 Or: Different terminal app",
-                        std::env::var("TERM").unwrap_or_else(|_| "unknown".to_string())
-                    );
-                    self.content.clear();
-                    self.cursor.reset_for_empty_text();
-                    return Some(info);
-                }
-
-                if self.content.is_empty() {
-                    return None;
-                }
-                if self.validate_input(&self.content).is_ok() {
-                    let content = std::mem::take(&mut self.content);
-                    self.cursor.reset_for_empty_text();
-                    self.history_manager.add_entry(content.clone());
-                    let result = self.command_handler.handle_input(&content);
-
-                    if let Some(event) = HistoryEventHandler::handle_command_result(&result.message)
-                    {
-                        return Some(self.handle_history_event(event));
+                // ✅ KORRIGIERTE DEBUG COMMANDS - alle im gleichen match Block
+                match self.content.trim() {
+                    "cursor-debug" => {
+                        let debug_info = format!(
+                            "🎯 CURSOR COLOR DEBUG:\n\
+                            📊 Theme: {}\n\
+                            🎨 Expected input_cursor_color: {}\n\
+                            🎨 Actual cursor color: {}\n\
+                            🎨 Actual fg color: {}\n\
+                            🔍 Cursor details:\n\
+                            {}",
+                            self.config.current_theme_name,
+                            self.config.theme.input_cursor_color.to_name(),
+                            self.cursor.color.to_name(),
+                            self.cursor.fg.to_name(),
+                            self.cursor.debug_info()
+                        );
+                        self.content.clear();
+                        self.cursor.reset_for_empty_text();
+                        Some(debug_info)
                     }
-                    if result.message.starts_with("__CONFIRM_EXIT__") {
-                        self.waiting_for_exit_confirmation = true;
-                        return Some(result.message.replace("__CONFIRM_EXIT__", ""));
+
+                    "theme-config-debug" => {
+                        let debug_info = format!(
+                            "🔍 COMPLETE THEME CONFIG DEBUG:\n\
+                            📁 Current Theme: {}\n\
+                            🎨 input_cursor_color: {} ⬅️ CONFIG VALUE\n\
+                            🎨 input_cursor: {}\n\
+                            🎨 input_cursor_prefix: '{}'\n\
+                            🎨 output_cursor_color: {}\n\
+                            🎨 output_cursor: {}\n\
+                            \n🎯 ACTUAL CURSOR STATE:\n\
+                            🎨 cursor.color: {} ⬅️ ACTUAL VALUE\n\
+                            🎯 cursor.ctype: {:?}\n\
+                            👁️ cursor.visible: {}",
+                            self.config.current_theme_name,
+                            self.config.theme.input_cursor_color.to_name(),
+                            self.config.theme.input_cursor,
+                            self.config.theme.input_cursor_prefix,
+                            self.config.theme.output_cursor_color.to_name(),
+                            self.config.theme.output_cursor,
+                            self.cursor.color.to_name(),
+                            self.cursor.ctype,
+                            self.cursor.is_visible()
+                        );
+                        self.content.clear();
+                        self.cursor.reset_for_empty_text();
+                        Some(debug_info)
                     }
-                    if result.message.starts_with("__CONFIRM_RESTART__") {
-                        self.waiting_for_restart_confirmation = true;
-                        return Some(result.message.replace("__CONFIRM_RESTART__", ""));
-                    }
-                    if result.message.starts_with("__RESTART_FORCE__")
-                        || result.message.starts_with("__RESTART__")
-                    {
-                        let feedback_text = if result.message.starts_with("__RESTART_FORCE__") {
-                            result
-                                .message
-                                .replace("__RESTART_FORCE__", "")
-                                .trim()
-                                .to_string()
-                        } else {
-                            result.message.replace("__RESTART__", "").trim().to_string()
-                        };
-                        if !feedback_text.is_empty() {
-                            return Some(format!("__RESTART_WITH_MSG__{}", feedback_text));
-                        } else {
-                            return Some("__RESTART__".to_string());
+
+                    "color-test" => {
+                        let test_colors = vec![
+                            "Red",
+                            "Green",
+                            "Blue",
+                            "Yellow",
+                            "Magenta",
+                            "Cyan",
+                            "LightRed",
+                            "LightGreen",
+                            "LightBlue",
+                            "LightYellow",
+                            "LightMagenta",
+                            "LightCyan",
+                            "White",
+                            "Black",
+                        ];
+
+                        let mut results = String::from("🎨 COLOR CONVERSION TEST:\n");
+                        for color_name in test_colors {
+                            match crate::ui::color::AppColor::from_string(color_name) {
+                                Ok(color) => {
+                                    results.push_str(&format!(
+                                        "✅ '{}' → '{}'\n",
+                                        color_name,
+                                        color.to_name()
+                                    ));
+                                }
+                                Err(e) => {
+                                    results
+                                        .push_str(&format!("❌ '{}' → ERROR: {}\n", color_name, e));
+                                }
+                            }
                         }
+
+                        self.content.clear();
+                        self.cursor.reset_for_empty_text();
+                        Some(results)
                     }
-                    if result.should_exit {
-                        return Some(format!("__EXIT__{}", result.message));
+
+                    "full-debug" => {
+                        let (_, cursor_pos) = self.render_with_cursor();
+                        let debug_info = format!(
+                            "🔍 FULL CURSOR DEBUG:\n\
+                            🎨 Config Theme: '{}'\n\
+                            📝 input_cursor: '{}'\n\
+                            🎯 Parsed Type: {:?}\n\
+                            🔤 Symbol: '{}'\n\
+                            👁️ Is Visible: {}\n\
+                            📍 Position: {}\n\
+                            🖥️ Terminal Pos: {:?}\n\
+                            🔧 Match Block: {}\n\
+                            ⚡ Should Use Terminal: {}",
+                            self.config.current_theme_name,
+                            self.config.theme.input_cursor,
+                            self.cursor.ctype,
+                            self.cursor.get_symbol(),
+                            self.cursor.is_visible(),
+                            self.cursor.get_position(),
+                            cursor_pos,
+                            matches!(self.cursor.ctype, CursorType::Block),
+                            !matches!(self.cursor.ctype, CursorType::Block)
+                        );
+                        self.content.clear();
+                        self.cursor.reset_for_empty_text();
+                        Some(debug_info)
                     }
-                    return Some(result.message);
+
+                    "term-test" => {
+                        let info = format!(
+                            "🖥️ TERMINAL INFO:\n\
+                            📺 Terminal: {:?}\n\
+                            🎯 Cursor Support: Testing...\n\
+                            💡 Try: ESC[?25h (show cursor)\n\
+                            💡 Or: Different terminal app",
+                            std::env::var("TERM").unwrap_or_else(|_| "unknown".to_string())
+                        );
+                        self.content.clear();
+                        self.cursor.reset_for_empty_text();
+                        Some(info)
+                    }
+
+                    // ✅ ALLE ANDEREN COMMANDS (nicht-debug)
+                    _ => {
+                        if self.content.is_empty() {
+                            return None;
+                        }
+                        if self.validate_input(&self.content).is_ok() {
+                            let content = std::mem::take(&mut self.content);
+                            self.cursor.reset_for_empty_text();
+                            self.history_manager.add_entry(content.clone());
+                            let result = self.command_handler.handle_input(&content);
+
+                            if let Some(event) =
+                                HistoryEventHandler::handle_command_result(&result.message)
+                            {
+                                return Some(self.handle_history_event(event));
+                            }
+                            if result.message.starts_with("__CONFIRM_EXIT__") {
+                                self.waiting_for_exit_confirmation = true;
+                                return Some(result.message.replace("__CONFIRM_EXIT__", ""));
+                            }
+                            if result.message.starts_with("__CONFIRM_RESTART__") {
+                                self.waiting_for_restart_confirmation = true;
+                                return Some(result.message.replace("__CONFIRM_RESTART__", ""));
+                            }
+                            if result.message.starts_with("__RESTART_FORCE__")
+                                || result.message.starts_with("__RESTART__")
+                            {
+                                let feedback_text =
+                                    if result.message.starts_with("__RESTART_FORCE__") {
+                                        result
+                                            .message
+                                            .replace("__RESTART_FORCE__", "")
+                                            .trim()
+                                            .to_string()
+                                    } else {
+                                        result.message.replace("__RESTART__", "").trim().to_string()
+                                    };
+                                if !feedback_text.is_empty() {
+                                    return Some(format!("__RESTART_WITH_MSG__{}", feedback_text));
+                                } else {
+                                    return Some("__RESTART__".to_string());
+                                }
+                            }
+                            if result.should_exit {
+                                return Some(format!("__EXIT__{}", result.message));
+                            }
+                            return Some(result.message);
+                        }
+                        None
+                    }
                 }
-                None
             }
             KeyAction::InsertChar(c) => {
                 if self.content.graphemes(true).count() < self.config.input_max_length {
@@ -487,22 +583,45 @@ impl InputState {
         }
     }
 
-    /// ✅ FIXED: TERMINAL-CURSOR - Text komplett normal
-    fn render_normal_text(
+    /// ✅ NEUE METHODE: Symbol-Cursor (PIPE + UNDERSCORE)
+    fn render_symbol_cursor(
         &self,
         spans: &mut Vec<Span<'static>>,
         graphemes: &[&str],
+        cursor_pos: usize,
         viewport_start: usize,
         available_width: usize,
     ) {
-        // ✅ WICHTIG: Kompletter Text OHNE Cursor-Symbol
-        // Der Cursor wird später über Terminal-Cursor dargestellt
         let end_pos = (viewport_start + available_width).min(graphemes.len());
-        if viewport_start < end_pos {
-            let visible_text = graphemes[viewport_start..end_pos].join("");
+
+        // Text VOR Cursor
+        if cursor_pos > viewport_start {
+            let visible_text = graphemes[viewport_start..cursor_pos].join("");
             if !visible_text.is_empty() {
                 spans.push(Span::styled(
                     visible_text,
+                    Style::default().fg(self.config.theme.input_text.into()),
+                ));
+            }
+        }
+
+        // ✅ CURSOR-SYMBOL mit korrekter Farbe (wenn sichtbar)
+        if self.cursor.is_visible() {
+            let cursor_symbol = self.cursor.get_symbol(); // "|" oder "_"
+            spans.push(Span::styled(
+                cursor_symbol.to_string(),
+                Style::default()
+                    .fg(self.config.theme.input_cursor_color.into()) // ✅ Richtige Farbe!
+                    .bg(self.config.theme.input_bg.into()),
+            ));
+        }
+
+        // Text NACH Cursor
+        if cursor_pos < end_pos {
+            let remaining_text = graphemes[cursor_pos..end_pos].join("");
+            if !remaining_text.is_empty() {
+                spans.push(Span::styled(
+                    remaining_text,
                     Style::default().fg(self.config.theme.input_text.into()),
                 ));
             }
@@ -516,7 +635,7 @@ impl Widget for InputState {
         self.render_with_cursor().0
     }
 
-    /// ✅ FIXED: Mit korrektem Layer-System
+    /// ✅ FIXED: PIPE-Cursor auch als eigenes Symbol rendern!
     fn render_with_cursor(&self) -> (Paragraph, Option<(u16, u16)>) {
         let graphemes: Vec<&str> = self.content.graphemes(true).collect();
         let cursor_pos = self.cursor.get_position();
@@ -541,10 +660,9 @@ impl Widget for InputState {
             0
         };
 
-        // ✅ FIXED: Cursor-Layer-System - Text bleibt IMMER gleich!
         match self.cursor.ctype {
             CursorType::Block => {
-                // BLOCK: Invertiere das Zeichen unter dem Cursor (Original-System)
+                // BLOCK: Invertiere das Zeichen unter dem Cursor
                 self.render_block_cursor(
                     &mut spans,
                     &graphemes,
@@ -552,7 +670,6 @@ impl Widget for InputState {
                     viewport_start,
                     available_width,
                 );
-                // Kein Terminal-Cursor
                 let paragraph = Paragraph::new(Line::from(spans)).block(
                     Block::default()
                         .padding(Padding::new(3, 1, 1, 1))
@@ -561,31 +678,22 @@ impl Widget for InputState {
                 );
                 (paragraph, None)
             }
-            _ => {
-                // ✅ PIPE/UNDERSCORE/DEFAULT: Text KOMPLETT normal rendern
-                self.render_normal_text(&mut spans, &graphemes, viewport_start, available_width);
-
+            CursorType::Pipe | CursorType::Underscore => {
+                // ✅ PIPE + UNDERSCORE: Beide als eigenes Symbol rendern!
+                self.render_symbol_cursor(
+                    &mut spans,
+                    &graphemes,
+                    cursor_pos,
+                    viewport_start,
+                    available_width,
+                );
                 let paragraph = Paragraph::new(Line::from(spans)).block(
                     Block::default()
                         .padding(Padding::new(3, 1, 1, 1))
                         .borders(Borders::NONE)
                         .style(Style::default().bg(self.config.theme.input_bg.into())),
                 );
-
-                // ✅ CURSOR AUF SEPARATEM LAYER (Terminal-Cursor)
-                let terminal_cursor_pos = if self.cursor.is_visible() {
-                    let visible_chars_before_cursor = if cursor_pos > viewport_start {
-                        cursor_pos - viewport_start
-                    } else {
-                        0
-                    };
-                    let cursor_x = 3 + prompt_width + visible_chars_before_cursor;
-                    Some((cursor_x as u16, 1))
-                } else {
-                    None // Blinken: Cursor verschwindet
-                };
-
-                (paragraph, terminal_cursor_pos)
+                (paragraph, None) // ✅ KEIN Terminal-Cursor mehr!
             }
         }
     }

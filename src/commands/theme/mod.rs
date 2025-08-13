@@ -10,7 +10,6 @@ pub use command::ThemeCommand;
 pub struct ThemeDefinition {
     pub input_text: String,
     pub input_bg: String,
-    pub cursor: String,
     pub output_text: String,
     pub output_bg: String,
 
@@ -93,6 +92,24 @@ impl ThemeSystem {
 
         self.current_name = theme_name_lower.clone();
 
+        // ✅ DETAILED DEBUG für Cursor-Konfiguration
+        if let Some(theme_def) = self.themes.get(&theme_name_lower) {
+            log::info!(
+                "🎨 THEME CHANGE DETAILS for '{}':\n  \
+                input_cursor: '{}' (color: {})\n  \
+                output_cursor: '{}' (color: {})\n  \
+                input_cursor_prefix: '{}' (color: {})",
+                theme_name_lower.to_uppercase(),
+                theme_def.input_cursor,
+                theme_def.input_cursor_color,
+                theme_def.output_cursor,
+                theme_def.output_cursor_color,
+                theme_def.input_cursor_prefix,
+                theme_def.input_cursor_color
+            );
+        }
+
+        // Async save
         let theme_name_clone = theme_name_lower.clone();
         let config_paths = self.config_paths.clone();
         tokio::spawn(async move {
@@ -127,13 +144,12 @@ impl ThemeSystem {
 
         if let Some(theme_def) = self.themes.get(&theme_name_lower) {
             Ok(format!(
-                "🎨 TOML-Theme '{}' Preview:\n  Input: {} auf {}\n  Output: {} auf {}\n  Cursor: {}\n  Input-Cursor-Prefix: '{}' in {} ✅ NEU!\n  Input-Cursor: {} ✅ NEU!\n  Output-Cursor: {} in {} ✅ NEU!\n\n📁 Quelle: [theme.{}] in rush.toml",
+                "🎨 TOML-Theme '{}' Preview:\n  Input: {} auf {}\n  Output: {} auf {}\n  Input-Cursor-Prefix: '{}' in {} ✅ NEU!\n  Input-Cursor: {} ✅ NEU!\n  Output-Cursor: {} in {} ✅ NEU!\n\n📁 Quelle: [theme.{}] in rush.toml",
                 theme_name_lower.to_uppercase(),
                 theme_def.input_text,
                 theme_def.input_bg,
                 theme_def.output_text,
                 theme_def.output_bg,
-                theme_def.cursor,
                 theme_def.input_cursor_prefix,
                 theme_def.input_cursor_color,
                 theme_def.input_cursor,
@@ -252,7 +268,7 @@ impl ThemeSystem {
     }
 
     fn build_theme_from_data(data: &HashMap<String, String>) -> Option<ThemeDefinition> {
-        // ✅ BACKWARD-KOMPATIBILITÄT mit perfekter Struktur
+        // ✅ BEREINIGTE BACKWARD-KOMPATIBILITÄT
         let input_cursor_prefix = data.get("input_cursor_prefix")
             .or_else(|| {
                 if let Some(legacy) = data.get("prompt_text") {
@@ -286,7 +302,7 @@ impl ThemeSystem {
                     None
                 }
             })
-            .unwrap_or(&"DEFAULT".to_string())
+            .unwrap_or(&"PIPE".to_string())  // Changed from DEFAULT
             .clone();
 
         let output_cursor_color = data.get("output_cursor_color")
@@ -304,17 +320,15 @@ impl ThemeSystem {
         Some(ThemeDefinition {
             input_text: data.get("input_text")?.clone(),
             input_bg: data.get("input_bg")?.clone(),
-            cursor: data.get("cursor")?.clone(),
             output_text: data.get("output_text")?.clone(),
             output_bg: data.get("output_bg")?.clone(),
 
-            // ✅ PERFEKTE CURSOR-KONFIGURATION
             input_cursor_prefix,
             input_cursor_color,
             input_cursor,
             output_cursor: data
                 .get("output_cursor")
-                .unwrap_or(&"DEFAULT".to_string())
+                .unwrap_or(&"PIPE".to_string()) // Changed from DEFAULT
                 .clone(),
             output_cursor_color,
         })
@@ -413,6 +427,35 @@ impl ThemeSystem {
         }
 
         Ok(lines.join("\n"))
+    }
+
+    pub fn debug_theme_details(&self, theme_name: &str) -> String {
+        if let Some(theme_def) = self.themes.get(&theme_name.to_lowercase()) {
+            format!(
+                "🔍 THEME DEBUG für '{}':\n\
+                📝 input_text: '{}'\n\
+                📝 input_bg: '{}'\n\
+                📝 output_text: '{}'\n\
+                📝 output_bg: '{}'\n\
+                🎯 input_cursor_prefix: '{}'\n\
+                🎨 input_cursor_color: '{}' ⬅️ DAS IST WICHTIG!\n\
+                🎯 input_cursor: '{}'\n\
+                🎯 output_cursor: '{}'\n\
+                🎨 output_cursor_color: '{}'",
+                theme_name.to_uppercase(),
+                theme_def.input_text,
+                theme_def.input_bg,
+                theme_def.output_text,
+                theme_def.output_bg,
+                theme_def.input_cursor_prefix,
+                theme_def.input_cursor_color, // ⬅️ Das sollte "LightBlue" sein!
+                theme_def.input_cursor,
+                theme_def.output_cursor,
+                theme_def.output_cursor_color
+            )
+        } else {
+            format!("❌ Theme '{}' nicht gefunden!", theme_name)
+        }
     }
 }
 // ## END ##

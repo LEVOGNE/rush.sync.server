@@ -1,6 +1,6 @@
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
-use crate::ui::cursor::UiCursor; // ✅ NUR UiCursor importieren
+use crate::ui::cursor::{CursorKind, UiCursor};
 use crate::ui::viewport::{ScrollDirection, Viewport, ViewportEvent};
 use ratatui::{
     style::Style,
@@ -18,6 +18,13 @@ pub struct Message {
     pub line_count: usize,
     pub typewriter_cursor: Option<UiCursor>,
 }
+
+type RenderData<'a> = (
+    Vec<(String, usize, bool, bool, bool)>,
+    Config,
+    crate::ui::viewport::LayoutArea,
+    &'a UiCursor,
+);
 
 impl Message {
     pub fn new(content: String, typewriter_delay: Duration) -> Self {
@@ -76,7 +83,7 @@ impl Message {
     }
 
     pub fn is_typing(&self) -> bool {
-        if let Some(_) = &self.typewriter_cursor {
+        if self.typewriter_cursor.is_some() {
             let total_length = self.content.graphemes(true).count();
             self.current_length < total_length
         } else {
@@ -106,41 +113,51 @@ impl MessageDisplay {
     pub fn new(config: &Config, terminal_width: u16, terminal_height: u16) -> Self {
         let viewport = Viewport::new(terminal_width, terminal_height);
 
-        // ✅ FIX: Diese 2 Zeilen hinzufügen
-        let mut persistent_cursor = UiCursor::for_typewriter();
-        persistent_cursor.update_from_config(config);
+        // ✅ FIX: Output-Cursor mit richtiger CursorKind::Output erstellen
+        let persistent_cursor = UiCursor::from_config(config, CursorKind::Output);
 
         Self {
             messages: Vec::with_capacity(config.max_messages),
             config: config.clone(),
             viewport,
-            persistent_cursor,
+            persistent_cursor, // ← Jetzt korrekt als Output-Cursor
         }
     }
 
     pub fn update_config(&mut self, new_config: &Config) {
         let old_cursor_config = self.config.theme.output_cursor.clone();
+        let old_cursor_color = self.config.theme.output_cursor_color;
         let new_cursor_config = new_config.theme.output_cursor.clone();
+        let new_cursor_color = new_config.theme.output_cursor_color;
         let old_theme = self.config.current_theme_name.clone();
         let new_theme = new_config.current_theme_name.clone();
 
         log::info!(
-            "📊 MessageDisplay CONFIG UPDATE START: '{}' → '{}' | cursor: '{}' → '{}'",
+            "📊 MessageDisplay CONFIG UPDATE START: '{}' → '{}' | output_cursor: '{}' ({}) → '{}' ({})",
             old_theme,
             new_theme,
             old_cursor_config,
-            new_cursor_config
+            old_cursor_color.to_name(),
+            new_cursor_config,
+            new_cursor_color.to_name()
         );
 
         // ✅ STEP 1: Update internal config
         self.config = new_config.clone();
 
-        // ✅ STEP 2: FORCE COMPLETE CURSOR RECREATION
-        log::info!("🔄 RECREATING persistent cursor with new config...");
-        self.persistent_cursor = UiCursor::for_typewriter();
-        self.persistent_cursor.update_from_config(new_config);
+        // ✅ STEP 2: FORCE COMPLETE OUTPUT-CURSOR RECREATION
+        log::info!("🔄 RECREATING output cursor with new config...");
+        let old_cursor_debug = self.persistent_cursor.debug_info();
+        self.persistent_cursor = UiCursor::from_config(new_config, CursorKind::Output);
+        let new_cursor_debug = self.persistent_cursor.debug_info();
 
-        // ✅ STEP 4: Handle message buffer
+        log::info!(
+            "🔄 OUTPUT-CURSOR TRANSITION:\n  OLD: {}\n  NEW: {}",
+            old_cursor_debug,
+            new_cursor_debug
+        );
+
+        // ✅ STEP 3: Handle message buffer
         if self.messages.len() > self.config.max_messages {
             let excess = self.messages.len() - self.config.max_messages;
             self.messages.drain(0..excess);
@@ -149,9 +166,13 @@ impl MessageDisplay {
 
         // ✅ FINAL VERIFICATION
         let final_symbol = self.persistent_cursor.get_symbol();
+        let final_color = self.persistent_cursor.color.to_name();
         log::info!(
-            "✅ MessageDisplay CONFIG UPDATE COMPLETE: cursor_symbol='{}' | expected_from_config='{}'",
-            final_symbol, new_config.theme.output_cursor
+            "✅ MessageDisplay CONFIG UPDATE COMPLETE: output_cursor_symbol='{}' ({}), expected='{}' ({})",
+            final_symbol,
+            final_color,
+            new_config.theme.output_cursor,
+            new_config.theme.output_cursor_color.to_name()
         );
     }
 
@@ -185,7 +206,7 @@ impl MessageDisplay {
 
     pub fn add_message(&mut self, content: String) {
         if content.starts_with("[DEBUG]") || content.starts_with("[TRACE]") {
-            eprintln!("STDERR: {}", content);
+            log::info!("STDERR: {}", content);
             return;
         }
 
@@ -415,14 +436,7 @@ impl MessageDisplay {
         visible
     }
 
-    pub fn create_output_widget_for_rendering(
-        &self,
-    ) -> (
-        Vec<(String, usize, bool, bool, bool)>,
-        Config,
-        crate::ui::viewport::LayoutArea,
-        &UiCursor,
-    ) {
+    pub fn create_output_widget_for_rendering(&self) -> RenderData<'_> {
         let messages = self.get_visible_messages();
         (
             messages,
@@ -585,7 +599,7 @@ pub fn create_output_widget<'a>(
 
         if message.is_empty() {
             if *persistent_cursor_visible {
-                // ✅ USE NEW CURSOR STATE
+                // ✅ FIX: OUTPUT-CURSOR als separates Symbol (NIEMALS invertiert!)
                 lines.push(Line::from(vec![cursor_state.create_cursor_span(config)]));
             } else {
                 lines.push(Line::from(vec![Span::raw("")]));
@@ -656,13 +670,13 @@ pub fn create_output_widget<'a>(
                     }
                 }
 
-                // ✅ IMPROVED: Better cursor logic with new CursorState
+                // ✅ KRITISCHER FIX: OUTPUT-CURSOR RENDERING
                 if is_last_message && is_last_line {
                     if *is_typing && *msg_cursor_visible {
-                        // ✅ FIX: Use consistent cursor state instead of CursorConfig
+                        // ✅ TYPEWRITER-CURSOR: Immer als separates Symbol!
                         spans.push(cursor_state.create_cursor_span(config));
                     } else if !*is_typing && *persistent_cursor_visible {
-                        // ✅ ALREADY CORRECT: Use persistent cursor state
+                        // ✅ PERSISTENT-CURSOR: Immer als separates Symbol!
                         spans.push(cursor_state.create_cursor_span(config));
                     }
                 }
@@ -692,10 +706,10 @@ pub fn create_output_widget<'a>(
     }
 
     log::trace!(
-        "✅ Widget created: {} lines, area: {}x{} (with live cursor type support)",
+        "✅ Output widget created: {} lines, output_cursor: {} ({})",
         lines.len(),
-        layout_area.width,
-        layout_area.height
+        cursor_state.get_symbol(),
+        cursor_state.color.to_name()
     );
 
     Paragraph::new(lines)

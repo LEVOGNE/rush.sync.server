@@ -227,6 +227,7 @@ impl ScreenManager {
         Ok(false)
     }
 
+    // ✅ FIXED: Live-Theme-Update mit korrekter Cursor-Farb-Übertragung
     async fn process_live_theme_update(&mut self, message: &str) -> Option<String> {
         if !message.starts_with("__LIVE_THEME_UPDATE__") {
             return None;
@@ -256,29 +257,34 @@ impl ScreenManager {
         };
 
         if let Some(theme_def) = theme_system.get_theme(&theme_part) {
-            // ✅ DETAILED LOGGING: Jetzt mit theme_def im Scope
+            // ✅ KRITISCHER FIX: Theme-Definition Details loggen
             log::info!(
-                "🔍 THEME DETAILS: prefix: '{}' → '{}' | input_cursor: '{}' → '{}'",
-                self.config.theme.input_cursor_prefix,
+                "📋 THEME DEFINITION LOADED:\n  \
+                input_cursor_prefix: '{}'\n  \
+                input_cursor_color: '{}'\n  \
+                input_cursor: '{}'\n  \
+                output_cursor: '{}'\n  \
+                output_cursor_color: '{}'",
                 theme_def.input_cursor_prefix,
-                self.config.theme.input_cursor,
-                theme_def.input_cursor
+                theme_def.input_cursor_color,
+                theme_def.input_cursor,
+                theme_def.output_cursor,
+                theme_def.output_cursor_color
             );
+
             match self.create_theme_from_definition(theme_def) {
                 Ok(new_theme) => {
                     let backup = self.input_state.get_backup_data().unwrap_or_default();
 
-                    // ✅ DETAILED LOGGING: Show exact cursor transition
+                    // ✅ KRITISCHER FIX: Theme-Konvertierung Details loggen
                     log::info!(
-                        "🔄 THEME TRANSITION: old='{}'/prefix='{}'/input_cursor='{}'/output_cursor='{}' → new='{}'/prefix='{}'/input_cursor='{}'/output_cursor='{}'",
-                        self.config.current_theme_name,
-                        self.config.theme.input_cursor_prefix,
+                        "🔄 THEME CONVERSION COMPLETE:\n  \
+                        OLD Config: input_cursor='{}', input_cursor_color='{}'\n  \
+                        NEW Config: input_cursor='{}', input_cursor_color='{}'",
                         self.config.theme.input_cursor,
-                        self.config.theme.output_cursor,
-                        theme_part,
-                        theme_def.input_cursor_prefix,
-                        theme_def.input_cursor,
-                        theme_def.output_cursor
+                        self.config.theme.input_cursor_color.to_name(),
+                        new_theme.input_cursor,
+                        new_theme.input_cursor_color.to_name()
                     );
 
                     // ✅ CRITICAL: Clear ALL UI state first
@@ -288,20 +294,41 @@ impl ScreenManager {
                     self.config.theme = new_theme;
                     self.config.current_theme_name = theme_part.clone();
 
-                    // ✅ FORCE COMPLETE UI RECREATION mit zentraler Cursor-API
-                    log::info!("🔄 FORCING MessageDisplay config update...");
+                    // ✅ FORCE COMPLETE UI RECREATION
                     self.message_display.update_config(&self.config);
 
                     log::info!("🔄 RECREATING InputState with central cursor API...");
                     self.input_state = Box::new(InputState::new(&self.config));
+
+                    // ✅ KRITISCHER FIX: Cursor-Details nach Recreation verifizieren
+                    if let Some(_input_widget) = self.input_state.as_input_state() {
+                        log::info!(
+                            "✅ INPUT-CURSOR CREATED:\n  \
+                            Expected: cursor='{}' (color: {})\n  \
+                            Theme config: prefix='{}' (color: {})",
+                            self.config.theme.input_cursor,
+                            self.config.theme.input_cursor_color.to_name(),
+                            self.config.theme.input_cursor_prefix,
+                            self.config.theme.input_cursor_color.to_name()
+                        );
+                    }
+
                     self.input_state.restore_backup_data(backup.clone());
 
                     // ✅ FINAL VERIFICATION
                     log::info!(
-                        "✅ LIVE THEME APPLIED: theme='{}' | prefix='{}' | input_cursor='{}' | output_cursor='{}' | output_cursor_color='{}' | history={}",
+                        "✅ LIVE THEME APPLIED SUCCESSFULLY:\n  \
+                        theme='{}'\n  \
+                        prefix='{}'\n  \
+                        input_cursor='{}'\n  \
+                        input_cursor_color='{}'\n  \
+                        output_cursor='{}'\n  \
+                        output_cursor_color='{}'\n  \
+                        history={} entries",
                         theme_part.to_uppercase(),
                         self.config.theme.input_cursor_prefix,
                         self.config.theme.input_cursor,
+                        self.config.theme.input_cursor_color.to_name(),
                         self.config.theme.output_cursor,
                         self.config.theme.output_cursor_color.to_name(),
                         backup.history.len()
@@ -320,26 +347,52 @@ impl ScreenManager {
         }
     }
 
+    // ✅ FIXED: Theme-Konvertierung mit detailliertem Logging
     fn create_theme_from_definition(
         &self,
         theme_def: &crate::commands::theme::ThemeDefinition,
     ) -> Result<crate::core::config::Theme> {
         use crate::ui::color::AppColor;
 
+        log::debug!(
+            "🔧 create_theme_from_definition STARTING:\n  \
+            input_cursor_prefix: '{}'\n  \
+            input_cursor_color: '{}'\n  \
+            input_cursor: '{}'\n  \
+            output_cursor: '{}'\n  \
+            output_cursor_color: '{}'",
+            theme_def.input_cursor_prefix,
+            theme_def.input_cursor_color,
+            theme_def.input_cursor,
+            theme_def.output_cursor,
+            theme_def.output_cursor_color
+        );
+
+        let input_cursor_color = AppColor::from_string(&theme_def.input_cursor_color)?;
+        let output_cursor_color = AppColor::from_string(&theme_def.output_cursor_color)?;
+
+        log::debug!(
+            "🎨 COLOR CONVERSION COMPLETE:\n  \
+            input_cursor_color: '{}' → '{}'\n  \
+            output_cursor_color: '{}' → '{}'",
+            theme_def.input_cursor_color,
+            input_cursor_color.to_name(),
+            theme_def.output_cursor_color,
+            output_cursor_color.to_name()
+        );
+
         Ok(crate::core::config::Theme {
             input_text: AppColor::from_string(&theme_def.input_text)?,
             input_bg: AppColor::from_string(&theme_def.input_bg)?,
-            cursor: AppColor::from_string(&theme_def.cursor)?,
             output_text: AppColor::from_string(&theme_def.output_text)?,
             output_bg: AppColor::from_string(&theme_def.output_bg)?,
 
             // ✅ PERFEKTE CURSOR-KONFIGURATION
             input_cursor_prefix: theme_def.input_cursor_prefix.clone(),
-            input_cursor_color: AppColor::from_string(&theme_def.input_cursor_color)?,
+            input_cursor_color,
             input_cursor: theme_def.input_cursor.clone(),
             output_cursor: theme_def.output_cursor.clone(),
-            output_cursor_color: AppColor::from_string(&theme_def.output_cursor_color)
-                .unwrap_or_default(),
+            output_cursor_color,
         })
     }
 
@@ -539,10 +592,10 @@ impl ScreenManager {
         Ok(())
     }
 
-    /// ✅ FIXED: Terminal-Cursor-Kommandos für korrekte Layer-Darstellung
+    /// ✅ BEREINIGTE Terminal-Cursor-Kommandos
     fn get_terminal_cursor_commands(&self) -> Vec<&'static str> {
         match self.config.theme.input_cursor.to_uppercase().as_str() {
-            "PIPE" | "DEFAULT" => vec![
+            "PIPE" => vec![
                 "\x1B[6 q",  // Blinking bar (pipe)
                 "\x1B[?25h", // Show cursor
             ],
@@ -551,7 +604,7 @@ impl ScreenManager {
                 "\x1B[?25h", // Show cursor
             ],
             "BLOCK" => vec![
-                "\x1B[2 q",  // Blinking block (fallback, sollte nie erreicht werden)
+                "\x1B[2 q",  // Blinking block
                 "\x1B[?25h", // Show cursor
             ],
             _ => vec![

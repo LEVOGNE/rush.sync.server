@@ -1,3 +1,7 @@
+// =====================================================
+// FILE: src/core/config.rs - BEREINIGTE THEME-KONVERTIERUNG
+// =====================================================
+
 use crate::core::constants::{DEFAULT_BUFFER_SIZE, DEFAULT_POLL_RATE};
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
@@ -34,45 +38,31 @@ struct LanguageConfig {
 struct ThemeDefinitionConfig {
     input_text: String,
     input_bg: String,
-    cursor: String,
     output_text: String,
     output_bg: String,
 
-    // ✅ PERFEKTE CURSOR-KONFIGURATION (5 Parameter)
+    // ✅ DIREKTE FELD-ZUORDNUNG (Feld-Namen stimmen mit Config-Struct überein)
     #[serde(default = "default_input_cursor_prefix")]
-    input_cursor_prefix: String, // NEU: Prompt-Text (/// )
+    input_cursor_prefix: String,
 
     #[serde(default = "default_input_cursor_color")]
-    input_cursor_color: String, // NEU: Prompt-Farbe
+    input_cursor_color: String,
 
     #[serde(default = "default_input_cursor")]
-    input_cursor: String, // NEU: Input-Cursor-Typ
+    input_cursor: String,
 
     #[serde(default = "default_output_cursor")]
-    output_cursor: String, // Output-Cursor-Typ
+    output_cursor: String,
 
     #[serde(default = "default_output_cursor_color")]
-    output_cursor_color: String, // NEU: Output-Cursor-Farbe
-
-    // ✅ BACKWARD-KOMPATIBILITÄT für alte Felder
-    #[serde(alias = "prompt_text", skip_serializing_if = "Option::is_none")]
-    _legacy_prompt_text: Option<String>,
-
-    #[serde(alias = "prompt_color", skip_serializing_if = "Option::is_none")]
-    _legacy_prompt_color: Option<String>,
-
-    #[serde(alias = "prompt_cursor", skip_serializing_if = "Option::is_none")]
-    _legacy_prompt_cursor: Option<String>,
-
-    #[serde(alias = "output_color", skip_serializing_if = "Option::is_none")]
-    _legacy_output_color: Option<String>,
+    output_cursor_color: String,
 }
 
 fn default_theme_name() -> String {
     "dark".to_string()
 }
 
-// ✅ PERFEKTE CURSOR-DEFAULTS
+// ✅ KONSISTENTE CURSOR-DEFAULTS
 fn default_input_cursor_prefix() -> String {
     "/// ".to_string()
 }
@@ -80,10 +70,10 @@ fn default_input_cursor_color() -> String {
     "LightBlue".to_string()
 }
 fn default_input_cursor() -> String {
-    "DEFAULT".to_string()
+    "PIPE".to_string()
 }
 fn default_output_cursor() -> String {
-    "DEFAULT".to_string()
+    "PIPE".to_string()
 }
 fn default_output_cursor_color() -> String {
     "White".to_string()
@@ -108,16 +98,15 @@ pub struct Config {
 pub struct Theme {
     pub input_text: AppColor,
     pub input_bg: AppColor,
-    pub cursor: AppColor,
     pub output_text: AppColor,
     pub output_bg: AppColor,
 
-    // ✅ PERFEKTE CURSOR-KONFIGURATION (5 Felder)
-    pub input_cursor_prefix: String,   // NEU: Prompt-Text
-    pub input_cursor_color: AppColor,  // NEU: Prompt-Farbe
-    pub input_cursor: String,          // NEU: Input-Cursor-Typ
-    pub output_cursor: String,         // Output-Cursor-Typ
-    pub output_cursor_color: AppColor, // NEU: Output-Cursor-Farbe
+    // ✅ EXAKTE FELD-ÜBEREINSTIMMUNG mit ThemeDefinition
+    pub input_cursor_prefix: String,
+    pub input_cursor_color: AppColor,
+    pub input_cursor: String,
+    pub output_cursor: String,
+    pub output_cursor_color: AppColor,
 }
 
 impl Default for Theme {
@@ -125,15 +114,14 @@ impl Default for Theme {
         Self {
             input_text: AppColor::new(Color::White),
             input_bg: AppColor::new(Color::Black),
-            cursor: AppColor::new(Color::White),
             output_text: AppColor::new(Color::White),
             output_bg: AppColor::new(Color::Black),
 
-            // ✅ PERFEKTE CURSOR-DEFAULTS
+            // ✅ KONSISTENTE DEFAULTS
             input_cursor_prefix: "/// ".to_string(),
             input_cursor_color: AppColor::new(Color::LightBlue),
-            input_cursor: "DEFAULT".to_string(),
-            output_cursor: "DEFAULT".to_string(),
+            input_cursor: "PIPE".to_string(),
+            output_cursor: "PIPE".to_string(),
             output_cursor_color: AppColor::new(Color::White),
         }
     }
@@ -341,52 +329,34 @@ impl Config {
 }
 
 impl Theme {
+    // ✅ KOMPLETT BEREINIGTE Theme-Konvertierung OHNE Legacy-Fallbacks
     fn from_config(theme_def: &ThemeDefinitionConfig) -> Result<Self> {
-        // ✅ BACKWARD-KOMPATIBILITÄT: Legacy-Felder → neue Felder
-        let input_cursor_prefix = theme_def
-            ._legacy_prompt_text
-            .as_ref()
-            .or(Some(&theme_def.input_cursor_prefix))
-            .unwrap_or(&"/// ".to_string())
-            .clone();
-
-        let input_cursor_color = theme_def
-            ._legacy_prompt_color
-            .as_ref()
-            .or(Some(&theme_def.input_cursor_color))
-            .unwrap_or(&"LightBlue".to_string())
-            .clone();
-
-        let input_cursor = if let Some(ref legacy) = theme_def._legacy_prompt_cursor {
-            log::warn!(
-                "⚠️ Veraltetes 'prompt_cursor' gefunden, verwende als 'input_cursor': {}",
-                legacy
-            );
-            legacy.clone()
-        } else {
-            theme_def.input_cursor.clone()
-        };
-
-        let output_cursor_color = theme_def
-            ._legacy_output_color
-            .as_ref()
-            .or(Some(&theme_def.output_cursor_color))
-            .unwrap_or(&"White".to_string())
-            .clone();
+        log::debug!(
+            "🔧 Theme::from_config - DIREKTE KONVERTIERUNG:\n  \
+            input_cursor_prefix: '{}'\n  \
+            input_cursor_color: '{}'\n  \
+            input_cursor: '{}'\n  \
+            output_cursor: '{}'\n  \
+            output_cursor_color: '{}'",
+            theme_def.input_cursor_prefix,
+            theme_def.input_cursor_color,
+            theme_def.input_cursor,
+            theme_def.output_cursor,
+            theme_def.output_cursor_color
+        );
 
         Ok(Self {
             input_text: AppColor::from_string(&theme_def.input_text)?,
             input_bg: AppColor::from_string(&theme_def.input_bg)?,
-            cursor: AppColor::from_string(&theme_def.cursor)?,
             output_text: AppColor::from_string(&theme_def.output_text)?,
             output_bg: AppColor::from_string(&theme_def.output_bg)?,
 
-            // ✅ PERFEKTE CURSOR-KONFIGURATION
-            input_cursor_prefix,
-            input_cursor_color: AppColor::from_string(&input_cursor_color)?,
-            input_cursor,
+            // ✅ DIREKTE 1:1 ZUORDNUNG (keine Legacy-Behandlung!)
+            input_cursor_prefix: theme_def.input_cursor_prefix.clone(),
+            input_cursor_color: AppColor::from_string(&theme_def.input_cursor_color)?,
+            input_cursor: theme_def.input_cursor.clone(),
             output_cursor: theme_def.output_cursor.clone(),
-            output_cursor_color: AppColor::from_string(&output_cursor_color)?,
+            output_cursor_color: AppColor::from_string(&theme_def.output_cursor_color)?,
         })
     }
 }

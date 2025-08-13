@@ -45,6 +45,10 @@ impl Command for ThemeCommand {
         match args.first() {
             None => Ok(theme_system.show_status()),
             Some(&"--help" | &"-h") => Ok(Self::create_help_text(theme_system)),
+            Some(&"debug") => match args.get(1) {
+                Some(&theme_name) => Ok(theme_system.debug_theme_details(theme_name)),
+                None => Ok("❌ Theme name missing. Usage: theme debug <name>".to_string()),
+            },
             Some(&"preview") => match args.get(1) {
                 Some(&theme_name) => theme_system.preview_theme(theme_name),
                 None => Ok("❌ Theme name missing. Usage: theme preview <name>".to_string()),
@@ -90,7 +94,7 @@ impl ThemeCommand {
             📁 Füge beliebige [theme.dein_name] Sektionen hinzu für neue Themes\n\
             🔄 Änderungen werden sofort angewendet (kein Restart nötig)\n\n\
             🎛️ Cursor-Optionen:\n\
-            • output_cursor: DEFAULT, BLOCK, PIPE, UNDERSCORE\n\
+            • output_cursor: BLOCK, PIPE, UNDERSCORE\n\
             • output_color: Jede unterstützte Farbe (White, Green, etc.)",
             themes_list
         )

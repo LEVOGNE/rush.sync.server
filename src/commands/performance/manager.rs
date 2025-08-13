@@ -152,7 +152,7 @@ impl PerformanceManager {
         report.push_str("=".repeat(50).as_str());
         report.push_str("\n\n");
 
-        report.push_str(&format!("🎯 System Performance\n"));
+        report.push_str("🎯 System Performance\n");
         report.push_str(&format!(
             "   • Poll Rate: {}ms ({:.1} FPS) {}\n",
             config.poll_rate,
@@ -167,10 +167,10 @@ impl PerformanceManager {
                 analysis.typewriter_info.chars_per_sec.unwrap_or(0.0)
             ));
         } else {
-            report.push_str(&format!("   • Typewriter Speed: DISABLED\n"));
+            report.push_str("   • Typewriter Speed: DISABLED\n");
         }
 
-        report.push_str(&format!("\n💾 Memory Usage\n"));
+        report.push_str("\n💾 Memory Usage\n");
         report.push_str(&format!(
             "   • Total Estimated: {:.2} MB\n",
             analysis.memory_usage.total_estimated_mb
@@ -188,13 +188,13 @@ impl PerformanceManager {
             analysis.memory_usage.i18n_cache_mb
         ));
 
-        report.push_str(&format!("\n💡 Recommendations\n"));
+        report.push_str("\n💡 Recommendations\n");
         for recommendation in &analysis.recommendations {
             report.push_str(&format!("   • {}\n", recommendation));
         }
 
-        report.push_str(&format!("\n🔧 Related Commands\n"));
-        report.push_str(&format!("   • log-level debug - Enable debug logging\n"));
+        report.push_str("\n🔧 Related Commands\n");
+        report.push_str("   • log-level debug - Enable debug logging\n");
 
         Ok(report)
     }
