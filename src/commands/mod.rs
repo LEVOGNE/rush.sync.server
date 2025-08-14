@@ -13,6 +13,7 @@ pub mod performance; // ✅ ADDED: Missing performance module
 pub mod plugins; // ✅ Plugins hinzugefügt
 pub mod registry;
 pub mod restart;
+pub mod server;
 pub mod theme; // ✅ ADDED: Missing theme module
 pub mod version;
 
@@ -21,3 +22,6 @@ pub use command::Command;
 pub use handler::CommandHandler;
 pub use plugins::{CommandPlugin, PluginManager}; // ✅ Plugin exports
 pub use registry::CommandRegistry;
+
+// ✅ SERVER EXPORTS
+pub use server::ServerCommand;

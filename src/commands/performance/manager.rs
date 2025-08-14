@@ -69,7 +69,11 @@ impl PerformanceManager {
     }
 
     fn analyze_performance(config: &ConfigData) -> PerformanceAnalysis {
-        let fps = 1000.0 / config.poll_rate as f64;
+        let fps = if config.poll_rate > 0 {
+            1000.0 / config.poll_rate as f64
+        } else {
+            0.0
+        };
 
         let poll_status = match config.poll_rate {
             0 => PerformanceStatus::Critical,
@@ -86,7 +90,11 @@ impl PerformanceManager {
                 is_active: false,
             }
         } else {
-            let chars_per_sec = 1000.0 / config.typewriter_delay as f64;
+            let chars_per_sec = if config.typewriter_delay > 0 {
+                1000.0 / config.typewriter_delay as f64
+            } else {
+                f64::INFINITY // Unendlich schnell wenn delay = 0
+            };
             TypewriterInfo {
                 chars_per_sec: Some(chars_per_sec),
                 is_active: true,

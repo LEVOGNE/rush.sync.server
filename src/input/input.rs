@@ -1,5 +1,5 @@
 // =====================================================
-// FILE: src/input/input.rs - COMPLETE FIXED (Single Widget Impl)
+// FILE: src/input/input.rs - COMPLETE FIXED mit t! Makro Support
 // =====================================================
 
 use crate::commands::handler::CommandHandler;
@@ -13,6 +13,7 @@ use crate::ui::cursor::{CursorKind, CursorType, UiCursor};
 use crate::ui::widget::{InputWidget, Widget};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Padding, Paragraph};
+use std::process::Command;
 use unicode_segmentation::UnicodeSegmentation;
 
 pub struct InputState {
@@ -64,18 +65,15 @@ impl InputState {
 
     pub fn validate_input(&self, input: &str) -> crate::core::error::Result<()> {
         if input.trim().is_empty() {
-            return Err(AppError::Validation(get_translation(
-                "system.input.empty",
-                &[],
-            )));
+            return Err(AppError::Validation(t!("system.input.empty")));
         }
         let grapheme_count = input.graphemes(true).count();
         let max_length = 1024;
 
         if grapheme_count > max_length {
-            return Err(AppError::Validation(get_translation(
+            return Err(AppError::Validation(t!(
                 "system.input.too_long",
-                &[&max_length.to_string()],
+                &max_length.to_string()
             )));
         }
         Ok(())
@@ -94,8 +92,8 @@ impl InputState {
         match action {
             KeyAction::Submit => {
                 self.waiting_for_exit_confirmation = false;
-                let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
-                let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
+                let confirm_short = t!("system.input.confirm.short");
+                let cancel_short = t!("system.input.cancel.short");
                 match self.content.trim().to_lowercase().as_str() {
                     input if input == confirm_short.to_lowercase() => {
                         self.content.clear();
@@ -103,17 +101,17 @@ impl InputState {
                     }
                     input if input == cancel_short.to_lowercase() => {
                         self.clear_input();
-                        Some(crate::i18n::get_translation("system.input.cancelled", &[]))
+                        Some(t!("system.input.cancelled"))
                     }
                     _ => {
                         self.clear_input();
-                        Some(crate::i18n::get_translation("system.input.cancelled", &[]))
+                        Some(t!("system.input.cancelled"))
                     }
                 }
             }
             KeyAction::InsertChar(c) => {
-                let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
-                let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
+                let confirm_short = t!("system.input.confirm.short");
+                let cancel_short = t!("system.input.cancel.short");
                 if c.to_lowercase().to_string() == confirm_short.to_lowercase()
                     || c.to_lowercase().to_string() == cancel_short.to_lowercase()
                 {
@@ -136,8 +134,8 @@ impl InputState {
         match action {
             KeyAction::Submit => {
                 self.waiting_for_restart_confirmation = false;
-                let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
-                let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
+                let confirm_short = t!("system.input.confirm.short");
+                let cancel_short = t!("system.input.cancel.short");
                 match self.content.trim().to_lowercase().as_str() {
                     input if input == confirm_short.to_lowercase() => {
                         self.content.clear();
@@ -145,17 +143,17 @@ impl InputState {
                     }
                     input if input == cancel_short.to_lowercase() => {
                         self.clear_input();
-                        Some(crate::i18n::get_translation("system.input.cancelled", &[]))
+                        Some(t!("system.input.cancelled"))
                     }
                     _ => {
                         self.clear_input();
-                        Some(crate::i18n::get_translation("system.input.cancelled", &[]))
+                        Some(t!("system.input.cancelled"))
                     }
                 }
             }
             KeyAction::InsertChar(c) => {
-                let confirm_short = crate::i18n::get_translation("system.input.confirm.short", &[]);
-                let cancel_short = crate::i18n::get_translation("system.input.cancel.short", &[]);
+                let confirm_short = t!("system.input.confirm.short");
+                let cancel_short = t!("system.input.cancel.short");
                 if c.to_lowercase().to_string() == confirm_short.to_lowercase()
                     || c.to_lowercase().to_string() == cancel_short.to_lowercase()
                 {
@@ -217,8 +215,167 @@ impl InputState {
     pub fn execute(&self) -> crate::core::error::Result<String> {
         Ok(format!(
             "__CONFIRM_EXIT__{}",
-            get_translation("system.input.confirm_exit", &[])
+            t!("system.input.confirm_exit")
         ))
+    }
+
+    // ✅ ECHTES CLIPBOARD LESEN (Mac/Linux/Windows)
+    fn read_clipboard(&self) -> Option<String> {
+        #[cfg(target_os = "macos")]
+        {
+            // Mac: pbpaste verwenden
+            match Command::new("pbpaste").output() {
+                Ok(output) => {
+                    let clipboard_text = String::from_utf8_lossy(&output.stdout).to_string();
+                    if !clipboard_text.trim().is_empty() {
+                        log::info!("📋 Mac clipboard read: {} chars", clipboard_text.len());
+                        Some(clipboard_text.trim_end_matches('\n').to_string())
+                    } else {
+                        log::debug!("📋 Mac clipboard empty");
+                        None
+                    }
+                }
+                Err(e) => {
+                    log::error!("📋 Failed to read Mac clipboard: {}", e);
+                    None
+                }
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            // Linux: xclip oder xsel verwenden
+            match Command::new("xclip")
+                .args(["-selection", "clipboard", "-o"])
+                .output()
+            {
+                Ok(output) => {
+                    let clipboard_text = String::from_utf8_lossy(&output.stdout).to_string();
+                    if !clipboard_text.trim().is_empty() {
+                        log::info!("📋 Linux clipboard read: {} chars", clipboard_text.len());
+                        Some(clipboard_text.trim_end_matches('\n').to_string())
+                    } else {
+                        None
+                    }
+                }
+                Err(_) => {
+                    // Fallback zu xsel
+                    match Command::new("xsel").args(["-b", "-o"]).output() {
+                        Ok(output) => {
+                            let clipboard_text =
+                                String::from_utf8_lossy(&output.stdout).to_string();
+                            Some(clipboard_text.trim_end_matches('\n').to_string())
+                        }
+                        Err(e) => {
+                            log::error!("📋 Failed to read Linux clipboard: {}", e);
+                            None
+                        }
+                    }
+                }
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            // Windows: PowerShell verwenden
+            match Command::new("powershell")
+                .args(["-Command", "Get-Clipboard"])
+                .output()
+            {
+                Ok(output) => {
+                    let clipboard_text = String::from_utf8_lossy(&output.stdout).to_string();
+                    if !clipboard_text.trim().is_empty() {
+                        log::info!("📋 Windows clipboard read: {} chars", clipboard_text.len());
+                        Some(clipboard_text.trim_end_matches('\n').to_string())
+                    } else {
+                        None
+                    }
+                }
+                Err(e) => {
+                    log::error!("📋 Failed to read Windows clipboard: {}", e);
+                    None
+                }
+            }
+        }
+
+        #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+        {
+            log::warn!("📋 Clipboard not supported on this platform");
+            None
+        }
+    }
+
+    // ✅ ECHTES CLIPBOARD SCHREIBEN
+    fn write_clipboard(&self, text: &str) -> bool {
+        #[cfg(target_os = "macos")]
+        {
+            match Command::new("pbcopy")
+                .stdin(std::process::Stdio::piped())
+                .spawn()
+                .and_then(|mut child| {
+                    use std::io::Write;
+                    if let Some(stdin) = child.stdin.as_mut() {
+                        stdin.write_all(text.as_bytes())?;
+                    }
+                    child.wait().map(|_| ())
+                }) {
+                Ok(_) => {
+                    log::info!("📋 Mac clipboard written: {} chars", text.len());
+                    true
+                }
+                Err(e) => {
+                    log::error!("📋 Failed to write Mac clipboard: {}", e);
+                    false
+                }
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            match Command::new("xclip")
+                .args(["-selection", "clipboard"])
+                .stdin(std::process::Stdio::piped())
+                .spawn()
+                .and_then(|mut child| {
+                    use std::io::Write;
+                    if let Some(stdin) = child.stdin.as_mut() {
+                        stdin.write_all(text.as_bytes())?;
+                    }
+                    child.wait().map(|_| ())
+                }) {
+                Ok(_) => {
+                    log::info!("📋 Linux clipboard written: {} chars", text.len());
+                    true
+                }
+                Err(e) => {
+                    log::error!("📋 Failed to write Linux clipboard: {}", e);
+                    false
+                }
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            match Command::new("powershell")
+                .args(["-Command", &format!("'{}' | Set-Clipboard", text)])
+                .output()
+            {
+                Ok(_) => {
+                    log::info!("📋 Windows clipboard written: {} chars", text.len());
+                    true
+                }
+                Err(e) => {
+                    log::error!("📋 Failed to write Windows clipboard: {}", e);
+                    false
+                }
+            }
+        }
+
+        #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+        {
+            log::warn!("📋 Clipboard write not supported on this platform");
+            false
+        }
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Option<String> {
@@ -239,6 +396,8 @@ impl InputState {
             return self.handle_restart_confirmation(action);
         }
 
+        // KOMPLETTER match action Block in handle_key_event:
+
         match action {
             KeyAction::Submit => {
                 // ✅ KORRIGIERTE DEBUG COMMANDS - alle im gleichen match Block
@@ -246,12 +405,12 @@ impl InputState {
                     "cursor-debug" => {
                         let debug_info = format!(
                             "🎯 CURSOR COLOR DEBUG:\n\
-                            📊 Theme: {}\n\
-                            🎨 Expected input_cursor_color: {}\n\
-                            🎨 Actual cursor color: {}\n\
-                            🎨 Actual fg color: {}\n\
-                            🔍 Cursor details:\n\
-                            {}",
+                    📊 Theme: {}\n\
+                    🎨 Expected input_cursor_color: {}\n\
+                    🎨 Actual cursor color: {}\n\
+                    🎨 Actual fg color: {}\n\
+                    📍 Cursor details:\n\
+                    {}",
                             self.config.current_theme_name,
                             self.config.theme.input_cursor_color.to_name(),
                             self.cursor.color.to_name(),
@@ -266,16 +425,16 @@ impl InputState {
                     "theme-config-debug" => {
                         let debug_info = format!(
                             "🔍 COMPLETE THEME CONFIG DEBUG:\n\
-                            📁 Current Theme: {}\n\
-                            🎨 input_cursor_color: {} ⬅️ CONFIG VALUE\n\
-                            🎨 input_cursor: {}\n\
-                            🎨 input_cursor_prefix: '{}'\n\
-                            🎨 output_cursor_color: {}\n\
-                            🎨 output_cursor: {}\n\
-                            \n🎯 ACTUAL CURSOR STATE:\n\
-                            🎨 cursor.color: {} ⬅️ ACTUAL VALUE\n\
-                            🎯 cursor.ctype: {:?}\n\
-                            👁️ cursor.visible: {}",
+                    📝 Current Theme: {}\n\
+                    🎨 input_cursor_color: {} ⬅️ CONFIG VALUE\n\
+                    🎨 input_cursor: {}\n\
+                    🎨 input_cursor_prefix: '{}'\n\
+                    🎨 output_cursor_color: {}\n\
+                    🎨 output_cursor: {}\n\
+                    \n🎯 ACTUAL CURSOR STATE:\n\
+                    🎨 cursor.color: {} ⬅️ ACTUAL VALUE\n\
+                    🎯 cursor.ctype: {:?}\n\
+                    👁️ cursor.visible: {}",
                             self.config.current_theme_name,
                             self.config.theme.input_cursor_color.to_name(),
                             self.config.theme.input_cursor,
@@ -335,15 +494,15 @@ impl InputState {
                         let (_, cursor_pos) = self.render_with_cursor();
                         let debug_info = format!(
                             "🔍 FULL CURSOR DEBUG:\n\
-                            🎨 Config Theme: '{}'\n\
-                            📝 input_cursor: '{}'\n\
-                            🎯 Parsed Type: {:?}\n\
-                            🔤 Symbol: '{}'\n\
-                            👁️ Is Visible: {}\n\
-                            📍 Position: {}\n\
-                            🖥️ Terminal Pos: {:?}\n\
-                            🔧 Match Block: {}\n\
-                            ⚡ Should Use Terminal: {}",
+                    🎨 Config Theme: '{}'\n\
+                    📍 input_cursor: '{}'\n\
+                    🎯 Parsed Type: {:?}\n\
+                    🔤 Symbol: '{}'\n\
+                    👁️ Is Visible: {}\n\
+                    📍 Position: {}\n\
+                    🖥️ Terminal Pos: {:?}\n\
+                    🔧 Match Block: {}\n\
+                    ⚡ Should Use Terminal: {}",
                             self.config.current_theme_name,
                             self.config.theme.input_cursor,
                             self.cursor.ctype,
@@ -362,10 +521,10 @@ impl InputState {
                     "term-test" => {
                         let info = format!(
                             "🖥️ TERMINAL INFO:\n\
-                            📺 Terminal: {:?}\n\
-                            🎯 Cursor Support: Testing...\n\
-                            💡 Try: ESC[?25h (show cursor)\n\
-                            💡 Or: Different terminal app",
+                    📺 Terminal: {:?}\n\
+                    🎯 Cursor Support: Testing...\n\
+                    💡 Try: ESC[?25h (show cursor)\n\
+                    💡 Or: Different terminal app",
                             std::env::var("TERM").unwrap_or_else(|_| "unknown".to_string())
                         );
                         self.content.clear();
@@ -425,6 +584,7 @@ impl InputState {
                     }
                 }
             }
+
             KeyAction::InsertChar(c) => {
                 if self.content.graphemes(true).count() < self.config.input_max_length {
                     let byte_pos = self.cursor.get_byte_position(&self.content);
@@ -434,6 +594,21 @@ impl InputState {
                 }
                 None
             }
+
+            // ✅ EINMALIGER ClearLine Handler
+            KeyAction::ClearLine => {
+                if !self.content.is_empty() {
+                    log::info!("🧹 Clearing input line ({} chars)", self.content.len());
+                    self.content.clear();
+                    self.cursor.reset_for_empty_text();
+                    self.history_manager.reset_position();
+                    Some("Input cleared".to_string())
+                } else {
+                    log::debug!("🧹 ClearLine called but input already empty");
+                    None
+                }
+            }
+
             KeyAction::MoveLeft => {
                 self.cursor.move_left();
                 None
@@ -450,6 +625,7 @@ impl InputState {
                 self.cursor.move_to_end();
                 None
             }
+
             KeyAction::Backspace => {
                 if self.content.is_empty() || self.cursor.get_position() == 0 {
                     return None;
@@ -469,6 +645,7 @@ impl InputState {
                 }
                 None
             }
+
             KeyAction::Delete => {
                 let text_length = self.content.graphemes(true).count();
                 if self.cursor.get_position() >= text_length || text_length == 0 {
@@ -488,15 +665,85 @@ impl InputState {
                 }
                 None
             }
-            KeyAction::ClearLine
-            | KeyAction::ScrollUp
+
+            // ✅ COPY/PASTE IMPLEMENTATION
+            KeyAction::CopySelection => {
+                if !self.content.is_empty() {
+                    if self.write_clipboard(&self.content) {
+                        log::info!("📋 Copied to clipboard: '{}'", self.content);
+                        Some(format!("📋 Copied: {}", self.content))
+                    } else {
+                        log::error!("📋 Failed to copy to clipboard");
+                        Some("❌ Copy failed".to_string())
+                    }
+                } else {
+                    log::debug!("📋 Copy called but nothing to copy");
+                    Some("❌ Nothing to copy".to_string())
+                }
+            }
+
+            // ✅ ECHTE PASTE-IMPLEMENTATION
+            KeyAction::PasteBuffer => {
+                log::debug!("📋 Paste requested");
+
+                if let Some(clipboard_text) = self.read_clipboard() {
+                    // Clipboard-Text validieren und einfügen
+                    let sanitized = clipboard_text
+                        .replace('\n', " ") // Newlines zu Spaces
+                        .replace('\r', "") // Carriage returns entfernen
+                        .chars()
+                        .filter(|c| !c.is_control() || *c == ' ') // Nur printable chars + spaces
+                        .collect::<String>();
+
+                    if !sanitized.is_empty() {
+                        // Check gegen max_length
+                        let available_space = self
+                            .config
+                            .input_max_length
+                            .saturating_sub(self.content.graphemes(true).count());
+
+                        let paste_text = if sanitized.graphemes(true).count() > available_space {
+                            // Kürzen wenn zu lang
+                            sanitized
+                                .graphemes(true)
+                                .take(available_space)
+                                .collect::<String>()
+                        } else {
+                            sanitized
+                        };
+
+                        if !paste_text.is_empty() {
+                            // An Cursor-Position einfügen
+                            let byte_pos = self.cursor.get_byte_position(&self.content);
+                            self.content.insert_str(byte_pos, &paste_text);
+
+                            // Cursor entsprechend bewegen
+                            let chars_added = paste_text.graphemes(true).count();
+                            self.cursor.update_text_length(&self.content);
+                            for _ in 0..chars_added {
+                                self.cursor.move_right();
+                            }
+
+                            log::info!("📋 Pasted {} chars at position {}", chars_added, byte_pos);
+                            Some(format!("📋 Pasted: {} chars", chars_added))
+                        } else {
+                            Some("❌ Nothing to paste (text too long)".to_string())
+                        }
+                    } else {
+                        Some("❌ Clipboard contains no valid text".to_string())
+                    }
+                } else {
+                    Some("❌ Clipboard empty or inaccessible".to_string())
+                }
+            }
+
+            // Alle anderen Actions als NoAction behandeln
+            KeyAction::ScrollUp
             | KeyAction::ScrollDown
             | KeyAction::PageUp
             | KeyAction::PageDown
             | KeyAction::Cancel
             | KeyAction::Quit
-            | KeyAction::CopySelection
-            | KeyAction::PasteBuffer
             | KeyAction::NoAction => None,
         }
     }
@@ -529,104 +776,8 @@ impl InputState {
     }
 
     // =====================================================
-    // ✅ RENDERING METHODS (IN InputState impl, NICHT Widget trait!)
+    // ✅ 2-LAYER RENDERING: Text separat, Cursor als Terminal-Cursor
     // =====================================================
-
-    /// ✅ FIXED: BLOCK-CURSOR mit korrekter Farbe
-    fn render_block_cursor(
-        &self,
-        spans: &mut Vec<Span<'static>>,
-        graphemes: &[&str],
-        cursor_pos: usize,
-        viewport_start: usize,
-        available_width: usize,
-    ) {
-        // Text vor Cursor
-        if cursor_pos > viewport_start {
-            let visible_text = graphemes[viewport_start..cursor_pos].join("");
-            if !visible_text.is_empty() {
-                spans.push(Span::styled(
-                    visible_text,
-                    Style::default().fg(self.config.theme.input_text.into()),
-                ));
-            }
-        }
-
-        // ✅ ZEICHEN AM CURSOR: Invertiert wenn sichtbar
-        let char_at_cursor = graphemes.get(cursor_pos).copied().unwrap_or(" ");
-        if self.cursor.is_visible() {
-            // Invertierung: Farben tauschen
-            spans.push(Span::styled(
-                char_at_cursor.to_string(),
-                Style::default()
-                    .fg(self.config.theme.input_bg.into()) // Hintergrund wird Vordergrund
-                    .bg(self.config.theme.input_cursor_color.into()), // ✅ FIXED: Richtige Cursor-Farbe
-            ));
-        } else {
-            // Normal: Kein Cursor sichtbar
-            spans.push(Span::styled(
-                char_at_cursor.to_string(),
-                Style::default().fg(self.config.theme.input_text.into()),
-            ));
-        }
-
-        // Text nach Cursor
-        let end_pos = (viewport_start + available_width).min(graphemes.len());
-        if cursor_pos + 1 < end_pos {
-            let remaining_text = graphemes[cursor_pos + 1..end_pos].join("");
-            if !remaining_text.is_empty() {
-                spans.push(Span::styled(
-                    remaining_text,
-                    Style::default().fg(self.config.theme.input_text.into()),
-                ));
-            }
-        }
-    }
-
-    /// ✅ NEUE METHODE: Symbol-Cursor (PIPE + UNDERSCORE)
-    fn render_symbol_cursor(
-        &self,
-        spans: &mut Vec<Span<'static>>,
-        graphemes: &[&str],
-        cursor_pos: usize,
-        viewport_start: usize,
-        available_width: usize,
-    ) {
-        let end_pos = (viewport_start + available_width).min(graphemes.len());
-
-        // Text VOR Cursor
-        if cursor_pos > viewport_start {
-            let visible_text = graphemes[viewport_start..cursor_pos].join("");
-            if !visible_text.is_empty() {
-                spans.push(Span::styled(
-                    visible_text,
-                    Style::default().fg(self.config.theme.input_text.into()),
-                ));
-            }
-        }
-
-        // ✅ CURSOR-SYMBOL mit korrekter Farbe (wenn sichtbar)
-        if self.cursor.is_visible() {
-            let cursor_symbol = self.cursor.get_symbol(); // "|" oder "_"
-            spans.push(Span::styled(
-                cursor_symbol.to_string(),
-                Style::default()
-                    .fg(self.config.theme.input_cursor_color.into()) // ✅ Richtige Farbe!
-                    .bg(self.config.theme.input_bg.into()),
-            ));
-        }
-
-        // Text NACH Cursor
-        if cursor_pos < end_pos {
-            let remaining_text = graphemes[cursor_pos..end_pos].join("");
-            if !remaining_text.is_empty() {
-                spans.push(Span::styled(
-                    remaining_text,
-                    Style::default().fg(self.config.theme.input_text.into()),
-                ));
-            }
-        }
-    }
 }
 
 // ✅ SINGLE Widget Implementation - NO DUPLICATES!
@@ -635,19 +786,15 @@ impl Widget for InputState {
         self.render_with_cursor().0
     }
 
-    /// ✅ FIXED: PIPE-Cursor auch als eigenes Symbol rendern!
+    /// ✅ 2-LAYER CURSOR: Text + Terminal-Cursor getrennt!
     fn render_with_cursor(&self) -> (Paragraph, Option<(u16, u16)>) {
+        use unicode_width::UnicodeWidthStr;
+
         let graphemes: Vec<&str> = self.content.graphemes(true).collect();
         let cursor_pos = self.cursor.get_position();
-        let mut spans = Vec::with_capacity(8);
 
-        // Prompt-Text aus Theme
         let prompt_display = self.config.theme.input_cursor_prefix.clone();
-        let prompt_width = prompt_display.graphemes(true).count();
-        spans.push(Span::styled(
-            prompt_display,
-            Style::default().fg(self.config.theme.input_cursor_color.into()),
-        ));
+        let prompt_width = prompt_display.width(); // ✅ visuelle Zellenbreite!
 
         let available_width = self
             .config
@@ -660,42 +807,60 @@ impl Widget for InputState {
             0
         };
 
-        match self.cursor.ctype {
-            CursorType::Block => {
-                // BLOCK: Invertiere das Zeichen unter dem Cursor
-                self.render_block_cursor(
-                    &mut spans,
-                    &graphemes,
-                    cursor_pos,
-                    viewport_start,
-                    available_width,
-                );
-                let paragraph = Paragraph::new(Line::from(spans)).block(
-                    Block::default()
-                        .padding(Padding::new(3, 1, 1, 1))
-                        .borders(Borders::NONE)
-                        .style(Style::default().bg(self.config.theme.input_bg.into())),
-                );
-                (paragraph, None)
-            }
-            CursorType::Pipe | CursorType::Underscore => {
-                // ✅ PIPE + UNDERSCORE: Beide als eigenes Symbol rendern!
-                self.render_symbol_cursor(
-                    &mut spans,
-                    &graphemes,
-                    cursor_pos,
-                    viewport_start,
-                    available_width,
-                );
-                let paragraph = Paragraph::new(Line::from(spans)).block(
-                    Block::default()
-                        .padding(Padding::new(3, 1, 1, 1))
-                        .borders(Borders::NONE)
-                        .style(Style::default().bg(self.config.theme.input_bg.into())),
-                );
-                (paragraph, None) // ✅ KEIN Terminal-Cursor mehr!
-            }
-        }
+        // ✅ LAYER 1: KOMPLETTER TEXT (inklusive Zeichen an Cursor-Position!)
+        let mut spans = Vec::new();
+        spans.push(Span::styled(
+            prompt_display,
+            Style::default().fg(self.config.theme.input_cursor_color.into()),
+        ));
+
+        // ✅ WICHTIG: GANZEN sichtbaren Text rendern (auch an Cursor-Position)
+        let end_pos = (viewport_start + available_width).min(graphemes.len());
+        let visible = graphemes
+            .get(viewport_start..end_pos)
+            .unwrap_or(&[])
+            .join("");
+        spans.push(Span::styled(
+            visible,
+            Style::default().fg(self.config.theme.input_text.into()),
+        ));
+
+        let paragraph = Paragraph::new(Line::from(spans)).block(
+            Block::default()
+                .padding(Padding::new(3, 1, 1, 1))
+                .borders(Borders::NONE)
+                .style(Style::default().bg(self.config.theme.input_bg.into())),
+        );
+
+        // ✅ LAYER 2: Cursor-Koordinate berechnen (OVERLAY über existierendem Text!)
+        let cursor_coord = if self.cursor.is_visible() {
+            // ✅ CRITICAL FIX: Cursor ÜBER das Zeichen an cursor_pos legen!
+            let visible_chars_before_cursor = if cursor_pos > viewport_start {
+                // Nur Zeichen VOR dem Cursor zählen (nicht bis cursor_pos!)
+                let chars_before = graphemes.get(viewport_start..cursor_pos).unwrap_or(&[]);
+                chars_before
+                    .iter()
+                    .map(|g| UnicodeWidthStr::width(*g))
+                    .sum::<usize>()
+            } else {
+                0
+            };
+
+            // ✅ WICHTIG: rel_x zeigt GENAU auf das Zeichen, wo der Cursor stehen soll
+            let rel_x = (prompt_width + visible_chars_before_cursor) as u16;
+            let rel_y = 0u16;
+
+            log::debug!(
+                "🎯 CURSOR OVERLAY: cursor_pos={}, viewport_start={}, chars_before={}, rel_x={}, prompt_width={}",
+                cursor_pos, viewport_start, visible_chars_before_cursor, rel_x, prompt_width
+            );
+
+            Some((rel_x, rel_y))
+        } else {
+            None // Cursor unsichtbar (Blinken)
+        };
+
+        (paragraph, cursor_coord)
     }
 
     fn handle_input(&mut self, key: KeyEvent) -> Option<String> {

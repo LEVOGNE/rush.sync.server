@@ -512,6 +512,14 @@ impl Viewport {
         )
     }
 
+    /// ✅ KURZE Debug-Info für Logs (ohne das | Symbol)
+    pub fn short_debug(&self) -> String {
+        format!(
+            "{}x{}, content: {}, offset: {}",
+            self.terminal_width, self.terminal_height, self.content_height, self.scroll_offset
+        )
+    }
+
     // ==================== PRIVATE HELPERS ====================
 
     fn max_scroll_offset(&self) -> usize {

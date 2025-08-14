@@ -31,7 +31,13 @@ impl Command for LanguageCommand {
     }
 
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
-        let service = self.service.lock().unwrap();
+        let service = match self.service.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                log::error!("Mutex poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        };
 
         match args.first() {
             None => Ok(service.show_status()),

@@ -7,6 +7,19 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // NEU: Panic handler für Terminal cleanup
+    std::panic::set_hook(Box::new(|panic_info| {
+        // Terminal zurücksetzen bei Panic
+        let _ = crossterm::terminal::disable_raw_mode();
+        let _ = crossterm::execute!(
+            std::io::stdout(),
+            crossterm::terminal::LeaveAlternateScreen,
+            crossterm::cursor::Show
+        );
+
+        // Original panic message ausgeben
+        eprintln!("Application panicked: {}", panic_info);
+    }));
     // Sprache initialisieren (vor dem Logging)
     match i18n::init().await {
         Ok(_) => {

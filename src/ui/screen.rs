@@ -1,5 +1,5 @@
 // =====================================================
-// FILE: src/ui/screen.rs - MIT TERMINAL-CURSOR-SUPPORT
+// FILE: src/ui/screen.rs - MIT 2-LAYER TERMINAL-CURSOR-SUPPORT
 // =====================================================
 
 use crate::commands::history::HistoryKeyboardHandler;
@@ -46,14 +46,11 @@ impl ScreenManager {
 
         let message_display = MessageDisplay::new(config, size.width, size.height);
 
+        // ✅ KURZE, SAUBERE LOG-NACHRICHT (ohne Debug-String)
         log::info!(
-            "{}",
-            t!(
-                "screen.initialized",
-                &size.width.to_string(),
-                &size.height.to_string(),
-                &message_display.viewport().debug_info()
-            )
+            "🖥️ Screen initialized: {}x{} terminal",
+            size.width,
+            size.height
         );
 
         let owned_config = config.clone();
@@ -460,7 +457,7 @@ impl ScreenManager {
         }
     }
 
-    /// ✅ RENDER mit korrektem Cursor-Hide/Show
+    /// ✅ 2-LAYER RENDER: Text + Terminal-Cursor getrennt!
     async fn render(&mut self) -> Result<()> {
         // ✅ 1. CURSOR-INFO VOR draw() holen
         let (input_widget, cursor_pos) = self.input_state.render_with_cursor();
@@ -563,20 +560,37 @@ impl ScreenManager {
                 cursor_state,
             );
 
+            // ✅ LAYER 1: Widgets rendern
             frame.render_widget(output_widget, output_area.as_rect());
             frame.render_widget(input_widget, input_area.as_rect());
 
-            // ✅ CURSOR POSITION setzen (cursor_pos ist hier verfügbar durch Closure-Capture)
-            if let Some((cursor_x, cursor_y)) = cursor_pos {
-                let absolute_x = input_area.x + cursor_x;
-                let absolute_y = input_area.y + cursor_y;
-                frame.set_cursor(absolute_x, absolute_y);
+            // ✅ ZURÜCK ZU TERMINAL-CURSOR: Echter separater Layer!
+            if let Some((rel_x, rel_y)) = cursor_pos {
+                // Padding berücksichtigen: links=3, oben=1
+                let padding_left = 3u16;
+                let padding_top = 1u16;
+
+                let abs_x = input_area.x + padding_left + rel_x;
+                let abs_y = input_area.y + padding_top + rel_y;
+
+                log::debug!(
+                    "🎯 TERMINAL CURSOR: abs_pos=({}, {}), input_area=({}, {}), rel_pos=({}, {})",
+                    abs_x,
+                    abs_y,
+                    input_area.x,
+                    input_area.y,
+                    rel_x,
+                    rel_y
+                );
+
+                // ✅ ECHTER TERMINAL-CURSOR: Separate Ebene über dem Text!
+                frame.set_cursor(abs_x, abs_y);
             }
         })?;
 
-        // ✅ 2. CURSOR-STIL setzen (NACH dem draw!)
+        // ✅ TERMINAL-CURSOR-STIL UND -FARBE setzen (nach dem draw!)
         if cursor_pos.is_some() {
-            // Cursor ist sichtbar → Cursor-Stil setzen
+            // Cursor ist sichtbar → Cursor-Stil UND -Farbe setzen
             let cursor_commands = self.get_terminal_cursor_commands();
             for command in cursor_commands {
                 execute!(std::io::stdout(), crossterm::style::Print(command))?;
@@ -592,30 +606,124 @@ impl ScreenManager {
         Ok(())
     }
 
-    /// ✅ BEREINIGTE Terminal-Cursor-Kommandos
-    fn get_terminal_cursor_commands(&self) -> Vec<&'static str> {
-        match self.config.theme.input_cursor.to_uppercase().as_str() {
-            "PIPE" => vec![
-                "\x1B[6 q",  // Blinking bar (pipe)
-                "\x1B[?25h", // Show cursor
-            ],
-            "UNDERSCORE" => vec![
-                "\x1B[4 q",  // Blinking underscore
-                "\x1B[?25h", // Show cursor
-            ],
-            "BLOCK" => vec![
-                "\x1B[2 q",  // Blinking block
-                "\x1B[?25h", // Show cursor
-            ],
-            _ => vec![
-                "\x1B[6 q",  // Default: Blinking bar
-                "\x1B[?25h", // Show cursor
-            ],
-        }
+    /// ✅ ERWEITERTE Terminal-Cursor-Kommandos mit DEBUGGING
+    fn get_terminal_cursor_commands(&self) -> Vec<String> {
+        let mut commands = Vec::new();
+
+        // ✅ 1. CURSOR-FORM setzen
+        let form_command = match self.config.theme.input_cursor.to_uppercase().as_str() {
+            "PIPE" => "\x1B[6 q",       // Blinking bar (pipe)
+            "UNDERSCORE" => "\x1B[4 q", // Blinking underscore
+            "BLOCK" => "\x1B[2 q",      // Blinking block
+            _ => "\x1B[6 q",            // Default: Blinking bar
+        };
+        commands.push(form_command.to_string());
+
+        // ✅ 2. CURSOR-FARBE setzen (mehrere Versuche)
+        let cursor_color = &self.config.theme.input_cursor_color;
+        let color_commands = self.get_all_cursor_color_sequences(cursor_color);
+        commands.extend(color_commands);
+
+        // ✅ 3. CURSOR anzeigen
+        commands.push("\x1B[?25h".to_string()); // Show cursor
+
+        // ✅ NUR EINE ZEILE LOGGING (statt 8+ Zeilen)
+        log::debug!(
+            "🎨 CURSOR: form='{}', color='{}' → {} commands sent",
+            self.config.theme.input_cursor,
+            cursor_color.to_name(),
+            commands.len()
+        );
+
+        commands
+    }
+
+    /// ✅ ALLE MÖGLICHEN Cursor-Farb-Sequenzen senden (Shotgun-Approach)
+    fn get_all_cursor_color_sequences(&self, color: &AppColor) -> Vec<String> {
+        let mut sequences = Vec::new();
+        let (r, g, b) = self.get_rgb_values(color);
+
+        // ✅ 1. iTerm2 / Terminal.app (macOS) - OSC Pl
+        sequences.push(format!("\x1B]Pl{:02x}{:02x}{:02x}\x1B\\", r, g, b));
+
+        // ✅ 2. Xterm-style - OSC 12
+        sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x07", r, g, b));
+
+        // ✅ 3. Alternative Xterm - OSC 12 mit BEL
+        sequences.push(format!(
+            "\x1B]12;rgb:{:02x}{:02x}/{:02x}{:02x}/{:02x}{:02x}\x07",
+            r, r, g, g, b, b
+        ));
+
+        // ✅ 4. Konsole (KDE) - OSC 50
+        sequences.push(format!(
+            "\x1B]50;CursorShape=1;CursorColor=#{:02x}{:02x}{:02x}\x07",
+            r, g, b
+        ));
+
+        // ✅ 5. VTE-based terminals (Gnome Terminal, etc.)
+        sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x1B\\", r, g, b));
+
+        // ✅ 6. Tmux support
+        sequences.push(format!(
+            "\x1BPtmux;\x1B\x1B]12;#{:02x}{:02x}{:02x}\x07\x1B\\",
+            r, g, b
+        ));
+
+        // ✅ NUR DEBUG-LEVEL LOGGING (nicht INFO)
+        log::debug!(
+            "🌈 Color sequences for '{}' (RGB: {}, {}, {}) - {} variants",
+            color.to_name(),
+            r,
+            g,
+            b,
+            sequences.len()
+        );
+
+        sequences
+    }
+
+    /// ✅ PRÄZISE RGB-Werte aus AppColor
+    fn get_rgb_values(&self, color: &AppColor) -> (u8, u8, u8) {
+        let rgb = match color.to_name() {
+            "black" => (0, 0, 0),
+            "red" => (255, 0, 0),
+            "green" => (0, 255, 0),
+            "yellow" => (255, 255, 0), // ✅ GELB für deinen Test!
+            "blue" => (0, 0, 255),
+            "magenta" => (255, 0, 255),
+            "cyan" => (0, 255, 255),
+            "white" => (255, 255, 255),
+            "gray" => (128, 128, 128),
+            "darkgray" => (64, 64, 64),
+            "lightred" => (255, 128, 128),
+            "lightgreen" => (128, 255, 128),
+            "lightyellow" => (255, 255, 128),
+            "lightblue" => (128, 128, 255),
+            "lightmagenta" => (255, 128, 255),
+            "lightcyan" => (128, 255, 255),
+            _ => (255, 255, 255), // Default: white
+        };
+
+        log::trace!(
+            "🎨 COLOR MAPPING: '{}' → RGB({}, {}, {})",
+            color.to_name(),
+            rgb.0,
+            rgb.1,
+            rgb.2
+        );
+        rgb
     }
 
     async fn perform_restart(&mut self) -> Result<()> {
         log::info!("{}", t!("screen.restart.start"));
+
+        // ✅ CURSOR-STIL zurücksetzen vor Cleanup
+        execute!(
+            std::io::stdout(),
+            crossterm::style::Print("\x1B[0 q"), // Default cursor
+            crossterm::style::Print("\x1B[?25h")  // Show cursor
+        )?;
 
         self.terminal_mgr.cleanup().await?;
         self.terminal_mgr = TerminalManager::new().await?;

@@ -6,12 +6,54 @@
 ![Crates.io](https://img.shields.io/crates/v/rush-sync-server)
 
 > 🛠 **NOTE**: Version `0.2.2` on crates.io has a critical bug in language file loading (`*.json` not embedded correctly).
-> Please use **version `0.2.6+`** for a stable release!
+> Please use **version `0.2.7+`** for a stable release!
 
 **Rush Sync Server** is a modern, modular terminal application written in **Rust**, featuring an interactive TUI, internationalized interface, color-coded logging, and flexible configuration.
 Perfect for developers who need a **customizable, scriptable terminal UI**.
 
 ---
+
+## 🆕 What's New in v0.2.7
+
+- **🔤 Full Keyboard Input Support**
+
+  - **Shift + letters/symbols** now work correctly (including `!`, `@`, `#`, etc.)
+  - **German umlauts** (`Ä`, `Ö`, `Ü`) are fully supported
+  - **Unicode & emoji** support (🚀, 💻, etc.)
+
+- **⌨️ Improved macOS Shortcuts**
+
+  - `Cmd+A` → Jump to start
+  - `Cmd+E` → Jump to end
+  - `Cmd+U` → Delete line
+  - `Cmd+C` / `Cmd+V` → Copy/Paste _(prepared)_
+  - `Cmd+←` / `Cmd+→` → Jump to start/end
+
+- **🖥️ Windows/Linux Shortcuts**
+
+  - `Ctrl+A` → Jump to start
+  - `Ctrl+E` → Jump to end
+  - `Ctrl+U` → Delete line
+  - `Ctrl+C` / `Ctrl+V` → Copy/Paste _(prepared)_
+  - `Ctrl+←` / `Ctrl+→` → Jump to start/end
+
+- **🖱️ Overhauled Cursor System**
+
+  - PIPE cursor now renders its own symbol with **full color control** from TOML themes
+  - Terminal cursor and application cursor are now fully separated for better control
+  - Terminal reset behavior improved
+
+- **⚙️ Code & Performance Improvements**
+  - `.rss/rush.toml` fully reorganized and sorted for better readability
+  - All `cargo clippy` and `cargo check` warnings eliminated – **zero-warning** codebase
+  - Replaced redundant `format!` calls with `.to_string()` (3 instances)
+  - Direct struct field initialization instead of later assignment
+  - Removed unnecessary `Clone` in `ServerManager` (direct mutation instead)
+  - Logger buffer limit set to **1000 entries**
+  - Division-by-zero protection added
+  - Proper Actix server handle management
+  - `Mutex` poisoned-state recovery
+  - Panic handler for proper terminal cleanup
 
 ## 🆕 What's New in v0.2.6
 
@@ -35,7 +77,7 @@ Perfect for developers who need a **customizable, scriptable terminal UI**.
 
 ## 🚀 Installation & Usage
 
-### 📦 **As Binary (End Users) - Version 0.2.6+**
+### 📦 **As Binary (End Users) - Version 0.2.7+**
 
 ```bash
 # Install directly from crates.io
@@ -45,7 +87,7 @@ cargo install rush-sync-server
 rush-sync
 ```
 
-### 📚 **As Library (Developers) - Version 0.2.6+**
+### 📚 **As Library (Developers) - Version 0.2.7+**
 
 Add to your `Cargo.toml`:
 
@@ -299,7 +341,7 @@ input_cursor_color = "White"
 
 ### 🎨 Theme Configuration Details
 
-**New in v0.2.6:**
+**New in v0.2.7:**
 
 - **Perfect cursor color support** - All cursor colors now work correctly via TOML
 - **Clean theme structure** - Organized output-first, then input configuration
@@ -582,6 +624,14 @@ async fn main() -> Result<()> {
 
 ## 📊 **Version History**
 
+### **v0.2.7 (Latest) - Keyboard & Stability Update**
+
+- ✅ **Full keyboard input support** – Shift + symbols, German umlauts, Unicode & emoji
+- ✅ **Improved macOS & Windows/Linux shortcuts** – Cmd/Ctrl navigation, delete, copy/paste (prepared)
+- ✅ **Overhauled cursor system** – PIPE cursor with full TOML color control, terminal/app separation
+- ✅ **Terminal reset improvements** for cleaner exit and restart behavior
+- ✅ **Code & performance optimizations** – zero warnings, `.rss/rush.toml` reorganized, logger buffer limit, division-by-zero protection, Actix handle fixes
+
 ### **v0.2.6 (Latest) - Cursor & Quality Update**
 
 - ✅ **Fixed PIPE cursor rendering** with full color support from TOML
@@ -642,7 +692,7 @@ This project is distributed under a **dual license**:
 
 ## 🏆 Code Quality
 
-**Rush Sync Server v0.2.6** maintains the highest code quality standards:
+**Rush Sync Server v0.2.7** maintains the highest code quality standards:
 
 - ✅ **Zero Clippy Warnings** - Complete compliance with Rust best practices
 - ✅ **Zero Cargo Check Errors** - All code compiles cleanly

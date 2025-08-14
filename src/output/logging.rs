@@ -5,6 +5,9 @@ use log::{Level, Log, Metadata, Record};
 use once_cell::sync::Lazy;
 use std::sync::{Arc, Mutex};
 
+const MAX_LOG_BUFFER: usize = 1000;
+const DRAIN_COUNT: usize = 100;
+
 static LOG_MESSAGES: Lazy<Arc<Mutex<Vec<LogMessage>>>> =
     Lazy::new(|| Arc::new(Mutex::new(Vec::new())));
 
@@ -35,17 +38,48 @@ pub struct AppLogger;
 
 impl AppLogger {
     pub fn log(level: Level, message: impl Into<String>) {
-        let mut logs = LOG_MESSAGES.lock().unwrap();
+        let mut logs = LOG_MESSAGES.lock().unwrap_or_else(|poisoned| {
+            log::warn!("Recovered from poisoned mutex");
+            poisoned.into_inner()
+        });
+
+        // Buffer-Größe begrenzen
+        if logs.len() >= MAX_LOG_BUFFER {
+            // Entferne die ältesten 100 Einträge
+            logs.drain(0..DRAIN_COUNT);
+
+            // Füge Warnung hinzu dass Logs gedroppt wurden
+            logs.push(LogMessage::new(
+                Some(Level::Warn),
+                format!(
+                    "[SYSTEM] Dropped {} old log messages to prevent memory overflow",
+                    DRAIN_COUNT
+                ),
+            ));
+        }
+
         logs.push(LogMessage::new(Some(level), message));
     }
 
     pub fn log_plain(message: impl Into<String>) {
-        let mut logs = LOG_MESSAGES.lock().unwrap();
+        let mut logs = LOG_MESSAGES.lock().unwrap_or_else(|poisoned| {
+            log::warn!("Recovered from poisoned mutex");
+            poisoned.into_inner()
+        });
+
+        // Buffer-Größe begrenzen
+        if logs.len() >= MAX_LOG_BUFFER {
+            logs.drain(0..DRAIN_COUNT);
+        }
+
         logs.push(LogMessage::new(None, message));
     }
 
     pub fn get_messages() -> Result<Vec<LogMessage>> {
-        let mut logs = LOG_MESSAGES.lock().unwrap();
+        let mut logs = LOG_MESSAGES.lock().unwrap_or_else(|poisoned| {
+            log::warn!("Recovered from poisoned mutex");
+            poisoned.into_inner()
+        });
         let msgs = logs.clone();
         logs.clear();
         Ok(msgs)
@@ -61,9 +95,8 @@ impl Log for GlobalLogger {
     }
 
     fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
-            AppLogger::log(record.level(), record.args().to_string());
-        }
+        // 🚨 Nachrichten werden nur bei get_messages() geleert
+        AppLogger::log(record.level(), record.args().to_string());
     }
 
     fn flush(&self) {}

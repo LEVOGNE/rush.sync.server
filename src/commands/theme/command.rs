@@ -17,7 +17,10 @@ impl ThemeCommand {
     }
 
     fn get_or_init_theme_system(&self) -> Result<std::sync::MutexGuard<Option<ThemeSystem>>> {
-        let mut guard = self.theme_system.lock().unwrap();
+        let mut guard = self.theme_system.lock().unwrap_or_else(|poisoned| {
+            log::warn!("Recovered from poisoned mutex");
+            poisoned.into_inner()
+        });
         if guard.is_none() {
             *guard = Some(ThemeSystem::load()?);
         }
