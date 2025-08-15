@@ -1,17 +1,13 @@
-// =====================================================
-// FILE: src/ui/screen.rs - MIT 2-LAYER TERMINAL-CURSOR-SUPPORT
-// =====================================================
-
 use crate::commands::history::HistoryKeyboardHandler;
 use crate::commands::lang::LanguageService;
 use crate::commands::theme::ThemeSystem;
 use crate::core::prelude::*;
 use crate::input::{
-    input::InputState,
     keyboard::{KeyAction, KeyboardManager},
+    state::InputState,
 };
 use crate::input::{AppEvent, EventHandler};
-use crate::output::{display::MessageDisplay, logging::AppLogger};
+use crate::output::display::MessageDisplay;
 use crate::ui::{
     color::AppColor, terminal::TerminalManager, viewport::ScrollDirection, widget::Widget,
 };
@@ -45,14 +41,6 @@ impl ScreenManager {
         let size = terminal.size()?;
 
         let message_display = MessageDisplay::new(config, size.width, size.height);
-
-        // ✅ KURZE, SAUBERE LOG-NACHRICHT (ohne Debug-String)
-        log::info!(
-            "🖥️ Screen initialized: {}x{} terminal",
-            size.width,
-            size.height
-        );
-
         let owned_config = config.clone();
 
         Ok(Self {
@@ -86,7 +74,6 @@ impl ScreenManager {
                 }
             }
 
-            self.process_pending_logs().await;
             self.render().await?;
         };
 
@@ -140,7 +127,17 @@ impl ScreenManager {
                 return Ok(false);
             }
             KeyAction::Submit => {
+                // ✅ DEBUG: Log vor handle_input
+                log::info!("🖥️ SCREEN: About to call input_state.handle_input()");
+
                 if let Some(new_input) = self.input_state.handle_input(key) {
+                    // ✅ DEBUG: Was kommt zurück?
+                    log::info!(
+                        "🖥️ SCREEN: input_state returned {} chars: '{}'",
+                        new_input.len(),
+                        &new_input[..new_input.len().min(100)]
+                    );
+
                     let input_command = new_input.trim().to_lowercase();
                     let is_performance_command = input_command == "perf"
                         || input_command == "performance"
@@ -148,37 +145,39 @@ impl ScreenManager {
 
                     if let Some(processed) = LanguageService::process_save_message(&new_input).await
                     {
+                        log::info!("🖥️ SCREEN: LanguageService processed message");
                         self.message_display.add_message(processed);
                         return Ok(false);
                     }
 
                     if let Some(processed) = self.process_live_theme_update(&new_input).await {
+                        log::info!("🖥️ SCREEN: ThemeUpdate processed message");
                         self.message_display.add_message(processed);
                         return Ok(false);
                     }
 
+                    // ✅ DEBUG: Normal message add
+                    log::info!(
+                        "🖥️ SCREEN: Adding normal message to display: '{}'",
+                        &new_input[..new_input.len().min(100)]
+                    );
+
                     self.message_display.add_message(new_input.clone());
 
                     if is_performance_command {
-                        log::debug!(
-                            "{}",
-                            t!("screen.performance_command_detected", &input_command)
-                        );
-
+                        log::info!("🖥️ SCREEN: Performance command detected, forcing auto-scroll");
                         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
                         self.message_display.viewport_mut().force_auto_scroll();
-
-                        log::debug!(
-                            "{}",
-                            t!("screen.performance_command_viewport_reset_applied")
-                        );
                     }
 
                     if new_input.starts_with("__CLEAR__") {
+                        log::info!("🖥️ SCREEN: Clearing messages");
                         self.message_display.clear_messages();
                     } else if new_input.starts_with("__EXIT__") {
+                        log::info!("🖥️ SCREEN: Exit requested");
                         return Ok(true);
                     } else if new_input.starts_with("__RESTART_WITH_MSG__") {
+                        log::info!("🖥️ SCREEN: Restart with message requested");
                         let feedback_msg = new_input
                             .replace("__RESTART_WITH_MSG__", "")
                             .trim()
@@ -196,11 +195,15 @@ impl ScreenManager {
                     } else if new_input.starts_with("__RESTART_FORCE__")
                         || new_input == "__RESTART__"
                     {
+                        log::info!("🖥️ SCREEN: Restart requested");
                         if let Err(e) = self.perform_restart().await {
                             self.message_display
                                 .add_message(format!("Restart failed: {}", e));
                         }
                     }
+                } else {
+                    // ✅ DEBUG: Kein Input zurückgegeben
+                    log::info!("🖥️ SCREEN: input_state.handle_input() returned None");
                 }
             }
             KeyAction::Quit => return Ok(true),
@@ -351,32 +354,8 @@ impl ScreenManager {
     ) -> Result<crate::core::config::Theme> {
         use crate::ui::color::AppColor;
 
-        log::debug!(
-            "🔧 create_theme_from_definition STARTING:\n  \
-            input_cursor_prefix: '{}'\n  \
-            input_cursor_color: '{}'\n  \
-            input_cursor: '{}'\n  \
-            output_cursor: '{}'\n  \
-            output_cursor_color: '{}'",
-            theme_def.input_cursor_prefix,
-            theme_def.input_cursor_color,
-            theme_def.input_cursor,
-            theme_def.output_cursor,
-            theme_def.output_cursor_color
-        );
-
         let input_cursor_color = AppColor::from_string(&theme_def.input_cursor_color)?;
         let output_cursor_color = AppColor::from_string(&theme_def.output_cursor_color)?;
-
-        log::debug!(
-            "🎨 COLOR CONVERSION COMPLETE:\n  \
-            input_cursor_color: '{}' → '{}'\n  \
-            output_cursor_color: '{}' → '{}'",
-            theme_def.input_cursor_color,
-            input_cursor_color.to_name(),
-            theme_def.output_cursor_color,
-            output_cursor_color.to_name()
-        );
 
         Ok(crate::core::config::Theme {
             input_text: AppColor::from_string(&theme_def.input_text)?,
@@ -439,22 +418,6 @@ impl ScreenManager {
             input_state.update_cursor_blink();
         }
         Ok(())
-    }
-
-    async fn process_pending_logs(&mut self) {
-        match AppLogger::get_messages() {
-            Ok(messages) => {
-                for log_msg in messages {
-                    self.message_display.add_message(log_msg.formatted());
-                }
-            }
-            Err(e) => {
-                self.message_display.add_message(
-                    AppColor::from_any("error")
-                        .format_message("ERROR", &format!("Logging-Fehler: {:?}", e)),
-                );
-            }
-        }
     }
 
     /// ✅ 2-LAYER RENDER: Text + Terminal-Cursor getrennt!
@@ -573,16 +536,6 @@ impl ScreenManager {
                 let abs_x = input_area.x + padding_left + rel_x;
                 let abs_y = input_area.y + padding_top + rel_y;
 
-                log::debug!(
-                    "🎯 TERMINAL CURSOR: abs_pos=({}, {}), input_area=({}, {}), rel_pos=({}, {})",
-                    abs_x,
-                    abs_y,
-                    input_area.x,
-                    input_area.y,
-                    rel_x,
-                    rel_y
-                );
-
                 // ✅ ECHTER TERMINAL-CURSOR: Separate Ebene über dem Text!
                 frame.set_cursor(abs_x, abs_y);
             }
@@ -610,7 +563,7 @@ impl ScreenManager {
     fn get_terminal_cursor_commands(&self) -> Vec<String> {
         let mut commands = Vec::new();
 
-        // ✅ 1. CURSOR-FORM setzen
+        // ✅ 1. CURSOR-FORM setzen (universal)
         let form_command = match self.config.theme.input_cursor.to_uppercase().as_str() {
             "PIPE" => "\x1B[6 q",       // Blinking bar (pipe)
             "UNDERSCORE" => "\x1B[4 q", // Blinking underscore
@@ -619,21 +572,13 @@ impl ScreenManager {
         };
         commands.push(form_command.to_string());
 
-        // ✅ 2. CURSOR-FARBE setzen (mehrere Versuche)
+        // ✅ 2. CURSOR-FARBE setzen (terminal-spezifisch)
         let cursor_color = &self.config.theme.input_cursor_color;
         let color_commands = self.get_all_cursor_color_sequences(cursor_color);
         commands.extend(color_commands);
 
-        // ✅ 3. CURSOR anzeigen
+        // ✅ 3. CURSOR anzeigen (universal)
         commands.push("\x1B[?25h".to_string()); // Show cursor
-
-        // ✅ NUR EINE ZEILE LOGGING (statt 8+ Zeilen)
-        log::debug!(
-            "🎨 CURSOR: form='{}', color='{}' → {} commands sent",
-            self.config.theme.input_cursor,
-            cursor_color.to_name(),
-            commands.len()
-        );
 
         commands
     }
@@ -643,41 +588,82 @@ impl ScreenManager {
         let mut sequences = Vec::new();
         let (r, g, b) = self.get_rgb_values(color);
 
-        // ✅ 1. iTerm2 / Terminal.app (macOS) - OSC Pl
-        sequences.push(format!("\x1B]Pl{:02x}{:02x}{:02x}\x1B\\", r, g, b));
+        // ✅ TERMINAL-ERKENNUNG
+        let term_program = std::env::var("TERM_PROGRAM").unwrap_or_default();
+        let term = std::env::var("TERM").unwrap_or_default();
+        let tmux = std::env::var("TMUX").is_ok();
 
-        // ✅ 2. Xterm-style - OSC 12
-        sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x07", r, g, b));
+        log::info!("🖥️ TERMINAL DETECTION:");
+        log::info!("   TERM_PROGRAM: '{}'", term_program);
+        log::info!("   TERM: '{}'", term);
+        log::info!("   TMUX: {}", tmux);
 
-        // ✅ 3. Alternative Xterm - OSC 12 mit BEL
-        sequences.push(format!(
-            "\x1B]12;rgb:{:02x}{:02x}/{:02x}{:02x}/{:02x}{:02x}\x07",
-            r, r, g, g, b, b
-        ));
+        // ✅ TMUX: Nur wenn wirklich in tmux
+        if tmux {
+            log::info!("🟢 TMUX detected - using tmux cursor sequences");
+            sequences.push(format!(
+                "\x1BPtmux;\x1B\x1B]12;#{:02x}{:02x}{:02x}\x07\x1B\\",
+                r, g, b
+            ));
+            return sequences; // Nur tmux-Sequenz senden
+        }
 
-        // ✅ 4. Konsole (KDE) - OSC 50
-        sequences.push(format!(
-            "\x1B]50;CursorShape=1;CursorColor=#{:02x}{:02x}{:02x}\x07",
-            r, g, b
-        ));
+        // ✅ MACOS TERMINAL: Apple Terminal.app
+        if term_program == "Apple_Terminal" {
+            log::info!("🍎 Apple Terminal detected - using macOS sequences");
+            // Standard Xterm-Sequenz für macOS Terminal
+            sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x07", r, g, b));
+            return sequences;
+        }
 
-        // ✅ 5. VTE-based terminals (Gnome Terminal, etc.)
-        sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x1B\\", r, g, b));
+        // ✅ ITERM2: iTerm2
+        if term_program.starts_with("iTerm") {
+            log::info!("🟣 iTerm2 detected - using iTerm2 sequences");
+            // iTerm2 spezifische Sequenz
+            sequences.push(format!("\x1B]Pl{:02x}{:02x}{:02x}\x1B\\", r, g, b));
+            // Backup: Standard Xterm
+            sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x07", r, g, b));
+            return sequences;
+        }
 
-        // ✅ 6. Tmux support
-        sequences.push(format!(
-            "\x1BPtmux;\x1B\x1B]12;#{:02x}{:02x}{:02x}\x07\x1B\\",
-            r, g, b
-        ));
+        // ✅ VSCODE TERMINAL: Visual Studio Code
+        if term_program == "vscode" || std::env::var("VSCODE_INJECTION").is_ok() {
+            log::info!("💙 VSCode Terminal detected - using standard sequences");
+            sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x07", r, g, b));
+            return sequences;
+        }
 
-        // ✅ NUR DEBUG-LEVEL LOGGING (nicht INFO)
-        log::debug!(
-            "🌈 Color sequences for '{}' (RGB: {}, {}, {}) - {} variants",
-            color.to_name(),
-            r,
-            g,
-            b,
-            sequences.len()
+        // ✅ KONSOLE: KDE Konsole
+        if term_program.contains("konsole") || term.contains("konsole") {
+            log::info!("🔵 Konsole detected - using KDE sequences");
+            sequences.push(format!(
+                "\x1B]50;CursorShape=1;CursorColor=#{:02x}{:02x}{:02x}\x07",
+                r, g, b
+            ));
+        }
+
+        // ✅ GNOME TERMINAL: VTE-based (Gnome Terminal, etc.)
+        if std::env::var("VTE_VERSION").is_ok() {
+            log::info!("🟠 VTE Terminal detected - using VTE sequences");
+            sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x1B\\", r, g, b));
+        }
+
+        // ✅ FALLBACK: Standard Xterm-Sequenz (funktioniert meist)
+        if sequences.is_empty() {
+            log::info!("⚪ Unknown terminal - using standard Xterm sequences");
+            sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x07", r, g, b));
+
+            // Alternative mit RGB-Format
+            sequences.push(format!(
+                "\x1B]12;rgb:{:02x}{:02x}/{:02x}{:02x}/{:02x}{:02x}\x07",
+                r, r, g, g, b, b
+            ));
+        }
+
+        log::info!(
+            "✅ Sending {} cursor sequences for terminal '{}'",
+            sequences.len(),
+            term_program
         );
 
         sequences

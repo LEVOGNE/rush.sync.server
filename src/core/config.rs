@@ -331,20 +331,6 @@ impl Config {
 impl Theme {
     // ✅ KOMPLETT BEREINIGTE Theme-Konvertierung OHNE Legacy-Fallbacks
     fn from_config(theme_def: &ThemeDefinitionConfig) -> Result<Self> {
-        log::debug!(
-            "🔧 Theme::from_config - DIREKTE KONVERTIERUNG:\n  \
-            input_cursor_prefix: '{}'\n  \
-            input_cursor_color: '{}'\n  \
-            input_cursor: '{}'\n  \
-            output_cursor: '{}'\n  \
-            output_cursor_color: '{}'",
-            theme_def.input_cursor_prefix,
-            theme_def.input_cursor_color,
-            theme_def.input_cursor,
-            theme_def.output_cursor,
-            theme_def.output_cursor_color
-        );
-
         Ok(Self {
             input_text: AppColor::from_string(&theme_def.input_text)?,
             input_bg: AppColor::from_string(&theme_def.input_bg)?,

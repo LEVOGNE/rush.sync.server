@@ -283,10 +283,6 @@
   "terminal.cleanup.done.display_text": "BEREIT",
   "terminal.cleanup.done.category": "info",
 
-  "screen.initialized.text": "🖥️ Bildschirm initialisiert: {0}x{1}, Viewport: {2}",
-  "screen.initialized.display_text": "INFO",
-  "screen.initialized.category": "info",
-
   "screen.resize_event.text": "🔄 RESIZE EVENT: {0}x{1} → {2}x{3}",
   "screen.resize_event.display_text": "INFO",
   "screen.resize_event.category": "info",

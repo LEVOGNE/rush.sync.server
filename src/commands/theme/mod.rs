@@ -192,11 +192,6 @@ impl ThemeSystem {
             if path.exists() {
                 if let Ok(content) = std::fs::read_to_string(path) {
                     if let Ok(themes) = Self::parse_themes_from_toml(&content) {
-                        log::debug!(
-                            "✅ {} TOML-Themes geladen aus: {}",
-                            themes.len(),
-                            themes.keys().cloned().collect::<Vec<String>>().join(", ")
-                        );
                         return Ok(themes);
                     }
                 }

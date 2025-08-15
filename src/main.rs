@@ -18,7 +18,8 @@ async fn main() -> Result<()> {
         );
 
         // Original panic message ausgeben
-        eprintln!("Application panicked: {}", panic_info);
+        //eprintln!("Application panicked: {}", panic_info);
+        log::error!("Application panicked: {}", panic_info);
     }));
     // Sprache initialisieren (vor dem Logging)
     match i18n::init().await {
@@ -35,14 +36,6 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Logger initialisieren
-    if let Err(e) = rush_sync_server::output::logging::init().await {
-        let logger_error =
-            i18n::get_command_translation("system.startup.logger_init_failed", &[&e.to_string()]);
-        println!("{}", logger_error);
-    }
-
-    // ✅ CONFIG LADEN: show_messages = true NUR EINMALIG beim Start
     // Danach überall Config::load() ohne Messages
     let config = Config::load_with_messages(true).await?;
 

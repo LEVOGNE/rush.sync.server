@@ -42,7 +42,7 @@ impl LogLevelManager {
             if let Err(e) = Self::save_to_config(level_filter).await {
                 log::warn!("Failed to save log level to config: {}", e);
             } else {
-                log::debug!("Log level saved to config successfully");
+                // ✅ Config save completed (success or failure logged above)
             }
         });
 
@@ -65,10 +65,7 @@ impl LogLevelManager {
     pub async fn load_from_config() -> LevelFilter {
         match crate::core::config::Config::load_with_messages(false).await {
             Ok(config) => match Self::string_to_level_filter(&config.log_level) {
-                Ok(level) => {
-                    log::debug!("Log level loaded from config: {}", config.log_level);
-                    level
-                }
+                Ok(level) => level,
                 Err(_) => {
                     log::warn!(
                         "Invalid log level in config: '{}', using INFO",
@@ -77,10 +74,7 @@ impl LogLevelManager {
                     LevelFilter::Info
                 }
             },
-            Err(_) => {
-                log::debug!("No config found, using default log level: INFO");
-                LevelFilter::Info
-            }
+            Err(_) => LevelFilter::Info,
         }
     }
 

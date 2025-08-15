@@ -110,38 +110,97 @@ pub struct MessageDisplay {
 }
 
 impl MessageDisplay {
+    pub fn add_message(&mut self, content: String) {
+        // ✅ EINFACHES FILE-LOGGING
+        Self::log_to_file(&content);
+
+        if self.messages.len() >= self.config.max_messages {
+            self.messages.remove(0);
+        }
+
+        let mut message = Message::new(content, self.config.typewriter_delay);
+        message.calculate_wrapped_line_count(&self.viewport);
+
+        self.messages.push(message);
+        self.recalculate_content_height_silent();
+        self.scroll_to_bottom_direct_silent();
+    }
+
+    // ✅ NEUE FUNKTION: Einfaches File-Logging
+    fn log_to_file(content: &str) {
+        // Nur echte Nachrichten loggen, keine System-Commands
+        if content.starts_with("__") || content.trim().is_empty() {
+            return;
+        }
+
+        // Aktueller Timestamp
+        let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
+        let log_line = format!("[{}] {}\n", timestamp, content);
+
+        // Log-Datei Pfad
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(base_dir) = exe_path.parent() {
+                let log_dir = base_dir.join(".rss");
+                let log_path = log_dir.join("rush.logs");
+
+                // Verzeichnis erstellen falls nicht vorhanden
+                let _ = std::fs::create_dir_all(&log_dir);
+
+                // In Datei schreiben (append mode)
+                let _ = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&log_path)
+                    .and_then(|mut file| {
+                        use std::io::Write;
+                        file.write_all(log_line.as_bytes())
+                    });
+            }
+        }
+    }
+
     pub fn new(config: &Config, terminal_width: u16, terminal_height: u16) -> Self {
         let viewport = Viewport::new(terminal_width, terminal_height);
-
-        // ✅ FIX: Output-Cursor mit richtiger CursorKind::Output erstellen
         let persistent_cursor = UiCursor::from_config(config, CursorKind::Output);
+
+        // ✅ STARTUP-LOG
+        Self::log_startup();
 
         Self {
             messages: Vec::with_capacity(config.max_messages),
             config: config.clone(),
             viewport,
-            persistent_cursor, // ← Jetzt korrekt als Output-Cursor
+            persistent_cursor,
+        }
+    }
+
+    fn log_startup() {
+        let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
+        let version = crate::core::constants::VERSION;
+        let startup_line = format!(
+            "[{}] === Rush Sync Server v{} Started ===\n",
+            timestamp, version
+        );
+
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(base_dir) = exe_path.parent() {
+                let log_dir = base_dir.join(".rss");
+                let log_path = log_dir.join("rush.logs");
+
+                let _ = std::fs::create_dir_all(&log_dir);
+                let _ = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&log_path)
+                    .and_then(|mut file| {
+                        use std::io::Write;
+                        file.write_all(startup_line.as_bytes())
+                    });
+            }
         }
     }
 
     pub fn update_config(&mut self, new_config: &Config) {
-        let old_cursor_config = self.config.theme.output_cursor.clone();
-        let old_cursor_color = self.config.theme.output_cursor_color;
-        let new_cursor_config = new_config.theme.output_cursor.clone();
-        let new_cursor_color = new_config.theme.output_cursor_color;
-        let old_theme = self.config.current_theme_name.clone();
-        let new_theme = new_config.current_theme_name.clone();
-
-        log::info!(
-            "📊 MessageDisplay CONFIG UPDATE START: '{}' → '{}' | output_cursor: '{}' ({}) → '{}' ({})",
-            old_theme,
-            new_theme,
-            old_cursor_config,
-            old_cursor_color.to_name(),
-            new_cursor_config,
-            new_cursor_color.to_name()
-        );
-
         // ✅ STEP 1: Update internal config
         self.config = new_config.clone();
 
@@ -180,7 +239,6 @@ impl MessageDisplay {
         let changed = self.viewport.handle_event(event);
         if changed {
             self.recalculate_all_line_counts();
-            log::debug!("📐 Viewport updated: {}", self.viewport.debug_info());
         }
         changed
     }
@@ -200,26 +258,6 @@ impl MessageDisplay {
         self.recalculate_content_height();
         self.viewport.force_auto_scroll();
         self.persistent_cursor.show_cursor();
-
-        log::debug!("🗑️ All messages cleared, persistent cursor remains active");
-    }
-
-    pub fn add_message(&mut self, content: String) {
-        if content.starts_with("[DEBUG]") || content.starts_with("[TRACE]") {
-            log::info!("STDERR: {}", content);
-            return;
-        }
-
-        if self.messages.len() >= self.config.max_messages {
-            self.messages.remove(0);
-        }
-
-        let mut message = Message::new(content, self.config.typewriter_delay);
-        message.calculate_wrapped_line_count(&self.viewport);
-
-        self.messages.push(message);
-        self.recalculate_content_height_silent();
-        self.scroll_to_bottom_direct_silent();
     }
 
     pub fn update_typewriter(&mut self) {
@@ -292,12 +330,6 @@ impl MessageDisplay {
         }
 
         self.recalculate_content_height();
-
-        log::debug!(
-            "🔄 Recalculated all line counts for output_width: {}, total messages: {}",
-            self.viewport.output_area().width,
-            self.messages.len()
-        );
     }
 
     pub fn handle_scroll(&mut self, direction: ScrollDirection, amount: usize) {
@@ -326,24 +358,7 @@ impl MessageDisplay {
             self.messages.iter().map(|msg| msg.line_count).collect();
 
         let total_lines = individual_line_counts.iter().sum::<usize>();
-
-        log::debug!(
-            "📊 Recalculating content height: {} messages → {} total lines",
-            self.messages.len(),
-            total_lines
-        );
-
-        let old_content_height = self.viewport.content_height();
         self.viewport.update_content_height(total_lines);
-
-        let new_content_height = self.viewport.content_height();
-
-        log::debug!(
-            "📊 Content height updated: {} → {} (window: {})",
-            old_content_height,
-            new_content_height,
-            self.viewport.window_height()
-        );
     }
 
     pub fn get_content_height(&self) -> usize {

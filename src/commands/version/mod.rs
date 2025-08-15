@@ -1,2 +1,2 @@
-pub mod version;
-pub use version::VersionCommand;
+pub mod command;
+pub use command::VersionCommand;

@@ -92,12 +92,6 @@ impl I18nService {
         self.build_display_to_category_mapping();
         self.cache.clear();
         self.language = lang.to_string();
-
-        log::info!(
-            "Language loaded: {} ({} keys)",
-            lang.to_uppercase(),
-            self.entries.len()
-        );
         Ok(())
     }
 

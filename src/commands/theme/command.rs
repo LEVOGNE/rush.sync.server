@@ -42,12 +42,41 @@ impl Command for ThemeCommand {
     }
 
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
-        let mut guard = self.get_or_init_theme_system()?;
+        // ✅ DEBUG: Zeige was passiert
+        log::info!("🎨 ThemeCommand::execute_sync called with args: {:?}", args);
+
+        // ✅ SICHERER THEME-SYSTEM LOAD mit Fehlerbehandlung
+        let mut guard = match self.get_or_init_theme_system() {
+            Ok(guard) => {
+                log::info!("✅ ThemeSystem loaded successfully");
+                guard
+            }
+            Err(e) => {
+                log::error!("❌ ThemeSystem load failed: {}", e);
+                return Ok(format!("❌ Theme system failed to load: {}\n\n💡 Tip: Add [theme.dark] section to rush.toml", e));
+            }
+        };
+
         let theme_system = guard.as_mut().unwrap();
 
         match args.first() {
-            None => Ok(theme_system.show_status()),
-            Some(&"--help" | &"-h") => Ok(Self::create_help_text(theme_system)),
+            None => {
+                log::info!("🎨 Calling theme_system.show_status()");
+                let result = theme_system.show_status();
+                log::info!("🎨 show_status result: '{}'", result);
+                Ok(result)
+            }
+            Some(&"--help" | &"-h") => {
+                log::info!("🎨 Calling create_help_text()");
+                let result = Self::create_help_text(theme_system);
+                log::info!("🎨 create_help_text result length: {} chars", result.len());
+                // ✅ DEBUG: Zeige ersten Teil
+                log::info!(
+                    "🎨 create_help_text preview: '{}'",
+                    &result[..result.len().min(100)]
+                );
+                Ok(result)
+            }
             Some(&"debug") => match args.get(1) {
                 Some(&theme_name) => Ok(theme_system.debug_theme_details(theme_name)),
                 None => Ok("❌ Theme name missing. Usage: theme debug <name>".to_string()),
@@ -56,7 +85,10 @@ impl Command for ThemeCommand {
                 Some(&theme_name) => theme_system.preview_theme(theme_name),
                 None => Ok("❌ Theme name missing. Usage: theme preview <name>".to_string()),
             },
-            Some(&theme_name) => theme_system.change_theme(theme_name),
+            Some(&theme_name) => {
+                log::info!("🎨 Calling change_theme({})", theme_name);
+                theme_system.change_theme(theme_name)
+            }
         }
     }
 

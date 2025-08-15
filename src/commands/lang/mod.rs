@@ -101,7 +101,6 @@ impl LanguageService {
                 tokio::fs::write(path, updated_content)
                     .await
                     .map_err(AppError::Io)?;
-                log::debug!("Language '{}' saved to config", lang.to_uppercase());
                 return Ok(());
             }
         }

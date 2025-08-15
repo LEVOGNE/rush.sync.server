@@ -1,5 +1,5 @@
-pub mod input;
 pub mod keyboard;
+pub mod state;
 
 use crossterm::event::{self as crossterm_event, Event as CrosstermEvent, KeyEvent};
 use tokio::sync::mpsc::{self, Sender};

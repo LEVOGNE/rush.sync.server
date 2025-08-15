@@ -1,21 +1,16 @@
 [package]
 name = "rush-sync-server"
-version = "0.2.7"
+version = "0.2.8"
 edition = "2021"
-description = "Modern asynchronous TUI sync server with i18n, modular command system, Actix-Web integration, and flexible configuration."
+description = "Modern asynchronous TUI application with i18n and modular command system"
 license = "GPL-3.0 OR LicenseRef-Commercial"
 repository = "https://github.com/LEVOGNE/rush.sync.server"
 readme = "README.md"
-keywords = ["tui", "sync", "i18n", "actix-web", "server"]
-categories = [
-  "command-line-utilities",
-  "development-tools",
-  "asynchronous",
-  "web-programming",
-]
+keywords = ["tui", "terminal", "i18n", "commands"]
+categories = ["command-line-utilities", "development-tools"]
 
 # =====================================================
-# CORE DEPENDENCIES (Bestehende)
+# CORE DEPENDENCIES (NUR STABILE BASIS)
 # =====================================================
 [dependencies]
 # Terminal & UI
@@ -46,86 +41,24 @@ regex = "1"
 walkdir = "2"
 
 # =====================================================
-# NEW: ACTIX-WEB SERVER DEPENDENCIES
+# OPTIONAL FEATURES (für später)
 # =====================================================
-# Web Framework
-actix-web = "4.4"
-actix-files = "0.6"
-actix-cors = "0.7"
-
-# Server Management
-uuid = { version = "1.6", features = ["v4", "serde"] }
-sha2 = "0.10"
-chrono = { version = "0.4", features = ["serde"] }
-
-# File Watching (Hot-Reloading)
-notify = "6.1"
-
-# SCSS Compilation
+# SCSS für Themes
 sass-rs = { version = "0.2", optional = true }
-
-# Async Utilities
-futures = "0.3"
-tokio-util = "0.7"
-
-# =====================================================
-# OPTIONAL FEATURES
-# =====================================================
-# Redis Support (für Pub/Sub)
-redis = { version = "0.24", optional = true }
-
-# TLS/HTTPS Support
-rustls = { version = "0.22", optional = true }
-rustls-pemfile = { version = "2.0", optional = true }
-actix-web-httpauth = { version = "0.8", optional = true }
-
-# Database Support (für später)
-sqlx = { version = "0.7", features = [
-  "runtime-tokio-rustls",
-  "sqlite",
-  "chrono",
-  "uuid",
-], optional = true }
-
-# Compression
-flate2 = { version = "1.0", optional = true }
+chrono = { version = "0.4.41", features = ["serde"] }
 
 # =====================================================
 # FEATURE FLAGS
 # =====================================================
 [features]
-default = ["scss"]
-
-# Individual Features
+default = []
 scss = ["sass-rs"]
-redis-support = ["redis"]
-tls-support = ["rustls", "rustls-pemfile", "actix-web-httpauth"]
-database = ["sqlx"]
-compression = ["flate2"]
-
-# Feature Combinations
-dev-server = ["scss", "redis-support"]
-prod-server = ["tls-support", "compression"]
-full-server = [
-  "scss",
-  "redis-support",
-  "tls-support",
-  "database",
-  "compression",
-]
-
-# Backward Compatibility
-full = ["full-server"]
 
 # =====================================================
 # DEVELOPMENT DEPENDENCIES
 # =====================================================
 [dev-dependencies]
 tokio-test = "0.4"
-tokio = { version = "1.36", features = ["macros", "rt", "test-util"] }
-actix-rt = "2.9"
-reqwest = { version = "0.11", features = ["json"] }
-tempfile = "3.8"
 
 # =====================================================
 # BUILD CONFIGURATION
@@ -137,17 +70,6 @@ path = "src/main.rs"
 [lib]
 name = "rush_sync_server"
 path = "src/lib.rs"
-
-# =====================================================
-# LINTING & CODE QUALITY
-# =====================================================
-[lints.clippy]
-module_inception = "allow"
-too_many_arguments = "allow" # Für Server-Konfigurationen
-large_enum_variant = "allow" # Für Command-System
-
-[lints.rust]
-unused_must_use = "warn"
 
 # =====================================================
 # PERFORMANCE & OPTIMIZATION
@@ -163,13 +85,3 @@ strip = true
 opt-level = 0
 debug = true
 overflow-checks = true
-
-# =====================================================
-# METADATA
-# =====================================================
-[badges]
-github = { repository = "LEVOGNE/rush.sync.server" }
-
-[package.metadata.docs.rs]
-features = ["full-server"]
-rustdoc-args = ["--cfg", "docsrs"]

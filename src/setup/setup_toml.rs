@@ -8,7 +8,7 @@ use tokio::fs;
 
 // ✅ PERFEKT SORTIERTE TOML-CONFIG: output first, dann input
 const DEFAULT_CONFIG: &str = r#"[general]
-max_messages = 100
+max_messages = 1000
 typewriter_delay = 5
 input_max_length = 100
 max_history = 30
@@ -75,13 +75,6 @@ pub async fn ensure_config_exists() -> Result<PathBuf> {
         fs::create_dir_all(&config_dir)
             .await
             .map_err(AppError::Io)?;
-        log::debug!(
-            "{}",
-            get_translation(
-                "system.config.dir_created",
-                &[&config_dir.display().to_string()]
-            )
-        );
     }
 
     let config_path = config_dir.join("rush.toml");

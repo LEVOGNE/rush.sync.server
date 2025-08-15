@@ -1,5 +1,5 @@
 // =====================================================
-// FILE: src/lib.rs - ERWEITERT MIT SERVER-MODULEN
+// FILE: src/lib.rs - CLEAN VERSION OHNE PERFORMANCE
 // =====================================================
 
 #[macro_export]
@@ -29,49 +29,34 @@ pub mod output;
 pub mod setup;
 pub mod ui;
 
-// ✅ NEUE SERVER-MODULE
-pub mod server;
-
 // Essential re-exports
 pub use commands::{Command, CommandHandler, CommandRegistry};
 pub use core::config::Config;
 pub use core::error::{AppError, Result};
 
-// ✅ NEUE SERVER-EXPORTS
-pub use server::{ServerConfig, ServerInfo, ServerInstance, ServerManager, ServerMode};
-
-// Import for internal usage
-use server::ServerManager as InternalServerManager;
-
 pub fn create_default_registry() -> CommandRegistry {
     use commands::{
-        clear::ClearCommand,
-        exit::exit::ExitCommand,
-        history::HistoryCommand,
-        lang::LanguageCommand,
-        log_level::LogLevelCommand,
-        performance::PerformanceCommand,
-        restart::RestartCommand,
-        server::ServerCommand, // ✅ NEUER SERVER-COMMAND
-        theme::ThemeCommand,
-        version::VersionCommand,
+        clear::ClearCommand, exit::ExitCommand, history::HistoryCommand, lang::LanguageCommand,
+        log_level::LogLevelCommand, restart::RestartCommand, test::TestCommand,
+        theme::ThemeCommand, version::VersionCommand,
     };
 
     let mut registry = CommandRegistry::new();
 
-    // Bestehende Commands
-    registry.register(HistoryCommand);
+    // Core Commands
+    registry.register(VersionCommand);
+    registry.register(ClearCommand);
     registry.register(ExitCommand);
+    registry.register(RestartCommand);
+
+    // Configuration Commands
     registry.register(LogLevelCommand);
     registry.register(LanguageCommand::new());
-    registry.register(ClearCommand);
-    registry.register(RestartCommand);
-    registry.register(VersionCommand);
-    registry.register(PerformanceCommand);
     registry.register(ThemeCommand::new());
 
-    // ✅ NEUER SERVER-COMMAND
-    registry.register(ServerCommand);
+    // Utility Commands
+    registry.register(HistoryCommand);
+    registry.register(TestCommand);
 
     registry.initialize();
     registry
@@ -98,15 +83,4 @@ pub fn create_handler() -> CommandHandler {
 
 pub async fn load_config() -> Result<Config> {
     Config::load().await
-}
-
-// ✅ NEUE SERVER-CONVENIENCE FUNCTIONS
-pub async fn create_server_manager() -> InternalServerManager {
-    InternalServerManager::new()
-}
-
-pub async fn start_server_management() -> Result<InternalServerManager> {
-    let manager = InternalServerManager::new();
-    manager.load_servers().await?;
-    Ok(manager)
 }

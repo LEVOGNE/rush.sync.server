@@ -1,5 +1,5 @@
 // =====================================================
-// FILE: src/ui/terminal.rs - VOLLSTÄNDIGE KEYBOARD-KONTROLLE
+// FILE: src/ui/terminal.rs - FIXED OHNE FUTURES DEPENDENCY
 // =====================================================
 
 use crate::core::constants::APP_TITLE;
@@ -46,9 +46,6 @@ impl TerminalManager {
             cursor::Hide
         )?;
 
-        log::info!("✅ Terminal initialized");
-        log::debug!("🔧 Full raw mode enabled - All shortcuts intercepted");
-
         Ok(())
     }
 
@@ -69,8 +66,6 @@ impl TerminalManager {
             // Spezielle Key-Kombinationen abfangen
             crossterm::style::Print("\x1B[?1049h"), // Enable alternative screen buffer
         )?;
-
-        log::debug!("🚀 Enhanced raw mode enabled - Terminal shortcuts bypassed");
         Ok(())
     }
 
@@ -142,8 +137,6 @@ impl TerminalManager {
         // Standard Raw Mode deaktivieren
         disable_raw_mode()?;
         self.raw_mode_enabled = false;
-
-        log::debug!("🔄 Enhanced raw mode disabled - Terminal shortcuts restored");
         Ok(())
     }
 
@@ -162,12 +155,18 @@ impl TerminalManager {
     }
 }
 
-// ✅ SICHERER DESTRUCTOR
+// ✅ SICHERER DESTRUCTOR OHNE FUTURES
 impl Drop for TerminalManager {
     fn drop(&mut self) {
         if self.raw_mode_enabled {
-            // Notfall-Cleanup falls cleanup() nicht aufgerufen wurde
-            let _ = futures::executor::block_on(self.disable_full_raw_mode());
+            // ✅ SYNC CLEANUP (ohne futures::executor)
+            let _ = disable_raw_mode();
+            let _ = execute!(
+                std::io::stdout(),
+                terminal::LeaveAlternateScreen,
+                cursor::Show,
+                ResetColor
+            );
             log::warn!("🚨 Emergency terminal cleanup in destructor");
         }
     }

@@ -89,14 +89,6 @@ impl Viewport {
         let changed = self.terminal_width != new_width || self.terminal_height != new_height;
 
         if changed {
-            log::debug!(
-                "📐 Viewport resize: {}x{} → {}x{}",
-                self.terminal_width,
-                self.terminal_height,
-                new_width,
-                new_height
-            );
-
             self.terminal_width = new_width;
             self.terminal_height = new_height;
             self.calculate_layout();
@@ -275,9 +267,6 @@ impl Viewport {
 
     /// ✅ DEBUGGING: Content-Höhe Update mit detailliertem Logging
     pub fn update_content_height(&mut self, new_content_height: usize) {
-        let old_height = self.content_height;
-        let old_max_offset = self.max_scroll_offset();
-
         self.content_height = new_content_height;
 
         let new_max_offset = self.max_scroll_offset();
@@ -286,16 +275,6 @@ impl Viewport {
         self.clamp_scroll_offset();
 
         let final_offset = self.scroll_offset;
-
-        log::debug!(
-            "📊 Viewport content height updated: {} → {} (window: {}, max_offset: {} → {}, scroll_offset: {})",
-            old_height,
-            new_content_height,
-            self.window_height,
-            old_max_offset,
-            new_max_offset,
-            final_offset
-        );
 
         // ✅ VERIFICATION: Prüfe Konsistenz
         if new_content_height > self.window_height && new_max_offset == 0 {

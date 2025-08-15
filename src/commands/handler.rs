@@ -35,26 +35,54 @@ impl CommandHandler {
             };
         }
 
+        log::info!("🔧 CommandHandler processing: '{}'", input);
+
         // FIX: Handle String/&str conversion properly
         match self.registry.execute_sync(parts[0], &parts[1..]) {
             Some(Ok(msg)) => {
+                // ✅ DEBUG: Log the result
+                log::info!(
+                    "🔧 Command returned {} chars: '{}'",
+                    msg.len(),
+                    &msg[..msg.len().min(100)]
+                );
+
                 let should_exit = self.should_exit_on_message(&msg);
-                CommandResult {
-                    message: msg, // FIX: msg is already String from execute_sync
+                let result = CommandResult {
+                    message: msg,
                     success: true,
                     should_exit,
+                };
+
+                // ✅ DEBUG: Log the final result
+                log::info!(
+                    "🔧 CommandResult: success={}, message_len={}, should_exit={}",
+                    result.success,
+                    result.message.len(),
+                    result.should_exit
+                );
+
+                result
+            }
+            Some(Err(e)) => {
+                log::error!("🔧 Command error: {}", e);
+                CommandResult {
+                    message: e.to_string(),
+                    success: false,
+                    should_exit: false,
                 }
             }
-            Some(Err(e)) => CommandResult {
-                message: e.to_string(),
-                success: false,
-                should_exit: false,
-            },
-            None => CommandResult {
-                message: i18n::get_command_translation("system.commands.unknown", &[input]),
-                success: false,
-                should_exit: false,
-            },
+            None => {
+                log::warn!("🔧 Unknown command: {}", input);
+                CommandResult {
+                    message: crate::i18n::get_command_translation(
+                        "system.commands.unknown",
+                        &[input],
+                    ),
+                    success: false,
+                    should_exit: false,
+                }
+            }
         }
     }
 

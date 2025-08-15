@@ -1,5 +1,5 @@
 // =====================================================
-// FILE: src/ui/cursor.rs - FIXED CLIPPY WARNING
+// FILE: src/ui/cursor.rs - OHNE DEBUG LOGS
 // =====================================================
 
 use crate::core::config::Config;
@@ -85,16 +85,6 @@ impl UiCursor {
 
         let cursor_type = CursorType::parse_type(cursor_type_str);
 
-        log::debug!(
-            "🔧 UiCursor::from_config({:?}): type_str='{}' → type={:?} → symbol='{}', color='{}', fg='{}'",
-            kind,
-            cursor_type_str,
-            cursor_type,
-            cursor_type.symbol(),
-            color.to_name(),
-            fg.to_name()
-        );
-
         Self {
             kind,
             ctype: cursor_type,
@@ -141,14 +131,6 @@ impl UiCursor {
         self.ctype = CursorType::parse_type(cursor_type_str);
         self.color = color;
         self.fg = fg;
-
-        log::debug!(
-            "🔄 Cursor updated: {:?} → type='{}', color='{}', symbol='{}'",
-            self.kind,
-            cursor_type_str,
-            color.to_name(),
-            self.get_symbol()
-        );
     }
 
     /// ✅ NEUE METHODE: Update mit explizitem CursorKind (für Klarheit)

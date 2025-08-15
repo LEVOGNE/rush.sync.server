@@ -1,5 +1,5 @@
 use crate::core::prelude::*;
-use crate::input::input::InputStateBackup;
+use crate::input::state::InputStateBackup;
 use ratatui::widgets::Paragraph;
 
 pub trait Widget {

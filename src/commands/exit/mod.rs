@@ -1,2 +1,2 @@
-pub mod exit;
-pub use exit::ExitCommand;
+pub mod command;
+pub use command::ExitCommand;

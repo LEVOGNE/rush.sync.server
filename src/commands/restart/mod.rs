@@ -1,3 +1,2 @@
-// src/commands/restart/mod.rs
-pub mod restart;
-pub use restart::RestartCommand;
+pub mod command;
+pub use command::RestartCommand;

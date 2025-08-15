@@ -56,23 +56,15 @@ impl AppColor {
 
         // ✅ DIRECT LOOKUP FIRST (für echte Farbnamen)
         if let Some(&color) = COLOR_MAP.get(key.as_str()) {
-            log::debug!("✅ Direct color lookup: '{}' → {:?}", key, color);
             return Self(color);
         }
 
         // ❌ FALLBACK: i18n category mapping (nur für Display-Kategorien)
-        log::debug!("⚠️ Using i18n category mapping for: '{}'", key);
         let mapped_category = crate::i18n::get_color_category_for_display(&key);
         let fallback_color = COLOR_MAP
             .get(mapped_category.as_str())
             .unwrap_or(&Color::Gray);
 
-        log::debug!(
-            "📍 Category mapping: '{}' → '{}' → {:?}",
-            key,
-            mapped_category,
-            fallback_color
-        );
         Self(*fallback_color)
     }
 
@@ -83,32 +75,13 @@ impl AppColor {
     pub fn from_string(color_str: &str) -> crate::core::error::Result<Self> {
         let normalized = color_str.trim().to_lowercase();
 
-        // ✅ NUR DEBUG-LEVEL (nicht INFO)
-        log::debug!(
-            "🎨 AppColor::from_string: '{}' → normalized: '{}'",
-            color_str,
-            normalized
-        );
-
         // ✅ DIRECT LOOKUP: Gehe DIREKT zu COLOR_MAP, nicht über i18n!
         let color = COLOR_MAP.get(normalized.as_str()).copied().ok_or_else(|| {
             log::error!("❌ Color '{}' not found in COLOR_MAP", normalized);
-            log::debug!(
-                "📋 Available colors: {:?}",
-                COLOR_MAP.keys().collect::<Vec<_>>()
-            );
             AppError::Validation(format!("Invalid color: {}", color_str))
         })?;
 
         let app_color = Self(color);
-
-        // ✅ NUR DEBUG-LEVEL (nicht INFO) - viel weniger Spam
-        log::debug!(
-            "✅ Color '{}' → '{}' → RGB({:?})",
-            color_str,
-            app_color.to_name(),
-            color
-        );
 
         Ok(app_color)
     }

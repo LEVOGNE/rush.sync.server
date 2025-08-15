@@ -1,9 +1,5 @@
 // =====================================================
-// COMMAND IMPLEMENTATIONS - TRAIT ADOPTION
-// =====================================================
-
-// =====================================================
-// FILE: commands/history/history.rs - TRAIT IMPL
+// FILE: src/commands/history/command.rs - VEREINFACHT
 // =====================================================
 
 use crate::commands::command::Command;
@@ -28,12 +24,18 @@ impl Command for HistoryCommand {
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
         match args.first() {
             Some(&"-c" | &"--clear") => Ok("__CLEAR_HISTORY__".to_string()),
-            Some(&"-h" | &"--help") => Ok(get_translation("system.commands.history.help", &[])),
-            _ => Ok(get_translation("system.commands.history.unknown", &[])),
+            Some(&"-h" | &"--help") => Ok(format!(
+                "📁 History Commands:\n\
+                history        Show this help\n\
+                history -c     Clear history\n\
+                ↑ ↓           Navigate history\n\n\
+                File: ~/.rss/rush.history"
+            )),
+            _ => Ok("📁 Use ↑↓ arrows to navigate, 'history -c' to clear".to_string()),
         }
     }
 
     fn priority(&self) -> u8 {
-        60 // Höhere Priorität für häufig genutzte Commands
+        60
     }
 }

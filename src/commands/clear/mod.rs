@@ -1,2 +1,2 @@
-pub mod clear;
-pub use clear::ClearCommand;
+pub mod command;
+pub use command::ClearCommand;
