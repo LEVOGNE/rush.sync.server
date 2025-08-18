@@ -14,8 +14,6 @@ pub mod restart;
 pub mod theme;
 pub mod version;
 
-pub mod test;
-
 // ✅ CLEAN EXPORTS - Nur was wirklich gebraucht wird
 pub use command::Command;
 pub use handler::CommandHandler;

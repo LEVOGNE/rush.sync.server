@@ -15,6 +15,7 @@ use crate::ui::{
 use crossterm::event::KeyEvent;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io::{self, Stdout};
+use std::sync::OnceLock;
 
 pub type TerminalBackend = Terminal<CrosstermBackend<Stdout>>;
 
@@ -22,7 +23,7 @@ use crossterm::execute;
 
 pub struct ScreenManager {
     terminal: TerminalBackend,
-    message_display: MessageDisplay,
+    pub message_display: MessageDisplay,
     input_state: Box<dyn Widget>,
     config: Config,
     terminal_mgr: TerminalManager,
@@ -30,6 +31,14 @@ pub struct ScreenManager {
     keyboard_manager: KeyboardManager,
     waiting_for_restart_confirmation: bool,
 }
+
+#[derive(Clone)]
+struct TerminalInfo {
+    term_program: String,
+    tmux: bool,
+}
+
+static TERMINAL_INFO: OnceLock<TerminalInfo> = OnceLock::new();
 
 impl ScreenManager {
     pub async fn new(config: &Config) -> Result<Self> {
@@ -91,11 +100,11 @@ impl ScreenManager {
                 }
 
                 if let Some(processed) = self.process_live_theme_update(&new_input).await {
-                    self.message_display.add_message(processed);
+                    self.message_display.add_message_instant(processed); // ✅ Sofort ohne Typewriter
                     return Ok(false);
                 }
 
-                self.message_display.add_message(new_input.clone());
+                self.message_display.add_message_instant(new_input.clone());
 
                 if new_input.starts_with("__CLEAR__") {
                     self.message_display.clear_messages();
@@ -109,34 +118,58 @@ impl ScreenManager {
         // SCROLL-HANDLING MIT VIEWPORT
         match self.keyboard_manager.get_action(&key) {
             KeyAction::ScrollUp => {
+                log::info!("🔼 SCROLL UP detected!");
+                log::info!(
+                    "   Before: offset={}, content={}, window={}",
+                    self.message_display.viewport().scroll_offset(),
+                    self.message_display.viewport().content_height(),
+                    self.message_display.viewport().window_height()
+                );
+
                 self.message_display.handle_scroll(ScrollDirection::Up, 1);
+
+                log::info!(
+                    "   After: offset={}, auto_scroll={}",
+                    self.message_display.viewport().scroll_offset(),
+                    self.message_display.viewport().is_auto_scroll_enabled()
+                );
                 return Ok(false);
             }
             KeyAction::ScrollDown => {
+                log::info!("🔽 SCROLL DOWN detected!");
+                log::info!(
+                    "   Before: offset={}, content={}, window={}",
+                    self.message_display.viewport().scroll_offset(),
+                    self.message_display.viewport().content_height(),
+                    self.message_display.viewport().window_height()
+                );
+
                 self.message_display.handle_scroll(ScrollDirection::Down, 1);
+
+                log::info!(
+                    "   After: offset={}, auto_scroll={}",
+                    self.message_display.viewport().scroll_offset(),
+                    self.message_display.viewport().is_auto_scroll_enabled()
+                );
                 return Ok(false);
             }
             KeyAction::PageUp => {
+                log::info!("📄 PAGE UP detected!");
                 self.message_display
                     .handle_scroll(ScrollDirection::PageUp, 0);
                 return Ok(false);
             }
             KeyAction::PageDown => {
+                log::info!("📄 PAGE DOWN detected!");
                 self.message_display
                     .handle_scroll(ScrollDirection::PageDown, 0);
                 return Ok(false);
             }
             KeyAction::Submit => {
-                // ✅ DEBUG: Log vor handle_input
                 log::info!("🖥️ SCREEN: About to call input_state.handle_input()");
 
                 if let Some(new_input) = self.input_state.handle_input(key) {
-                    // ✅ DEBUG: Was kommt zurück?
-                    log::info!(
-                        "🖥️ SCREEN: input_state returned {} chars: '{}'",
-                        new_input.len(),
-                        &new_input[..new_input.len().min(100)]
-                    );
+                    log::info!("🖥️ SCREEN: input_state returned {} chars", new_input.len());
 
                     let input_command = new_input.trim().to_lowercase();
                     let is_performance_command = input_command == "perf"
@@ -146,23 +179,33 @@ impl ScreenManager {
                     if let Some(processed) = LanguageService::process_save_message(&new_input).await
                     {
                         log::info!("🖥️ SCREEN: LanguageService processed message");
-                        self.message_display.add_message(processed);
+                        self.message_display.add_message_instant(processed); // ✅ FIX: Instant
                         return Ok(false);
                     }
 
                     if let Some(processed) = self.process_live_theme_update(&new_input).await {
                         log::info!("🖥️ SCREEN: ThemeUpdate processed message");
-                        self.message_display.add_message(processed);
+                        self.message_display.add_message_instant(processed); // ✅ FIX: Instant
                         return Ok(false);
                     }
 
-                    // ✅ DEBUG: Normal message add
-                    log::info!(
-                        "🖥️ SCREEN: Adding normal message to display: '{}'",
-                        &new_input[..new_input.len().min(100)]
-                    );
+                    log::info!("🖥️ SCREEN: Adding normal message to display");
 
-                    self.message_display.add_message(new_input.clone());
+                    // ✅ FIX: Commands should be instant, nur normale Messages mit Typewriter
+                    if new_input.starts_with("__") {
+                        // Special system messages
+                        self.message_display.add_message_instant(new_input.clone());
+                    } else if input_command.starts_with("theme")
+                        || input_command.starts_with("test")
+                        || input_command.starts_with("help")
+                        || input_command.starts_with("lang")
+                    {
+                        // Command outputs should be instant
+                        self.message_display.add_message_instant(new_input.clone());
+                    } else {
+                        // Regular messages can use typewriter
+                        self.message_display.add_message(new_input.clone());
+                    }
 
                     if is_performance_command {
                         log::info!("🖥️ SCREEN: Performance command detected, forcing auto-scroll");
@@ -170,6 +213,7 @@ impl ScreenManager {
                         self.message_display.viewport_mut().force_auto_scroll();
                     }
 
+                    // Handle special system commands
                     if new_input.starts_with("__CLEAR__") {
                         log::info!("🖥️ SCREEN: Clearing messages");
                         self.message_display.clear_messages();
@@ -184,13 +228,14 @@ impl ScreenManager {
                             .to_string();
 
                         if !feedback_msg.is_empty() {
-                            self.message_display.add_message(feedback_msg);
+                            self.message_display.add_message_instant(feedback_msg); // ✅ FIX: Instant
                             tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
                         }
 
                         if let Err(e) = self.perform_restart().await {
                             self.message_display
-                                .add_message(format!("Restart failed: {}", e));
+                                .add_message_instant(format!("Restart failed: {}", e));
+                            // ✅ FIX: Instant
                         }
                     } else if new_input.starts_with("__RESTART_FORCE__")
                         || new_input == "__RESTART__"
@@ -198,11 +243,11 @@ impl ScreenManager {
                         log::info!("🖥️ SCREEN: Restart requested");
                         if let Err(e) = self.perform_restart().await {
                             self.message_display
-                                .add_message(format!("Restart failed: {}", e));
+                                .add_message_instant(format!("Restart failed: {}", e));
+                            // ✅ FIX: Instant
                         }
                     }
                 } else {
-                    // ✅ DEBUG: Kein Input zurückgegeben
                     log::info!("🖥️ SCREEN: input_state.handle_input() returned None");
                 }
             }
@@ -211,16 +256,16 @@ impl ScreenManager {
                 if let Some(new_input) = self.input_state.handle_input(key) {
                     if let Some(processed) = LanguageService::process_save_message(&new_input).await
                     {
-                        self.message_display.add_message(processed);
+                        self.message_display.add_message_instant(processed); // ✅ FIX: Instant
                         return Ok(false);
                     }
 
                     if let Some(processed) = self.process_live_theme_update(&new_input).await {
-                        self.message_display.add_message(processed);
+                        self.message_display.add_message_instant(processed); // ✅ FIX: Instant
                         return Ok(false);
                     }
 
-                    self.message_display.add_message(new_input);
+                    self.message_display.add_message_instant(new_input); // ✅ FIX: Instant
                 }
             }
         }
@@ -583,24 +628,31 @@ impl ScreenManager {
         commands
     }
 
+    fn detect_terminal_once() -> &'static TerminalInfo {
+        TERMINAL_INFO.get_or_init(|| {
+            let term_program = std::env::var("TERM_PROGRAM").unwrap_or_default();
+            let term = std::env::var("TERM").unwrap_or_default();
+            let tmux = std::env::var("TMUX").is_ok();
+
+            log::info!("🖥️ TERMINAL DETECTION (ONE-TIME):");
+            log::info!("   TERM_PROGRAM: '{}'", term_program);
+            log::info!("   TERM: '{}'", term);
+            log::info!("   TMUX: {}", tmux);
+
+            TerminalInfo { term_program, tmux }
+        })
+    }
+
     /// ✅ ALLE MÖGLICHEN Cursor-Farb-Sequenzen senden (Shotgun-Approach)
     fn get_all_cursor_color_sequences(&self, color: &AppColor) -> Vec<String> {
         let mut sequences = Vec::new();
         let (r, g, b) = self.get_rgb_values(color);
 
-        // ✅ TERMINAL-ERKENNUNG
-        let term_program = std::env::var("TERM_PROGRAM").unwrap_or_default();
-        let term = std::env::var("TERM").unwrap_or_default();
-        let tmux = std::env::var("TMUX").is_ok();
-
-        log::info!("🖥️ TERMINAL DETECTION:");
-        log::info!("   TERM_PROGRAM: '{}'", term_program);
-        log::info!("   TERM: '{}'", term);
-        log::info!("   TMUX: {}", tmux);
+        // ✅ VERWENDE CACHED TERMINAL INFO
+        let terminal_info = Self::detect_terminal_once();
 
         // ✅ TMUX: Nur wenn wirklich in tmux
-        if tmux {
-            log::info!("🟢 TMUX detected - using tmux cursor sequences");
+        if terminal_info.tmux {
             sequences.push(format!(
                 "\x1BPtmux;\x1B\x1B]12;#{:02x}{:02x}{:02x}\x07\x1B\\",
                 r, g, b
@@ -609,63 +661,26 @@ impl ScreenManager {
         }
 
         // ✅ MACOS TERMINAL: Apple Terminal.app
-        if term_program == "Apple_Terminal" {
-            log::info!("🍎 Apple Terminal detected - using macOS sequences");
-            // Standard Xterm-Sequenz für macOS Terminal
+        if terminal_info.term_program == "Apple_Terminal" {
             sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x07", r, g, b));
             return sequences;
         }
 
         // ✅ ITERM2: iTerm2
-        if term_program.starts_with("iTerm") {
-            log::info!("🟣 iTerm2 detected - using iTerm2 sequences");
-            // iTerm2 spezifische Sequenz
+        if terminal_info.term_program.starts_with("iTerm") {
             sequences.push(format!("\x1B]Pl{:02x}{:02x}{:02x}\x1B\\", r, g, b));
-            // Backup: Standard Xterm
             sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x07", r, g, b));
             return sequences;
         }
 
         // ✅ VSCODE TERMINAL: Visual Studio Code
-        if term_program == "vscode" || std::env::var("VSCODE_INJECTION").is_ok() {
-            log::info!("💙 VSCode Terminal detected - using standard sequences");
+        if terminal_info.term_program == "vscode" || std::env::var("VSCODE_INJECTION").is_ok() {
             sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x07", r, g, b));
             return sequences;
         }
 
-        // ✅ KONSOLE: KDE Konsole
-        if term_program.contains("konsole") || term.contains("konsole") {
-            log::info!("🔵 Konsole detected - using KDE sequences");
-            sequences.push(format!(
-                "\x1B]50;CursorShape=1;CursorColor=#{:02x}{:02x}{:02x}\x07",
-                r, g, b
-            ));
-        }
-
-        // ✅ GNOME TERMINAL: VTE-based (Gnome Terminal, etc.)
-        if std::env::var("VTE_VERSION").is_ok() {
-            log::info!("🟠 VTE Terminal detected - using VTE sequences");
-            sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x1B\\", r, g, b));
-        }
-
-        // ✅ FALLBACK: Standard Xterm-Sequenz (funktioniert meist)
-        if sequences.is_empty() {
-            log::info!("⚪ Unknown terminal - using standard Xterm sequences");
-            sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x07", r, g, b));
-
-            // Alternative mit RGB-Format
-            sequences.push(format!(
-                "\x1B]12;rgb:{:02x}{:02x}/{:02x}{:02x}/{:02x}{:02x}\x07",
-                r, r, g, g, b, b
-            ));
-        }
-
-        log::info!(
-            "✅ Sending {} cursor sequences for terminal '{}'",
-            sequences.len(),
-            term_program
-        );
-
+        // ✅ FALLBACK: Standard Xterm-Sequenz
+        sequences.push(format!("\x1B]12;#{:02x}{:02x}{:02x}\x07", r, g, b));
         sequences
     }
 

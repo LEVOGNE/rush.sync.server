@@ -152,6 +152,27 @@ impl KeyboardManager {
         // 🛡️ ERSTE VERTEIDIGUNG: Debug und Filter
         self.debug_key_event(key);
 
+        // ✅ SPEZIAL-DEBUG für SHIFT+ARROWS
+        if key.modifiers.contains(KeyModifiers::SHIFT) {
+            match key.code {
+                KeyCode::Up => {
+                    log::info!("🔼 SHIFT+UP detected - should return ScrollUp");
+                    return KeyAction::ScrollUp;
+                }
+                KeyCode::Down => {
+                    log::info!("🔽 SHIFT+DOWN detected - should return ScrollDown");
+                    return KeyAction::ScrollDown;
+                }
+                KeyCode::Left => {
+                    log::info!("⬅️ SHIFT+LEFT detected - currently unhandled");
+                }
+                KeyCode::Right => {
+                    log::info!("➡️ SHIFT+RIGHT detected - currently unhandled");
+                }
+                _ => {}
+            }
+        }
+
         // 🛡️ ZWEITE VERTEIDIGUNG: Char-Level filtering
         if let KeyCode::Char(c) = key.code {
             // Prüfe auf Escape-Sequenz-Zeichen
@@ -196,8 +217,14 @@ impl KeyboardManager {
             (KeyCode::Enter, KeyModifiers::NONE) => KeyAction::Submit,
 
             // ========== SCROLLING ==========
-            (KeyCode::Up, KeyModifiers::SHIFT) => KeyAction::ScrollUp,
-            (KeyCode::Down, KeyModifiers::SHIFT) => KeyAction::ScrollDown,
+            (KeyCode::Up, KeyModifiers::SHIFT) => {
+                log::info!("🔼 Matched SHIFT+UP pattern");
+                KeyAction::ScrollUp
+            }
+            (KeyCode::Down, KeyModifiers::SHIFT) => {
+                log::info!("🔽 Matched SHIFT+DOWN pattern");
+                KeyAction::ScrollDown
+            }
             (KeyCode::PageUp, KeyModifiers::NONE) => KeyAction::PageUp,
             (KeyCode::PageDown, KeyModifiers::NONE) => KeyAction::PageDown,
 
@@ -289,6 +316,12 @@ impl KeyboardManager {
                     _code,
                     _modifiers
                 );
+
+                // ✅ EXTRA DEBUG für SHIFT combinations
+                if _modifiers.contains(KeyModifiers::SHIFT) {
+                    log::error!("🚨 SHIFT combination not handled: {:?} + SHIFT", _code);
+                }
+
                 KeyAction::NoAction
             }
         }

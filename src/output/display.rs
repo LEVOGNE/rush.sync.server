@@ -19,6 +19,14 @@ pub struct Message {
     pub typewriter_cursor: Option<UiCursor>,
 }
 
+#[derive(Debug, Clone)]
+struct CachedLine {
+    content: String,
+    message_index: usize,
+    is_partial: bool,
+    visible_chars: usize,
+}
+
 type RenderData<'a> = (
     Vec<(String, usize, bool, bool, bool)>,
     Config,
@@ -28,25 +36,23 @@ type RenderData<'a> = (
 
 impl Message {
     pub fn new(content: String, typewriter_delay: Duration) -> Self {
-        let line_count = 1;
-
         let initial_length = if typewriter_delay.as_millis() == 0 {
-            content.graphemes(true).count()
+            content.graphemes(true).count() // Vollständig, ABER...
         } else {
             0
         };
 
         let typewriter_cursor = if typewriter_delay.as_millis() > 0 {
-            Some(UiCursor::for_typewriter())
+            Some(UiCursor::for_typewriter()) // Nur bei aktiver Delay
         } else {
-            None
+            None // ✅ Korrekt: Kein Cursor bei delay=0
         };
 
         Self {
             content,
             current_length: initial_length,
             timestamp: Instant::now(),
-            line_count,
+            line_count: 1,
             typewriter_cursor,
         }
     }
@@ -54,38 +60,56 @@ impl Message {
     pub fn calculate_wrapped_line_count(&mut self, viewport: &Viewport) {
         let clean_content = clean_message_for_display(&self.content);
 
+        // WICHTIG: Leere Nachrichten = 1 Zeile
         if clean_content.is_empty() {
             self.line_count = 1;
             return;
         }
 
         let output_area = viewport.output_area();
-        let available_width = (output_area.width as usize).saturating_sub(2);
-        let effective_width = available_width.max(10);
+        let effective_width = (output_area.width as usize).saturating_sub(2).max(10);
 
+        // KRITISCH: Zähle ALLE Zeilen korrekt!
         let mut total_lines = 0;
 
-        for line in clean_content.lines() {
+        // Split by newlines und behalte ALLE Zeilen (auch leere!)
+        let raw_lines: Vec<&str> = clean_content.lines().collect();
+
+        // Wenn Content mit Newline endet, füge leere Zeile hinzu
+        let lines_to_process = if clean_content.ends_with('\n') {
+            let mut lines = raw_lines;
+            lines.push("");
+            lines
+        } else if raw_lines.is_empty() {
+            vec![""]
+        } else {
+            raw_lines
+        };
+
+        // Berechne wrapped lines für JEDE Zeile
+        for line in lines_to_process {
             if line.is_empty() {
-                total_lines += 1;
+                total_lines += 1; // Leere Zeile = 1 Zeile
             } else {
                 let line_chars = line.graphemes(true).count();
-                if line_chars == 0 {
-                    total_lines += 1;
-                } else {
-                    let wrapped_lines = ((line_chars - 1) / effective_width) + 1;
-                    total_lines += wrapped_lines;
-                }
+                // Wrap-Berechnung: wie viele Terminal-Zeilen braucht diese Text-Zeile?
+                total_lines += ((line_chars.saturating_sub(1)) / effective_width) + 1;
             }
         }
 
         self.line_count = total_lines.max(1);
+
+        log::trace!(
+            "📊 Message line count: {} lines (from {} chars, width {})",
+            self.line_count,
+            clean_content.len(),
+            effective_width
+        );
     }
 
     pub fn is_typing(&self) -> bool {
         if self.typewriter_cursor.is_some() {
-            let total_length = self.content.graphemes(true).count();
-            self.current_length < total_length
+            self.current_length < self.content.graphemes(true).count()
         } else {
             false
         }
@@ -100,53 +124,503 @@ impl Message {
     }
 }
 
-static EMPTY_STRING: &str = "";
-
 pub struct MessageDisplay {
     messages: Vec<Message>,
+    line_cache: Vec<CachedLine>,
+    cache_dirty: bool,
     config: Config,
     viewport: Viewport,
     persistent_cursor: UiCursor,
+    debug_enabled: bool,
+    debug_cycles: usize,
 }
 
 impl MessageDisplay {
-    pub fn add_message(&mut self, content: String) {
-        // ✅ EINFACHES FILE-LOGGING
-        Self::log_to_file(&content);
+    pub fn new(config: &Config, terminal_width: u16, terminal_height: u16) -> Self {
+        let viewport = Viewport::new(terminal_width, terminal_height);
+        let persistent_cursor = UiCursor::from_config(config, CursorKind::Output);
 
-        if self.messages.len() >= self.config.max_messages {
-            self.messages.remove(0);
+        Self::log_startup();
+
+        Self {
+            messages: Vec::with_capacity(config.max_messages),
+            line_cache: Vec::new(),
+            cache_dirty: true,
+            config: config.clone(),
+            viewport,
+            persistent_cursor,
+            debug_enabled: false,
+            debug_cycles: 0,
         }
-
-        let mut message = Message::new(content, self.config.typewriter_delay);
-        message.calculate_wrapped_line_count(&self.viewport);
-
-        self.messages.push(message);
-        self.recalculate_content_height_silent();
-        self.scroll_to_bottom_direct_silent();
     }
 
-    // ✅ NEUE FUNKTION: Einfaches File-Logging
+    fn debug_log(&mut self, message: &str) {
+        if self.debug_enabled && self.debug_cycles > 0 {
+            log::info!("🔍 {}", message);
+            self.debug_cycles -= 1;
+            if self.debug_cycles == 0 {
+                self.debug_enabled = false;
+                log::info!("🔇 Debug disabled");
+            }
+        }
+    }
+
+    // ✅ OPTIMIZED: Cache-Rebuild ohne excessive Logs
+    fn rebuild_line_cache(&mut self) {
+        self.line_cache.clear();
+
+        let output_area = self.viewport.output_area();
+        let effective_width = (output_area.width as usize).saturating_sub(2).max(10);
+
+        for (msg_idx, message) in self.messages.iter().enumerate() {
+            let original_content = &message.content;
+
+            // Sichtbarer Content (bei Typewriter-Effekt)
+            let visible_content = if message.is_typing() {
+                let graphemes: Vec<&str> = original_content.graphemes(true).collect();
+                graphemes
+                    .iter()
+                    .take(message.current_length)
+                    .copied()
+                    .collect::<String>()
+            } else {
+                original_content.clone()
+            };
+
+            // Clean für Display
+            let clean_content = clean_message_for_display(&visible_content);
+
+            // KRITISCH: Korrekte Zeilen-Aufteilung
+            let raw_lines = if clean_content.is_empty() {
+                vec![String::new()]
+            } else {
+                let mut lines: Vec<String> = clean_content.lines().map(|s| s.to_string()).collect();
+
+                // Wenn mit Newline endet, füge leere Zeile hinzu
+                if clean_content.ends_with('\n') {
+                    lines.push(String::new());
+                }
+
+                if lines.is_empty() {
+                    lines.push(String::new());
+                }
+
+                lines
+            };
+
+            // WRAP JEDE ZEILE wenn zu lang
+            for (line_idx, raw_line) in raw_lines.iter().enumerate() {
+                if raw_line.is_empty() {
+                    // Leere Zeile direkt hinzufügen
+                    self.line_cache.push(CachedLine {
+                        content: String::new(),
+                        message_index: msg_idx,
+                        is_partial: false,
+                        visible_chars: 0,
+                    });
+                } else {
+                    // Wrap lange Zeilen
+                    let graphemes: Vec<&str> = raw_line.graphemes(true).collect();
+                    let mut start = 0;
+
+                    while start < graphemes.len() {
+                        let end = (start + effective_width).min(graphemes.len());
+                        let wrapped_line = graphemes[start..end].join("");
+
+                        let is_last_chunk = end == graphemes.len();
+                        let is_last_line = line_idx == raw_lines.len() - 1;
+
+                        self.line_cache.push(CachedLine {
+                            content: wrapped_line.clone(),
+                            message_index: msg_idx,
+                            is_partial: message.is_typing() && is_last_line && is_last_chunk,
+                            visible_chars: wrapped_line.graphemes(true).count(),
+                        });
+
+                        start = end;
+                    }
+                }
+            }
+        }
+
+        // Extra Cursor-Zeile am Ende
+        if let Some(last_msg) = self.messages.last() {
+            if !last_msg.is_typing() {
+                self.line_cache.push(CachedLine {
+                    content: String::new(),
+                    message_index: self.messages.len(),
+                    is_partial: false,
+                    visible_chars: 0,
+                });
+            }
+        }
+
+        self.cache_dirty = false;
+
+        // WICHTIG: Content-Höhe SOFORT updaten!
+        let new_height = self.line_cache.len();
+        self.viewport.update_content_height_silent(new_height);
+
+        log::info!(
+            "🔄 Cache rebuilt: {} lines from {} messages (viewport: {}x{})",
+            self.line_cache.len(),
+            self.messages.len(),
+            self.viewport.window_height(),
+            effective_width
+        );
+    }
+
+    // ✅ UNIFIED: Einzige get_visible_messages Funktion mit Smart-Fix
+    pub fn get_visible_messages(&mut self) -> Vec<(String, usize, bool, bool, bool)> {
+        if self.cache_dirty {
+            self.rebuild_line_cache();
+        }
+
+        let window_height = self.viewport.window_height();
+        let scroll_offset = self.viewport.scroll_offset();
+
+        // ✅ SMART FIX: Korrekte Berechnung für alle Fälle
+        let available_lines = self.line_cache.len().saturating_sub(scroll_offset);
+        let lines_to_show = available_lines.min(window_height);
+
+        let visible_start = scroll_offset;
+        let visible_end = scroll_offset + lines_to_show;
+
+        self.debug_log(&format!(
+            "Viewport: cache={}, offset={}, showing={}, range={}..{}",
+            self.line_cache.len(),
+            scroll_offset,
+            lines_to_show,
+            visible_start,
+            visible_end
+        ));
+
+        let mut result = Vec::new();
+
+        if self.line_cache.is_empty() {
+            result.push((
+                String::new(),
+                0,
+                false,
+                false,
+                self.persistent_cursor.is_visible(),
+            ));
+            return result;
+        }
+
+        // Process visible lines
+        for line_idx in visible_start..visible_end {
+            if let Some(cached_line) = self.line_cache.get(line_idx) {
+                let msg_idx = cached_line.message_index;
+                let is_last_line = line_idx == self.line_cache.len() - 1;
+
+                let (is_typing, cursor_visible) = if msg_idx < self.messages.len() {
+                    if let Some(msg) = self.messages.get(msg_idx) {
+                        (
+                            cached_line.is_partial && msg.is_typing(),
+                            msg.is_cursor_visible() && cached_line.is_partial,
+                        )
+                    } else {
+                        (false, false)
+                    }
+                } else {
+                    (false, false)
+                };
+
+                let persistent_cursor =
+                    is_last_line && !is_typing && self.persistent_cursor.is_visible();
+
+                result.push((
+                    cached_line.content.clone(),
+                    cached_line.visible_chars,
+                    is_typing,
+                    cursor_visible,
+                    persistent_cursor,
+                ));
+            }
+        }
+
+        // Padding to window height
+        while result.len() < window_height {
+            result.push((String::new(), 0, false, false, false));
+        }
+
+        self.debug_log(&format!("Result: {} lines generated", result.len()));
+        result
+    }
+
+    // ✅ SMART: Add message mit intelligenter Debug-Aktivierung
+    pub fn add_message(&mut self, content: String) {
+        self.add_message_with_typewriter(content, true);
+    }
+
+    pub fn add_message_instant(&mut self, content: String) {
+        self.add_message_with_typewriter(content, false);
+    }
+
+    fn add_message_with_typewriter(&mut self, content: String, use_typewriter: bool) {
+        let line_count = content.lines().count();
+
+        // PERFORMANCE: Große Nachrichten IMMER instant!
+        let force_instant = line_count > 5 || content.len() > 200;
+
+        if force_instant {
+            log::info!(
+                "📦 Large message ({} lines) - forcing instant display",
+                line_count
+            );
+        }
+        // Debug für große Nachrichten
+        if content.lines().count() > 3 {
+            log::info!("📦 Adding large message: {} lines", content.lines().count());
+        }
+
+        Self::log_to_file(&content);
+
+        // Entferne alte Nachrichten wenn Buffer voll
+        if self.messages.len() >= self.config.max_messages {
+            self.messages.remove(0);
+            self.cache_dirty = true;
+        }
+
+        let typewriter_delay = if use_typewriter && !force_instant {
+            self.config.typewriter_delay
+        } else {
+            Duration::from_millis(0) // Instant für große Nachrichten
+        };
+
+        let mut message = Message::new(content, typewriter_delay);
+
+        // KRITISCH: Berechne Line Count VOR dem Hinzufügen!
+        message.calculate_wrapped_line_count(&self.viewport);
+
+        log::info!(
+            "📝 New message: {} lines (typewriter: {})",
+            message.line_count,
+            use_typewriter
+        );
+
+        self.messages.push(message);
+        self.cache_dirty = true;
+
+        // FORCE CACHE REBUILD
+        self.rebuild_line_cache();
+
+        // AUTO-SCROLL wenn aktiviert
+        if self.viewport.is_auto_scroll_enabled() {
+            let content_height = self.line_cache.len();
+            let window_height = self.viewport.window_height();
+
+            if content_height > window_height {
+                let target_offset = content_height - window_height;
+                self.viewport.set_scroll_offset_direct_silent(target_offset);
+
+                log::info!(
+                    "📜 Auto-scroll: offset {} (content: {}, window: {})",
+                    target_offset,
+                    content_height,
+                    window_height
+                );
+            }
+        }
+    }
+
+    // ✅ OPTIMIZED: Typewriter ohne excessive Logs
+    pub fn update_typewriter(&mut self) {
+        self.persistent_cursor.update_blink();
+
+        if self.config.typewriter_delay.as_millis() == 0 {
+            return;
+        }
+
+        let mut needs_rebuild = false;
+
+        if let Some(last_message) = self.messages.last_mut() {
+            let total_length = last_message.content.graphemes(true).count();
+
+            if let Some(ref mut cursor) = last_message.typewriter_cursor {
+                cursor.update_blink();
+            }
+
+            if last_message.current_length < total_length {
+                let elapsed = last_message.timestamp.elapsed();
+
+                if elapsed >= self.config.typewriter_delay {
+                    let old_length = last_message.current_length;
+
+                    let chars_to_add = if self.config.typewriter_delay.as_millis() <= 5 {
+                        let ratio = elapsed.as_millis() as f64
+                            / self.config.typewriter_delay.as_millis() as f64;
+                        ratio.floor().max(1.0) as usize
+                    } else {
+                        1
+                    };
+
+                    let new_length = (last_message.current_length + chars_to_add).min(total_length);
+                    last_message.current_length = new_length;
+                    last_message.timestamp = Instant::now();
+
+                    let chars_since_last_rebuild = new_length - old_length;
+                    let next_chars = last_message
+                        .content
+                        .chars()
+                        .skip(old_length)
+                        .take(chars_to_add)
+                        .collect::<String>();
+
+                    // Rebuild NUR wenn ein '\n' dabei ist
+                    if next_chars.contains('\n') {
+                        needs_rebuild = true;
+                        log::trace!("🔄 Typewriter crossed newline boundary!");
+                    } else if chars_since_last_rebuild > 50 {
+                        // Oder alle 50 Zeichen für Safety
+                        needs_rebuild = true;
+                    }
+
+                    self.cache_dirty = true;
+
+                    if new_length == total_length {
+                        last_message.typewriter_cursor = None;
+                        needs_rebuild = true;
+
+                        // FORCE AUTO-SCROLL am Ende
+                        self.viewport.enable_auto_scroll_silent();
+                        self.viewport.scroll_to_bottom();
+                    }
+                }
+            }
+        }
+
+        // Rebuild wenn nötig
+        if needs_rebuild && self.cache_dirty {
+            self.rebuild_line_cache();
+        }
+    }
+
+    // ✅ SIMPLIFIED: Handle scroll ohne Debug-Spam
+    pub fn handle_scroll(&mut self, direction: ScrollDirection, amount: usize) {
+        match direction {
+            ScrollDirection::Up => self.viewport.scroll_up(amount.max(1)),
+            ScrollDirection::Down => self.viewport.scroll_down(amount.max(1)),
+            ScrollDirection::PageUp => self.viewport.page_up(),
+            ScrollDirection::PageDown => self.viewport.page_down(),
+            ScrollDirection::ToTop => self.viewport.scroll_to_top(),
+            ScrollDirection::ToBottom => self.viewport.scroll_to_bottom(),
+        }
+    }
+
+    pub fn handle_resize(&mut self, width: u16, height: u16) -> bool {
+        let changed = self.viewport.update_terminal_size(width, height);
+
+        if changed {
+            for message in &mut self.messages {
+                message.calculate_wrapped_line_count(&self.viewport);
+            }
+            self.cache_dirty = true;
+            self.viewport.force_auto_scroll();
+        }
+
+        changed
+    }
+
+    pub fn clear_messages(&mut self) {
+        self.messages.clear();
+        self.line_cache.clear();
+        self.cache_dirty = false;
+        self.viewport.update_content_height_silent(0);
+        self.viewport.force_auto_scroll();
+        self.persistent_cursor.show_cursor();
+    }
+
+    pub fn create_output_widget_for_rendering(&mut self) -> RenderData<'_> {
+        let messages = self.get_visible_messages();
+        (
+            messages,
+            self.config.clone(),
+            self.viewport.output_area(),
+            &self.persistent_cursor,
+        )
+    }
+
+    pub fn update_config(&mut self, new_config: &Config) {
+        self.config = new_config.clone();
+        self.persistent_cursor = UiCursor::from_config(new_config, CursorKind::Output);
+        self.cache_dirty = true;
+
+        if self.messages.len() > self.config.max_messages {
+            let excess = self.messages.len() - self.config.max_messages;
+            self.messages.drain(0..excess);
+            self.cache_dirty = true;
+        }
+    }
+
+    // ✅ GETTERS: Clean and simple
+    pub fn viewport(&self) -> &Viewport {
+        &self.viewport
+    }
+    pub fn viewport_mut(&mut self) -> &mut Viewport {
+        &mut self.viewport
+    }
+    pub fn get_messages_count(&self) -> usize {
+        self.messages.len()
+    }
+    pub fn get_line_count(&self) -> usize {
+        if self.cache_dirty {
+            self.messages.iter().map(|m| m.line_count).sum()
+        } else {
+            self.line_cache.len()
+        }
+    }
+
+    pub fn debug_scroll_status(&self) -> String {
+        format!(
+            "Scroll: offset={}, lines={}, window={}, auto={}, msgs={}, cache={}",
+            self.viewport.scroll_offset(),
+            self.viewport.content_height(),
+            self.viewport.window_height(),
+            self.viewport.is_auto_scroll_enabled(),
+            self.messages.len(),
+            self.line_cache.len()
+        )
+    }
+
+    // ✅ UNIFIED: Content height management
+    pub fn handle_viewport_event(&mut self, event: ViewportEvent) -> bool {
+        let changed = self.viewport.handle_event(event);
+        if changed {
+            for message in &mut self.messages {
+                message.calculate_wrapped_line_count(&self.viewport);
+            }
+            self.cache_dirty = true;
+        }
+        changed
+    }
+
+    pub fn get_content_height(&self) -> usize {
+        self.viewport.content_height()
+    }
+    pub fn get_window_height(&self) -> usize {
+        self.viewport.window_height()
+    }
+
+    pub fn log(&mut self, level: &str, message: &str) {
+        let log_message = format!("[{}] {}", level, message);
+        self.add_message(log_message);
+    }
+
+    // ✅ UTILITY: File logging (unchanged but cleaner)
     fn log_to_file(content: &str) {
-        // Nur echte Nachrichten loggen, keine System-Commands
         if content.starts_with("__") || content.trim().is_empty() {
             return;
         }
 
-        // Aktueller Timestamp
         let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
         let log_line = format!("[{}] {}\n", timestamp, content);
 
-        // Log-Datei Pfad
         if let Ok(exe_path) = std::env::current_exe() {
             if let Some(base_dir) = exe_path.parent() {
-                let log_dir = base_dir.join(".rss");
-                let log_path = log_dir.join("rush.logs");
-
-                // Verzeichnis erstellen falls nicht vorhanden
-                let _ = std::fs::create_dir_all(&log_dir);
-
-                // In Datei schreiben (append mode)
+                let log_path = base_dir.join(".rss").join("rush.logs");
+                let _ = std::fs::create_dir_all(log_path.parent().unwrap());
                 let _ = std::fs::OpenOptions::new()
                     .create(true)
                     .append(true)
@@ -156,21 +630,6 @@ impl MessageDisplay {
                         file.write_all(log_line.as_bytes())
                     });
             }
-        }
-    }
-
-    pub fn new(config: &Config, terminal_width: u16, terminal_height: u16) -> Self {
-        let viewport = Viewport::new(terminal_width, terminal_height);
-        let persistent_cursor = UiCursor::from_config(config, CursorKind::Output);
-
-        // ✅ STARTUP-LOG
-        Self::log_startup();
-
-        Self {
-            messages: Vec::with_capacity(config.max_messages),
-            config: config.clone(),
-            viewport,
-            persistent_cursor,
         }
     }
 
@@ -184,10 +643,8 @@ impl MessageDisplay {
 
         if let Ok(exe_path) = std::env::current_exe() {
             if let Some(base_dir) = exe_path.parent() {
-                let log_dir = base_dir.join(".rss");
-                let log_path = log_dir.join("rush.logs");
-
-                let _ = std::fs::create_dir_all(&log_dir);
+                let log_path = base_dir.join(".rss").join("rush.logs");
+                let _ = std::fs::create_dir_all(log_path.parent().unwrap());
                 let _ = std::fs::OpenOptions::new()
                     .create(true)
                     .append(true)
@@ -199,302 +656,9 @@ impl MessageDisplay {
             }
         }
     }
-
-    pub fn update_config(&mut self, new_config: &Config) {
-        // ✅ STEP 1: Update internal config
-        self.config = new_config.clone();
-
-        // ✅ STEP 2: FORCE COMPLETE OUTPUT-CURSOR RECREATION
-        log::info!("🔄 RECREATING output cursor with new config...");
-        let old_cursor_debug = self.persistent_cursor.debug_info();
-        self.persistent_cursor = UiCursor::from_config(new_config, CursorKind::Output);
-        let new_cursor_debug = self.persistent_cursor.debug_info();
-
-        log::info!(
-            "🔄 OUTPUT-CURSOR TRANSITION:\n  OLD: {}\n  NEW: {}",
-            old_cursor_debug,
-            new_cursor_debug
-        );
-
-        // ✅ STEP 3: Handle message buffer
-        if self.messages.len() > self.config.max_messages {
-            let excess = self.messages.len() - self.config.max_messages;
-            self.messages.drain(0..excess);
-            self.recalculate_content_height();
-        }
-
-        // ✅ FINAL VERIFICATION
-        let final_symbol = self.persistent_cursor.get_symbol();
-        let final_color = self.persistent_cursor.color.to_name();
-        log::info!(
-            "✅ MessageDisplay CONFIG UPDATE COMPLETE: output_cursor_symbol='{}' ({}), expected='{}' ({})",
-            final_symbol,
-            final_color,
-            new_config.theme.output_cursor,
-            new_config.theme.output_cursor_color.to_name()
-        );
-    }
-
-    pub fn handle_viewport_event(&mut self, event: ViewportEvent) -> bool {
-        let changed = self.viewport.handle_event(event);
-        if changed {
-            self.recalculate_all_line_counts();
-        }
-        changed
-    }
-
-    pub fn handle_resize(&mut self, width: u16, height: u16) -> bool {
-        let changed = self.handle_viewport_event(ViewportEvent::TerminalResized { width, height });
-
-        if changed {
-            self.viewport.force_auto_scroll();
-        }
-
-        changed
-    }
-
-    pub fn clear_messages(&mut self) {
-        self.messages.clear();
-        self.recalculate_content_height();
-        self.viewport.force_auto_scroll();
-        self.persistent_cursor.show_cursor();
-    }
-
-    pub fn update_typewriter(&mut self) {
-        self.persistent_cursor.update_blink();
-
-        if self.config.typewriter_delay.as_millis() == 0 {
-            return;
-        }
-
-        if let Some(last_message) = self.messages.last_mut() {
-            let total_length = last_message.content.graphemes(true).count();
-
-            if let Some(ref mut cursor) = last_message.typewriter_cursor {
-                cursor.update_blink();
-            }
-
-            if last_message.current_length < total_length {
-                let elapsed = last_message.timestamp.elapsed();
-
-                if elapsed >= self.config.typewriter_delay {
-                    let chars_to_add = if self.config.typewriter_delay.as_millis() <= 5 {
-                        let ratio = elapsed.as_millis() as f64
-                            / self.config.typewriter_delay.as_millis() as f64;
-                        ratio.floor().max(1.0) as usize
-                    } else {
-                        1
-                    };
-
-                    let new_length = (last_message.current_length + chars_to_add).min(total_length);
-                    last_message.current_length = new_length;
-                    last_message.timestamp = Instant::now();
-
-                    if new_length == total_length {
-                        last_message.typewriter_cursor = None;
-                        self.viewport.force_auto_scroll();
-                        log::trace!("⌨️ Typewriter completed → message cursor removed, persistent cursor continues");
-                    }
-                }
-            }
-        }
-    }
-
-    fn recalculate_content_height_silent(&mut self) {
-        let total_lines = self
-            .messages
-            .iter()
-            .map(|msg| msg.line_count)
-            .sum::<usize>();
-
-        self.viewport.update_content_height_silent(total_lines);
-    }
-
-    fn scroll_to_bottom_direct_silent(&mut self) {
-        self.viewport.enable_auto_scroll_silent();
-
-        let content_height = self.viewport.content_height();
-        let window_height = self.viewport.window_height();
-
-        if content_height > window_height {
-            let max_offset = content_height - window_height;
-            self.viewport.set_scroll_offset_direct_silent(max_offset);
-        } else {
-            self.viewport.set_scroll_offset_direct_silent(0);
-        }
-    }
-
-    fn recalculate_all_line_counts(&mut self) {
-        for message in &mut self.messages {
-            message.calculate_wrapped_line_count(&self.viewport);
-        }
-
-        self.recalculate_content_height();
-    }
-
-    pub fn handle_scroll(&mut self, direction: ScrollDirection, amount: usize) {
-        let scroll_amount = match direction {
-            ScrollDirection::Up | ScrollDirection::Down => {
-                if amount == 0 {
-                    1
-                } else {
-                    amount
-                }
-            }
-            ScrollDirection::PageUp | ScrollDirection::PageDown => 0,
-            _ => amount,
-        };
-
-        log::trace!("📜 Manual scroll: {:?} by {}", direction, scroll_amount);
-
-        self.handle_viewport_event(ViewportEvent::ScrollRequest {
-            direction,
-            amount: scroll_amount,
-        });
-    }
-
-    fn recalculate_content_height(&mut self) {
-        let individual_line_counts: Vec<usize> =
-            self.messages.iter().map(|msg| msg.line_count).collect();
-
-        let total_lines = individual_line_counts.iter().sum::<usize>();
-        self.viewport.update_content_height(total_lines);
-    }
-
-    pub fn get_content_height(&self) -> usize {
-        self.viewport.content_height()
-    }
-
-    pub fn get_window_height(&self) -> usize {
-        self.viewport.window_height()
-    }
-
-    pub fn get_visible_messages(&self) -> Vec<(String, usize, bool, bool, bool)> {
-        let window_height = self.viewport.window_height();
-        let content_height = self.viewport.content_height();
-
-        if self.messages.is_empty() {
-            return vec![(
-                EMPTY_STRING.to_string(),
-                0,
-                false,
-                false,
-                self.persistent_cursor.is_visible(),
-            )];
-        }
-
-        if content_height <= window_height {
-            let mut result: Vec<(String, usize, bool, bool, bool)> = self
-                .messages
-                .iter()
-                .enumerate()
-                .map(|(index, msg)| {
-                    let is_last = index == self.messages.len() - 1;
-                    (
-                        msg.content.clone(),
-                        msg.current_length,
-                        msg.is_typing(),
-                        msg.is_cursor_visible(),
-                        is_last && self.persistent_cursor.is_visible(),
-                    )
-                })
-                .collect();
-
-            if let Some(last_msg) = self.messages.last() {
-                if !last_msg.is_typing() {
-                    result.push((
-                        EMPTY_STRING.to_string(),
-                        0,
-                        false,
-                        false,
-                        self.persistent_cursor.is_visible(),
-                    ));
-                }
-            }
-
-            return result;
-        }
-
-        let mut visible = Vec::new();
-        let mut lines_used = 0;
-
-        for (index, message) in self.messages.iter().rev().enumerate() {
-            if lines_used + message.line_count <= window_height {
-                let is_last = index == 0;
-                visible.push((
-                    message.content.clone(),
-                    message.current_length,
-                    message.is_typing(),
-                    message.is_cursor_visible(),
-                    is_last && self.persistent_cursor.is_visible(),
-                ));
-                lines_used += message.line_count;
-            } else {
-                break;
-            }
-        }
-
-        visible.reverse();
-
-        if let Some((_, _, is_typing, _, _)) = visible.last() {
-            if !is_typing && lines_used < window_height {
-                visible.push((
-                    EMPTY_STRING.to_string(),
-                    0,
-                    false,
-                    false,
-                    self.persistent_cursor.is_visible(),
-                ));
-            }
-        }
-
-        visible
-    }
-
-    pub fn create_output_widget_for_rendering(&self) -> RenderData<'_> {
-        let messages = self.get_visible_messages();
-        (
-            messages,
-            self.config.clone(),
-            self.viewport.output_area(),
-            &self.persistent_cursor,
-        )
-    }
-
-    pub fn viewport(&self) -> &Viewport {
-        &self.viewport
-    }
-
-    pub fn viewport_mut(&mut self) -> &mut Viewport {
-        &mut self.viewport
-    }
-
-    pub fn debug_scroll_status(&self) -> String {
-        format!(
-            "Scroll: offset={}, content_height={}, window_height={}, auto_scroll={}, at_bottom={}",
-            self.viewport.scroll_offset(),
-            self.viewport.content_height(),
-            self.viewport.window_height(),
-            self.viewport.is_auto_scroll_enabled(),
-            self.viewport.scroll_offset()
-                >= self
-                    .viewport
-                    .content_height()
-                    .saturating_sub(self.viewport.window_height())
-        )
-    }
-
-    pub fn log(&mut self, level: &str, message: &str) {
-        let log_message = format!("[{}] {}", level, message);
-        self.add_message(log_message);
-    }
-
-    pub fn get_messages_count(&self) -> usize {
-        self.messages.len()
-    }
 }
 
-// UTILITY FUNCTIONS
+// ✅ UTILITY FUNCTIONS: Cleaner implementation
 fn clean_ansi_codes(message: &str) -> String {
     String::from_utf8_lossy(&strip(message.as_bytes()).unwrap_or_default()).into_owned()
 }
@@ -570,6 +734,7 @@ fn get_marker_color(marker: &str) -> AppColor {
     AppColor::from_any(mapped_category)
 }
 
+// ✅ OPTIMIZED: Output widget creation
 pub fn create_output_widget<'a>(
     messages: &'a [(String, usize, bool, bool, bool)],
     layout_area: crate::ui::viewport::LayoutArea,
@@ -577,14 +742,8 @@ pub fn create_output_widget<'a>(
     cursor_state: &'a UiCursor,
 ) -> Paragraph<'a> {
     let max_lines = layout_area.height as usize;
-    let mut lines = Vec::new();
 
     if max_lines == 0 || layout_area.width == 0 {
-        log::warn!(
-            "🚨 Invalid layout area: {}x{}",
-            layout_area.width,
-            layout_area.height
-        );
         return Paragraph::new(vec![Line::from(vec![Span::raw("⚠️ INVALID LAYOUT")])]).block(
             Block::default()
                 .borders(Borders::NONE)
@@ -593,6 +752,7 @@ pub fn create_output_widget<'a>(
     }
 
     let safe_max_lines = max_lines.min(1000);
+    let mut lines = Vec::new();
 
     if messages.is_empty() {
         let empty_lines = vec![Line::from(vec![Span::raw("")]); safe_max_lines];
@@ -614,7 +774,6 @@ pub fn create_output_widget<'a>(
 
         if message.is_empty() {
             if *persistent_cursor_visible {
-                // ✅ FIX: OUTPUT-CURSOR als separates Symbol (NIEMALS invertiert!)
                 lines.push(Line::from(vec![cursor_state.create_cursor_span(config)]));
             } else {
                 lines.push(Line::from(vec![Span::raw("")]));
@@ -630,19 +789,16 @@ pub fn create_output_widget<'a>(
         } else {
             for (line_idx, line_content) in message_lines.iter().enumerate() {
                 if lines.len() >= safe_max_lines {
-                    log::trace!("🛑 Reached safe line limit: {}", safe_max_lines);
                     break;
                 }
 
                 let is_last_line = line_idx == message_lines.len() - 1;
-
                 let visible_chars = if is_last_message && is_last_line {
                     let chars_before_this_line: usize = message_lines
                         .iter()
                         .take(line_idx)
                         .map(|l| l.graphemes(true).count() + 1)
                         .sum();
-
                     let available_for_this_line =
                         current_length.saturating_sub(chars_before_this_line);
                     available_for_this_line.min(line_content.graphemes(true).count())
@@ -667,7 +823,6 @@ pub fn create_output_widget<'a>(
                     }
 
                     let chars_needed = visible_chars - chars_used;
-
                     if chars_needed >= part_chars {
                         spans.push(Span::styled(part_text, part_style));
                         chars_used += part_chars;
@@ -685,15 +840,12 @@ pub fn create_output_widget<'a>(
                     }
                 }
 
-                // ✅ KRITISCHER FIX: OUTPUT-CURSOR RENDERING
-                if is_last_message && is_last_line {
-                    if *is_typing && *msg_cursor_visible {
-                        // ✅ TYPEWRITER-CURSOR: Immer als separates Symbol!
-                        spans.push(cursor_state.create_cursor_span(config));
-                    } else if !*is_typing && *persistent_cursor_visible {
-                        // ✅ PERSISTENT-CURSOR: Immer als separates Symbol!
-                        spans.push(cursor_state.create_cursor_span(config));
-                    }
+                if is_last_message
+                    && is_last_line
+                    && ((*is_typing && *msg_cursor_visible)
+                        || (!*is_typing && *persistent_cursor_visible))
+                {
+                    spans.push(cursor_state.create_cursor_span(config));
                 }
 
                 if spans.is_empty() {
@@ -716,16 +868,8 @@ pub fn create_output_widget<'a>(
     lines.truncate(safe_max_lines);
 
     if lines.is_empty() {
-        log::error!("🚨 Empty lines vector created!");
         lines.push(Line::from(vec![Span::raw("ERROR: Empty buffer")]));
     }
-
-    log::trace!(
-        "✅ Output widget created: {} lines, output_cursor: {} ({})",
-        lines.len(),
-        cursor_state.get_symbol(),
-        cursor_state.color.to_name()
-    );
 
     Paragraph::new(lines)
         .block(

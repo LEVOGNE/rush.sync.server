@@ -37,8 +37,8 @@ pub use core::error::{AppError, Result};
 pub fn create_default_registry() -> CommandRegistry {
     use commands::{
         clear::ClearCommand, exit::ExitCommand, history::HistoryCommand, lang::LanguageCommand,
-        log_level::LogLevelCommand, restart::RestartCommand, test::TestCommand,
-        theme::ThemeCommand, version::VersionCommand,
+        log_level::LogLevelCommand, restart::RestartCommand, theme::ThemeCommand,
+        version::VersionCommand,
     };
 
     let mut registry = CommandRegistry::new();
@@ -56,7 +56,6 @@ pub fn create_default_registry() -> CommandRegistry {
 
     // Utility Commands
     registry.register(HistoryCommand);
-    registry.register(TestCommand);
 
     registry.initialize();
     registry

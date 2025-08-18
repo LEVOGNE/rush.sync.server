@@ -85,6 +85,8 @@ impl UiCursor {
 
         let cursor_type = CursorType::parse_type(cursor_type_str);
 
+        // ❌ REMOVED: log::debug!
+
         Self {
             kind,
             ctype: cursor_type,

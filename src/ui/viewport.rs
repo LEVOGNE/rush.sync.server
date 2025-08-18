@@ -346,17 +346,21 @@ impl Viewport {
     /// ✅ DIREKTES Scroll to bottom
     pub fn scroll_to_bottom(&mut self) {
         let old_offset = self.scroll_offset;
-        self.scroll_offset = self.max_scroll_offset();
-        self.enable_auto_scroll();
+        let max_offset = self.max_scroll_offset();
 
-        log::trace!(
-            "🔚 Scroll to bottom: {} → {} (max_offset: {}, content: {}, window: {})",
-            old_offset,
-            self.scroll_offset,
-            self.max_scroll_offset(),
-            self.content_height,
-            self.window_height
-        );
+        self.scroll_offset = max_offset;
+        self.auto_scroll_enabled = true;
+
+        if old_offset != self.scroll_offset {
+            log::info!(
+                "📍 Scrolled to bottom: {} → {} (max: {}, content: {}, window: {})",
+                old_offset,
+                self.scroll_offset,
+                max_offset,
+                self.content_height,
+                self.window_height
+            );
+        }
     }
 
     /// ✅ SILENT VERSION: Content-Höhe Update ohne Logging (Anti-Loop)
@@ -367,8 +371,7 @@ impl Viewport {
 
     /// ✅ SILENT VERSION: Direkte Scroll-Offset-Kontrolle ohne Logging (Anti-Loop)
     pub fn set_scroll_offset_direct_silent(&mut self, offset: usize) {
-        self.scroll_offset = offset;
-        self.clamp_scroll_offset();
+        self.scroll_offset = offset.min(self.max_scroll_offset());
     }
 
     /// ✅ SILENT VERSION: Auto-Scroll aktivieren ohne Logging (Anti-Loop)

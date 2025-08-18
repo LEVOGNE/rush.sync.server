@@ -24,13 +24,12 @@ impl Command for HistoryCommand {
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
         match args.first() {
             Some(&"-c" | &"--clear") => Ok("__CLEAR_HISTORY__".to_string()),
-            Some(&"-h" | &"--help") => Ok(format!(
-                "📁 History Commands:\n\
+            Some(&"-h" | &"--help") => Ok("📁 History Commands:\n\
                 history        Show this help\n\
                 history -c     Clear history\n\
                 ↑ ↓           Navigate history\n\n\
                 File: ~/.rss/rush.history"
-            )),
+                .to_string()), // ✅ FIXED
             _ => Ok("📁 Use ↑↓ arrows to navigate, 'history -c' to clear".to_string()),
         }
     }
