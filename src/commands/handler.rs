@@ -1,3 +1,7 @@
+// =====================================================
+// FILE: src/commands/handler.rs - UNICODE-SAFE VERSION
+// =====================================================
+
 use super::registry::CommandRegistry;
 use crate::i18n;
 
@@ -37,14 +41,19 @@ impl CommandHandler {
 
         log::info!("🔧 CommandHandler processing: '{}'", input);
 
-        // FIX: Handle String/&str conversion properly
         match self.registry.execute_sync(parts[0], &parts[1..]) {
             Some(Ok(msg)) => {
-                // ✅ DEBUG: Log the result
+                // ✅ UNICODE-SAFE PREVIEW - nutzt char boundaries
+                let preview = if msg.chars().count() > 100 {
+                    format!("{}...", msg.chars().take(97).collect::<String>())
+                } else {
+                    msg.clone()
+                };
+
                 log::info!(
                     "🔧 Command returned {} chars: '{}'",
-                    msg.len(),
-                    &msg[..msg.len().min(100)]
+                    msg.chars().count(), // ✅ char count statt byte count
+                    preview
                 );
 
                 let should_exit = self.should_exit_on_message(&msg);
@@ -54,11 +63,10 @@ impl CommandHandler {
                     should_exit,
                 };
 
-                // ✅ DEBUG: Log the final result
                 log::info!(
                     "🔧 CommandResult: success={}, message_len={}, should_exit={}",
                     result.success,
-                    result.message.len(),
+                    result.message.chars().count(), // ✅ char count statt byte count
                     result.should_exit
                 );
 
@@ -98,12 +106,11 @@ impl CommandHandler {
             };
         }
 
-        // FIX: Handle String/&str conversion properly
         match self.registry.execute_async(parts[0], &parts[1..]).await {
             Some(Ok(msg)) => {
                 let should_exit = self.should_exit_on_message(&msg);
                 CommandResult {
-                    message: msg, // FIX: msg is already String from execute_async
+                    message: msg,
                     success: true,
                     should_exit,
                 }

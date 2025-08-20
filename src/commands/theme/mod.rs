@@ -1,5 +1,3 @@
-// ## FILE: src/commands/theme/mod.rs - MIT input_cursor SUPPORT
-// ## BEGIN ##
 use crate::core::prelude::*;
 use std::collections::HashMap;
 
@@ -12,13 +10,11 @@ pub struct ThemeDefinition {
     pub input_bg: String,
     pub output_text: String,
     pub output_bg: String,
-
-    // ✅ PERFEKTE CURSOR-KONFIGURATION (5 Felder)
-    pub input_cursor_prefix: String, // NEU: Prompt-Text
-    pub input_cursor_color: String,  // NEU: Prompt-Farbe
-    pub input_cursor: String,        // NEU: Input-Cursor-Typ
-    pub output_cursor: String,       // Output-Cursor-Typ
-    pub output_cursor_color: String, // NEU: Output-Cursor-Farbe
+    pub input_cursor_prefix: String,
+    pub input_cursor_color: String,
+    pub input_cursor: String,
+    pub output_cursor: String,
+    pub output_cursor_color: String,
 }
 
 #[derive(Debug)]
@@ -40,15 +36,11 @@ impl ThemeSystem {
                 .unwrap_or_else(|| "default".to_string())
         });
 
-        if themes.is_empty() {
-            log::warn!("❌ Keine Themes in TOML gefunden! Füge [theme.xyz] Sektionen hinzu.");
-        } else {
-            log::info!(
-                "✅ {} Themes aus TOML geladen: {}",
-                themes.len(),
-                themes.keys().cloned().collect::<Vec<String>>().join(", ")
-            );
-        }
+        log::info!(
+            "✅ {} Themes loaded: {}",
+            themes.len(),
+            themes.keys().cloned().collect::<Vec<_>>().join(", ")
+        );
 
         Ok(Self {
             themes,
@@ -59,74 +51,56 @@ impl ThemeSystem {
 
     pub fn show_status(&self) -> String {
         if self.themes.is_empty() {
-            return "❌ Keine Themes verfügbar! Füge [theme.xyz] Sektionen zur rush.toml hinzu."
-                .to_string();
+            return "❌ No themes available! Add [theme.xyz] sections to rush.toml.".to_string();
         }
-
-        let available: Vec<String> = self.themes.keys().cloned().collect();
         format!(
-            "Current theme: {} (aus TOML)\nVerfügbare Themes aus TOML: {}",
+            "Current theme: {} (from TOML)\nAvailable: {}",
             self.current_name.to_uppercase(),
-            available.join(", ")
+            self.themes.keys().cloned().collect::<Vec<_>>().join(", ")
         )
     }
 
     pub fn change_theme(&mut self, theme_name: &str) -> Result<String> {
         let theme_name_lower = theme_name.to_lowercase();
 
-        if self.themes.is_empty() {
-            return Ok(
-                "❌ Keine Themes verfügbar! Füge [theme.xyz] Sektionen zur rush.toml hinzu."
-                    .to_string(),
-            );
-        }
-
         if !self.themes.contains_key(&theme_name_lower) {
-            let available: Vec<String> = self.themes.keys().cloned().collect();
-            return Ok(format!(
-                "❌ Theme '{}' nicht in TOML gefunden. Verfügbare TOML-Themes: {}",
-                theme_name,
-                available.join(", ")
-            ));
+            return Ok(if self.themes.is_empty() {
+                "❌ No themes available! Add [theme.xyz] sections to rush.toml.".to_string()
+            } else {
+                format!(
+                    "❌ Theme '{}' not found. Available: {}",
+                    theme_name,
+                    self.themes.keys().cloned().collect::<Vec<_>>().join(", ")
+                )
+            });
         }
 
         self.current_name = theme_name_lower.clone();
 
-        // ✅ DETAILED DEBUG für Cursor-Konfiguration
+        // Log cursor details
         if let Some(theme_def) = self.themes.get(&theme_name_lower) {
             log::info!(
-                "🎨 THEME CHANGE DETAILS for '{}':\n  \
-                input_cursor: '{}' (color: {})\n  \
-                output_cursor: '{}' (color: {})\n  \
-                input_cursor_prefix: '{}' (color: {})",
+                "🎨 Theme '{}': input_cursor='{}' ({}), output_cursor='{}' ({}), prefix='{}'",
                 theme_name_lower.to_uppercase(),
                 theme_def.input_cursor,
                 theme_def.input_cursor_color,
                 theme_def.output_cursor,
                 theme_def.output_cursor_color,
-                theme_def.input_cursor_prefix,
-                theme_def.input_cursor_color
+                theme_def.input_cursor_prefix
             );
         }
 
         // Async save
-        let theme_name_clone = theme_name_lower.clone();
-        let config_paths = self.config_paths.clone();
+        let name_clone = theme_name_lower.clone();
+        let paths_clone = self.config_paths.clone();
         tokio::spawn(async move {
-            if let Err(e) =
-                Self::save_current_theme_to_config(&config_paths, &theme_name_clone).await
-            {
-                log::error!("Failed to save theme to config: {}", e);
-            } else {
-                log::info!(
-                    "✅ TOML-Theme '{}' saved to config",
-                    theme_name_clone.to_uppercase()
-                );
+            if let Err(e) = Self::save_current_theme_to_config(&paths_clone, &name_clone).await {
+                log::error!("Failed to save theme: {}", e);
             }
         });
 
         Ok(format!(
-            "__LIVE_THEME_UPDATE__{}__MESSAGE__🎨 TOML-Theme changed to: {} ✨",
+            "__LIVE_THEME_UPDATE__{}__MESSAGE__🎨 Theme changed to: {} ✨",
             theme_name_lower,
             theme_name_lower.to_uppercase()
         ))
@@ -135,52 +109,45 @@ impl ThemeSystem {
     pub fn preview_theme(&self, theme_name: &str) -> Result<String> {
         let theme_name_lower = theme_name.to_lowercase();
 
-        if self.themes.is_empty() {
-            return Ok(
-                "❌ Keine Themes verfügbar! Füge [theme.xyz] Sektionen zur rush.toml hinzu."
-                    .to_string(),
-            );
-        }
-
         if let Some(theme_def) = self.themes.get(&theme_name_lower) {
-            Ok(format!(
-                "🎨 TOML-Theme '{}' Preview:\n  Input: {} auf {}\n  Output: {} auf {}\n  Input-Cursor-Prefix: '{}' in {} ✅ NEU!\n  Input-Cursor: {} ✅ NEU!\n  Output-Cursor: {} in {} ✅ NEU!\n\n📁 Quelle: [theme.{}] in rush.toml",
-                theme_name_lower.to_uppercase(),
-                theme_def.input_text,
-                theme_def.input_bg,
-                theme_def.output_text,
-                theme_def.output_bg,
-                theme_def.input_cursor_prefix,
-                theme_def.input_cursor_color,
-                theme_def.input_cursor,
-                theme_def.output_cursor,
-                theme_def.output_cursor_color,
-                theme_name_lower
-            ))
+            Ok(format!("🎨 Theme '{}' Preview:\nInput: {} on {}\nOutput: {} on {}\nCursor Prefix: '{}' in {}\nInput Cursor: {}\nOutput Cursor: {} in {}\n\n📁 Source: [theme.{}] in rush.toml",
+                theme_name_lower.to_uppercase(), theme_def.input_text, theme_def.input_bg,
+                theme_def.output_text, theme_def.output_bg, theme_def.input_cursor_prefix,
+                theme_def.input_cursor_color, theme_def.input_cursor, theme_def.output_cursor,
+                theme_def.output_cursor_color, theme_name_lower))
         } else {
-            let available: Vec<String> = self.themes.keys().cloned().collect();
             Ok(format!(
-                "❌ TOML-Theme '{}' nicht gefunden. Verfügbare: {}",
+                "❌ Theme '{}' not found. Available: {}",
                 theme_name,
-                available.join(", ")
+                self.themes.keys().cloned().collect::<Vec<_>>().join(", ")
             ))
         }
     }
 
+    pub fn debug_theme_details(&self, theme_name: &str) -> String {
+        if let Some(theme_def) = self.themes.get(&theme_name.to_lowercase()) {
+            format!("🔍 Theme '{}':\ninput_text: '{}'\ninput_bg: '{}'\noutput_text: '{}'\noutput_bg: '{}'\ninput_cursor_prefix: '{}'\ninput_cursor_color: '{}'\ninput_cursor: '{}'\noutput_cursor: '{}'\noutput_cursor_color: '{}'",
+                theme_name.to_uppercase(), theme_def.input_text, theme_def.input_bg,
+                theme_def.output_text, theme_def.output_bg, theme_def.input_cursor_prefix,
+                theme_def.input_cursor_color, theme_def.input_cursor, theme_def.output_cursor,
+                theme_def.output_cursor_color)
+        } else {
+            format!("❌ Theme '{}' not found!", theme_name)
+        }
+    }
+
+    // Getters
     pub fn theme_exists(&self, theme_name: &str) -> bool {
         self.themes.contains_key(&theme_name.to_lowercase())
     }
-
     pub fn get_theme(&self, theme_name: &str) -> Option<&ThemeDefinition> {
         self.themes.get(&theme_name.to_lowercase())
     }
-
     pub fn get_available_names(&self) -> Vec<String> {
-        let mut names: Vec<String> = self.themes.keys().cloned().collect();
+        let mut names: Vec<_> = self.themes.keys().cloned().collect();
         names.sort();
         names
     }
-
     pub fn get_current_name(&self) -> &str {
         &self.current_name
     }
@@ -197,135 +164,84 @@ impl ThemeSystem {
                 }
             }
         }
-
-        log::warn!("❌ Keine TOML-Themes gefunden! Erstelle [theme.xyz] Sektionen.");
         Ok(HashMap::new())
     }
 
     fn parse_themes_from_toml(content: &str) -> Result<HashMap<String, ThemeDefinition>> {
         let mut themes = HashMap::new();
-        let mut current_theme_name: Option<String> = None;
-        let mut current_theme_data: HashMap<String, String> = HashMap::new();
+        let mut current_theme: Option<String> = None;
+        let mut current_data = HashMap::new();
 
         for line in content.lines() {
             let trimmed = line.trim();
-
             if trimmed.is_empty() || trimmed.starts_with('#') {
                 continue;
             }
 
-            if trimmed.starts_with("[theme.") && trimmed.ends_with(']') {
-                if let Some(theme_name) = current_theme_name.take() {
-                    if let Some(theme_def) = Self::build_theme_from_data(&current_theme_data) {
-                        themes.insert(theme_name, theme_def);
-                    }
-                    current_theme_data.clear();
-                }
-
-                if let Some(name) = trimmed
-                    .strip_prefix("[theme.")
-                    .and_then(|s| s.strip_suffix(']'))
-                {
-                    current_theme_name = Some(name.to_lowercase());
-                }
-            } else if trimmed.starts_with('[')
-                && trimmed.ends_with(']')
-                && !trimmed.starts_with("[theme.")
+            if let Some(theme_name) = trimmed
+                .strip_prefix("[theme.")
+                .and_then(|s| s.strip_suffix(']'))
             {
-                if let Some(theme_name) = current_theme_name.take() {
-                    if let Some(theme_def) = Self::build_theme_from_data(&current_theme_data) {
-                        themes.insert(theme_name, theme_def);
-                    }
-                    current_theme_data.clear();
-                }
-            } else if current_theme_name.is_some() && trimmed.contains('=') {
+                Self::finalize_theme(&mut themes, current_theme.take(), &mut current_data);
+                current_theme = Some(theme_name.to_lowercase());
+            } else if trimmed.starts_with('[') && !trimmed.starts_with("[theme.") {
+                Self::finalize_theme(&mut themes, current_theme.take(), &mut current_data);
+            } else if current_theme.is_some() && trimmed.contains('=') {
                 if let Some((key, value)) = trimmed.split_once('=') {
-                    let clean_key = key.trim().to_string();
-                    let clean_value = value
-                        .trim()
-                        .trim_matches('"')
-                        .trim_matches('\'')
-                        .to_string();
+                    let clean_value = value.trim().trim_matches('"').trim_matches('\'');
                     if !clean_value.is_empty() {
-                        current_theme_data.insert(clean_key, clean_value);
+                        current_data.insert(key.trim().to_string(), clean_value.to_string());
                     }
                 }
             }
         }
-
-        if let Some(theme_name) = current_theme_name {
-            if let Some(theme_def) = Self::build_theme_from_data(&current_theme_data) {
-                themes.insert(theme_name, theme_def);
-            }
-        }
-
+        Self::finalize_theme(&mut themes, current_theme, &mut current_data);
         Ok(themes)
     }
 
+    fn finalize_theme(
+        themes: &mut HashMap<String, ThemeDefinition>,
+        theme_name: Option<String>,
+        data: &mut HashMap<String, String>,
+    ) {
+        if let Some(name) = theme_name {
+            if let Some(theme_def) = Self::build_theme_from_data(data) {
+                themes.insert(name, theme_def);
+            }
+            data.clear();
+        }
+    }
+
     fn build_theme_from_data(data: &HashMap<String, String>) -> Option<ThemeDefinition> {
-        // ✅ BEREINIGTE BACKWARD-KOMPATIBILITÄT
-        let input_cursor_prefix = data.get("input_cursor_prefix")
-            .or_else(|| {
-                if let Some(legacy) = data.get("prompt_text") {
-                    log::warn!("⚠️ Veraltetes 'prompt_text' in Theme gefunden, verwende als 'input_cursor_prefix': {}", legacy);
-                    Some(legacy)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(&"/// ".to_string())
-            .clone();
-
-        let input_cursor_color = data.get("input_cursor_color")
-            .or_else(|| {
-                if let Some(legacy) = data.get("prompt_color") {
-                    log::warn!("⚠️ Veraltetes 'prompt_color' in Theme gefunden, verwende als 'input_cursor_color': {}", legacy);
-                    Some(legacy)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(&"LightBlue".to_string())
-            .clone();
-
-        let input_cursor = data.get("input_cursor")
-            .or_else(|| {
-                if let Some(legacy) = data.get("prompt_cursor") {
-                    log::warn!("⚠️ Veraltetes 'prompt_cursor' in Theme gefunden, verwende als 'input_cursor': {}", legacy);
-                    Some(legacy)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(&"PIPE".to_string())  // Changed from DEFAULT
-            .clone();
-
-        let output_cursor_color = data.get("output_cursor_color")
-            .or_else(|| {
-                if let Some(legacy) = data.get("output_color") {
-                    log::warn!("⚠️ Veraltetes 'output_color' in Theme gefunden, verwende als 'output_cursor_color': {}", legacy);
-                    Some(legacy)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(&"White".to_string())
-            .clone();
-
         Some(ThemeDefinition {
             input_text: data.get("input_text")?.clone(),
             input_bg: data.get("input_bg")?.clone(),
             output_text: data.get("output_text")?.clone(),
             output_bg: data.get("output_bg")?.clone(),
-
-            input_cursor_prefix,
-            input_cursor_color,
-            input_cursor,
+            input_cursor_prefix: data
+                .get("input_cursor_prefix")
+                .or(data.get("prompt_text"))
+                .unwrap_or(&"/// ".to_string())
+                .clone(),
+            input_cursor_color: data
+                .get("input_cursor_color")
+                .or(data.get("prompt_color"))
+                .unwrap_or(&"LightBlue".to_string())
+                .clone(),
+            input_cursor: data
+                .get("input_cursor")
+                .or(data.get("prompt_cursor"))
+                .unwrap_or(&"PIPE".to_string())
+                .clone(),
             output_cursor: data
                 .get("output_cursor")
-                .unwrap_or(&"PIPE".to_string()) // Changed from DEFAULT
+                .unwrap_or(&"PIPE".to_string())
                 .clone(),
-            output_cursor_color,
+            output_cursor_color: data
+                .get("output_cursor_color")
+                .or(data.get("output_color"))
+                .unwrap_or(&"White".to_string())
+                .clone(),
         })
     }
 
@@ -343,25 +259,22 @@ impl ThemeSystem {
     }
 
     fn extract_current_theme_from_toml(content: &str) -> Option<String> {
-        let mut in_general_section = false;
-
+        let mut in_general = false;
         for line in content.lines() {
             let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') {
-                continue;
-            }
-
             if trimmed == "[general]" {
-                in_general_section = true;
-            } else if trimmed.starts_with('[') && trimmed != "[general]" {
-                in_general_section = false;
-            } else if in_general_section && trimmed.starts_with("current_theme") {
-                if let Some(value_part) = trimmed.split('=').nth(1) {
-                    let cleaned = value_part.trim().trim_matches('"').trim_matches('\'');
-                    if !cleaned.is_empty() {
-                        return Some(cleaned.to_string());
-                    }
-                }
+                in_general = true;
+            } else if trimmed.starts_with('[') {
+                in_general = false;
+            } else if in_general && trimmed.starts_with("current_theme") {
+                return trimmed
+                    .split('=')
+                    .nth(1)?
+                    .trim()
+                    .trim_matches('"')
+                    .trim_matches('\'')
+                    .to_string()
+                    .into();
             }
         }
         None
@@ -376,8 +289,8 @@ impl ThemeSystem {
                 let content = tokio::fs::read_to_string(path)
                     .await
                     .map_err(AppError::Io)?;
-                let updated_content = Self::update_current_theme_in_toml(&content, theme_name)?;
-                tokio::fs::write(path, updated_content)
+                let updated = Self::update_current_theme_in_toml(&content, theme_name)?;
+                tokio::fs::write(path, updated)
                     .await
                     .map_err(AppError::Io)?;
                 return Ok(());
@@ -388,69 +301,33 @@ impl ThemeSystem {
 
     fn update_current_theme_in_toml(content: &str, theme_name: &str) -> Result<String> {
         let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
-        let mut in_general_section = false;
-        let mut theme_updated = false;
+        let mut in_general = false;
+        let mut updated = false;
 
         for line in lines.iter_mut() {
             let trimmed = line.trim();
-
             if trimmed == "[general]" {
-                in_general_section = true;
-            } else if trimmed.starts_with('[') && trimmed != "[general]" {
-                in_general_section = false;
-            } else if in_general_section && trimmed.starts_with("current_theme") {
+                in_general = true;
+            } else if trimmed.starts_with('[') {
+                in_general = false;
+            } else if in_general && trimmed.starts_with("current_theme") {
                 *line = format!("current_theme = \"{}\"", theme_name);
-                theme_updated = true;
+                updated = true;
             }
         }
 
-        if !theme_updated {
-            for (i, line) in lines.iter().enumerate() {
-                if line.trim() == "[general]" {
-                    let insert_index = lines
-                        .iter()
-                        .enumerate()
-                        .skip(i + 1)
-                        .find(|(_, line)| line.trim().starts_with('['))
-                        .map(|(idx, _)| idx)
-                        .unwrap_or(lines.len());
-
-                    lines.insert(insert_index, format!("current_theme = \"{}\"", theme_name));
-                    break;
-                }
+        if !updated {
+            if let Some(general_idx) = lines.iter().position(|line| line.trim() == "[general]") {
+                let insert_idx = lines
+                    .iter()
+                    .enumerate()
+                    .skip(general_idx + 1)
+                    .find(|(_, line)| line.trim().starts_with('['))
+                    .map(|(idx, _)| idx)
+                    .unwrap_or(lines.len());
+                lines.insert(insert_idx, format!("current_theme = \"{}\"", theme_name));
             }
         }
-
         Ok(lines.join("\n"))
     }
-
-    pub fn debug_theme_details(&self, theme_name: &str) -> String {
-        if let Some(theme_def) = self.themes.get(&theme_name.to_lowercase()) {
-            format!(
-                "🔍 THEME DEBUG für '{}':\n\
-                📝 input_text: '{}'\n\
-                📝 input_bg: '{}'\n\
-                📝 output_text: '{}'\n\
-                📝 output_bg: '{}'\n\
-                🎯 input_cursor_prefix: '{}'\n\
-                🎨 input_cursor_color: '{}' ⬅️ DAS IST WICHTIG!\n\
-                🎯 input_cursor: '{}'\n\
-                🎯 output_cursor: '{}'\n\
-                🎨 output_cursor_color: '{}'",
-                theme_name.to_uppercase(),
-                theme_def.input_text,
-                theme_def.input_bg,
-                theme_def.output_text,
-                theme_def.output_bg,
-                theme_def.input_cursor_prefix,
-                theme_def.input_cursor_color, // ⬅️ Das sollte "LightBlue" sein!
-                theme_def.input_cursor,
-                theme_def.output_cursor,
-                theme_def.output_cursor_color
-            )
-        } else {
-            format!("❌ Theme '{}' nicht gefunden!", theme_name)
-        }
-    }
 }
-// ## END ##

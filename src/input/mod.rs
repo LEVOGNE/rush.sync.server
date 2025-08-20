@@ -22,47 +22,40 @@ impl EventHandler {
         let (tx, rx) = mpsc::channel(100);
         let mut shutdown_tx = Vec::new();
 
-        let (input_shutdown_tx, mut input_shutdown_rx) = mpsc::channel(1);
+        // Input event handler
+        let (input_shutdown_tx, input_shutdown_rx) = mpsc::channel(1);
         shutdown_tx.push(input_shutdown_tx);
+        Self::spawn_input_handler(tx.clone(), input_shutdown_rx);
 
-        let input_tx = tx.clone();
+        // Tick handler
+        let (tick_shutdown_tx, tick_shutdown_rx) = mpsc::channel(1);
+        shutdown_tx.push(tick_shutdown_tx);
+        Self::spawn_tick_handler(tx, tick_rate, tick_shutdown_rx);
+
+        EventHandler { rx, shutdown_tx }
+    }
+
+    fn spawn_input_handler(tx: mpsc::Sender<AppEvent>, mut shutdown_rx: mpsc::Receiver<()>) {
         tokio::spawn(async move {
-            let mut last_event_time = Instant::now();
-            let min_event_interval = Duration::from_millis(16);
-            let mut last_resize_time = Instant::now();
-            let min_resize_interval = Duration::from_millis(50);
+            let (mut last_key_time, mut last_resize_time) = (Instant::now(), Instant::now());
+            let (key_interval, resize_interval) =
+                (Duration::from_millis(16), Duration::from_millis(50));
 
             loop {
                 tokio::select! {
-                    _ = input_shutdown_rx.recv() => break,
+                    _ = shutdown_rx.recv() => break,
                     _ = async {
                         if crossterm_event::poll(Duration::from_millis(99)).unwrap() {
-                            let now = Instant::now();
-
                             if let Ok(event) = crossterm_event::read() {
+                                let now = Instant::now();
                                 match event {
-                                    CrosstermEvent::Key(key) => {
-                                        if now.duration_since(last_event_time) >= min_event_interval {
-                                            let _ = input_tx.send(AppEvent::Input(key)).await;
-                                            last_event_time = now;
-                                        }
+                                    CrosstermEvent::Key(key) if now.duration_since(last_key_time) >= key_interval => {
+                                        let _ = tx.send(AppEvent::Input(key)).await;
+                                        last_key_time = now;
                                     }
-                                    CrosstermEvent::Resize(width, height) => {
-                                        if now.duration_since(last_resize_time) >= min_resize_interval {
-                                            let _ = input_tx.send(AppEvent::Resize(width, height)).await;
-                                            last_resize_time = now;
-
-                                            log::trace!(
-                                                "🔄 Resize event throttled: {}x{} ({}ms since last)",
-                                                width, height,
-                                                now.duration_since(last_resize_time).as_millis()
-                                            );
-                                        } else {
-                                            log::trace!(
-                                                "⏭️ Resize event dropped (too fast): {}x{}",
-                                                width, height
-                                            );
-                                        }
+                                    CrosstermEvent::Resize(w, h) if now.duration_since(last_resize_time) >= resize_interval => {
+                                        let _ = tx.send(AppEvent::Resize(w, h)).await;
+                                        last_resize_time = now;
                                     }
                                     _ => {}
                                 }
@@ -72,24 +65,22 @@ impl EventHandler {
                 }
             }
         });
+    }
 
-        let (tick_shutdown_tx, mut tick_shutdown_rx) = mpsc::channel(1);
-        shutdown_tx.push(tick_shutdown_tx);
-
-        let tick_tx = tx;
+    fn spawn_tick_handler(
+        tx: mpsc::Sender<AppEvent>,
+        tick_rate: Duration,
+        mut shutdown_rx: mpsc::Receiver<()>,
+    ) {
         tokio::spawn(async move {
             let mut interval = interval(tick_rate);
             loop {
                 tokio::select! {
-                    _ = tick_shutdown_rx.recv() => break,
-                    _ = interval.tick() => {
-                        let _ = tick_tx.send(AppEvent::Tick).await;
-                    }
+                    _ = shutdown_rx.recv() => break,
+                    _ = interval.tick() => { let _ = tx.send(AppEvent::Tick).await; }
                 }
             }
         });
-
-        EventHandler { rx, shutdown_tx }
     }
 
     pub async fn next(&mut self) -> Option<AppEvent> {
@@ -97,7 +88,7 @@ impl EventHandler {
     }
 
     pub async fn shutdown(&mut self) {
-        for tx in self.shutdown_tx.iter() {
+        for tx in &self.shutdown_tx {
             let _ = tx.send(()).await;
         }
     }

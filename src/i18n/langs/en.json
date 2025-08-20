@@ -1,71 +1,31 @@
 {
+  "debug.text": "Debug",
+  "debug.display_text": "DEBUG",
+  "debug.category": "debug",
+
   "error.text": "Error",
   "error.display_text": "ERROR",
   "error.category": "error",
-
-  "warn.text": "Warning",
-  "warn.display_text": "WARN",
-  "warn.category": "warning",
 
   "info.text": "Information",
   "info.display_text": "INFO",
   "info.category": "info",
 
-  "debug.text": "Debug",
-  "debug.display_text": "DEBUG",
-  "debug.category": "debug",
-
   "trace.text": "Trace",
   "trace.display_text": "TRACE",
   "trace.category": "trace",
 
-  "system.startup.version.text": "Welcome to Rush Sync Version {0}",
-  "system.startup.version.display_text": "READY",
-  "system.startup.version.category": "startup",
+  "warn.text": "Warning",
+  "warn.display_text": "WARN",
+  "warn.category": "warning",
 
-  "system.startup.logger_init_failed.text": "Logger initialization failed: {0}",
-  "system.startup.logger_init_failed.display_text": "ERROR",
-  "system.startup.logger_init_failed.category": "error",
+  "config.config_backup_created.text": "Config backup created: {0}",
+  "config.config_backup_created.display_text": "DEBUG",
+  "config.config_backup_created.category": "debug",
 
-  "system.startup.i18n_initialized.text": "i18n system initialized for language: {0}",
-  "system.startup.i18n_initialized.display_text": "READY",
-  "system.startup.i18n_initialized.category": "info",
-
-  "system.config.language_set_failed.text": "Failed to set language: {0}",
-  "system.config.language_set_failed.display_text": "WARN",
-  "system.config.language_set_failed.category": "warning",
-
-  "system.config.no_existing.text": "No existing configuration found, creating default",
-  "system.config.no_existing.display_text": "INFO",
-  "system.config.no_existing.category": "info",
-
-  "system.config.new_default.text": "✅ New default configuration created: {0}",
-  "system.config.new_default.display_text": "INFO",
-  "system.config.new_default.category": "info",
-
-  "system.config.load_error.text": "Error loading new configuration: {0}",
-  "system.config.load_error.display_text": "ERROR",
-  "system.config.load_error.category": "error",
-
-  "system.config.setup_failed.text": "Default configuration setup failed: {0}",
-  "system.config.setup_failed.display_text": "ERROR",
-  "system.config.setup_failed.category": "error",
-
-  "system.config.dir_error.text": "Could not determine program directory",
-  "system.config.dir_error.display_text": "ERROR",
-  "system.config.dir_error.category": "error",
-
-  "system.config.dir_created.text": "Configuration directory created: {0}",
-  "system.config.dir_created.display_text": "DEBUG",
-  "system.config.dir_created.category": "debug",
-
-  "system.config.file_created.text": "Configuration file created: {0}",
-  "system.config.file_created.display_text": "INFO",
-  "system.config.file_created.category": "info",
-
-  "config.corrected_values.text": "🔧 Invalid config values corrected and saved:",
-  "config.corrected_values.display_text": "WARN",
-  "config.corrected_values.category": "warning",
+  "config.config_successfully_written_to.text": "Configuration successfully written to: {0}",
+  "config.config_successfully_written_to.display_text": "DEBUG",
+  "config.config_successfully_written_to.category": "debug",
 
   "config.corrected.poll_rate.text": "poll_rate: {0}ms → {1}ms (corrected)",
   "config.corrected.poll_rate.display_text": "WARN",
@@ -75,61 +35,21 @@
   "config.corrected.typewriter.display_text": "WARN",
   "config.corrected.typewriter.category": "warning",
 
-  "config.save_failed.text": "Could not save corrected config: {0}",
-  "config.save_failed.display_text": "ERROR",
-  "config.save_failed.category": "error",
-
-  "config.save_success.text": "✅ Corrected values saved to config file",
-  "config.save_success.display_text": "INFO",
-  "config.save_success.category": "info",
-
-  "config.poll_rate.zero.text": "poll_rate = 0 not allowed, using minimum: {0}ms",
-  "config.poll_rate.zero.display_text": "WARN",
-  "config.poll_rate.zero.category": "warning",
-
-  "config.poll_rate.too_fast.text": "poll_rate {0}ms too fast, using minimum: {1}ms",
-  "config.poll_rate.too_fast.display_text": "WARN",
-  "config.poll_rate.too_fast.category": "warning",
-
-  "config.poll_rate.too_slow.text": "poll_rate {0}ms too slow, using maximum: {1}ms",
-  "config.poll_rate.too_slow.display_text": "WARN",
-  "config.poll_rate.too_slow.category": "warning",
-
-  "config.typewriter.off.text": "typewriter_delay = 0 → Typewriter effect disabled",
-  "config.typewriter.off.display_text": "INFO",
-  "config.typewriter.off.category": "info",
-
-  "config.typewriter.too_slow.text": "typewriter_delay {0}ms too slow, using maximum: {1}ms",
-  "config.typewriter.too_slow.display_text": "WARN",
-  "config.typewriter.too_slow.category": "warning",
-
-  "config.theme.loaded.text": "{0} themes loaded from TOML: {1}",
-  "config.theme.loaded.display_text": "DEBUG",
-  "config.theme.loaded.category": "debug",
-
-  "config.theme.not_found.text": "Theme '{0}' not found in TOML, using default theme",
-  "config.theme.not_found.display_text": "WARN",
-  "config.theme.not_found.category": "warning",
-
-  "config.theme.none_found.text": "No themes found in TOML",
-  "config.theme.none_found.display_text": "WARN",
-  "config.theme.none_found.category": "warning",
-
-  "config.saving_config_to.text": "Saving configuration to: {0}",
-  "config.saving_config_to.display_text": "DEBUG",
-  "config.saving_config_to.category": "debug",
+  "config.corrected_values.text": "🔧 Invalid config values corrected and saved:",
+  "config.corrected_values.display_text": "WARN",
+  "config.corrected_values.category": "warning",
 
   "config.could_not_create_backup.text": "Could not create backup: {0}",
   "config.could_not_create_backup.display_text": "WARN",
   "config.could_not_create_backup.category": "warning",
 
-  "config.config_backup_created.text": "Config backup created: {0}",
-  "config.config_backup_created.display_text": "DEBUG",
-  "config.config_backup_created.category": "debug",
-
   "config.creating_config_directory.text": "Creating config directory: {0}",
   "config.creating_config_directory.display_text": "DEBUG",
   "config.creating_config_directory.category": "debug",
+
+  "config.current_theme.text": "Current theme: {0}",
+  "config.current_theme.display_text": "DEBUG",
+  "config.current_theme.category": "debug",
 
   "config.failed_to_create_config_directory.text": "Failed to create config directory: {0}",
   "config.failed_to_create_config_directory.display_text": "ERROR",
@@ -143,281 +63,117 @@
   "config.failed_to_write_temp_config_file.display_text": "ERROR",
   "config.failed_to_write_temp_config_file.category": "error",
 
-  "config.config_successfully_written_to.text": "Configuration successfully written to: {0}",
-  "config.config_successfully_written_to.display_text": "DEBUG",
-  "config.config_successfully_written_to.category": "debug",
+  "config.poll_rate.too_fast.text": "poll_rate {0}ms too fast, using minimum: {1}ms",
+  "config.poll_rate.too_fast.display_text": "WARN",
+  "config.poll_rate.too_fast.category": "warning",
 
-  "config.current_theme.text": "Current theme: {0}",
-  "config.current_theme.display_text": "DEBUG",
-  "config.current_theme.category": "debug",
+  "config.poll_rate.too_slow.text": "poll_rate {0}ms too slow, using maximum: {1}ms",
+  "config.poll_rate.too_slow.display_text": "WARN",
+  "config.poll_rate.too_slow.category": "warning",
 
-  "config.switch_theme_to.text": "Switching theme to: {0}",
-  "config.switch_theme_to.display_text": "DEBUG",
-  "config.switch_theme_to.category": "debug",
+  "config.poll_rate.zero.text": "poll_rate = 0 not allowed, using minimum: {0}ms",
+  "config.poll_rate.zero.display_text": "WARN",
+  "config.poll_rate.zero.category": "warning",
+
+  "config.save_failed.text": "Could not save corrected config: {0}",
+  "config.save_failed.display_text": "ERROR",
+  "config.save_failed.category": "error",
+
+  "config.save_success.text": "✅ Corrected values saved to config file",
+  "config.save_success.display_text": "INFO",
+  "config.save_success.category": "info",
 
   "config.saved_current_theme_to_config.text": "Current theme saved to config: {0}",
   "config.saved_current_theme_to_config.display_text": "INFO",
   "config.saved_current_theme_to_config.category": "info",
 
+  "config.saving_config_to.text": "Saving configuration to: {0}",
+  "config.saving_config_to.display_text": "DEBUG",
+  "config.saving_config_to.category": "debug",
+
+  "config.switch_theme_to.text": "Switching theme to: {0}",
+  "config.switch_theme_to.display_text": "DEBUG",
+  "config.switch_theme_to.category": "debug",
+
   "config.toml_serialization_failed.text": "TOML serialization failed: {0}",
   "config.toml_serialization_failed.display_text": "ERROR",
   "config.toml_serialization_failed.category": "error",
 
-  "system.error.io.text": "IO error: {0}",
-  "system.error.io.display_text": "ERROR",
-  "system.error.io.category": "error",
+  "config.typewriter.off.text": "typewriter_delay = 0 → Typewriter effect disabled",
+  "config.typewriter.off.display_text": "INFO",
+  "config.typewriter.off.category": "info",
 
-  "system.error.validation.text": "Validation error: {0}",
-  "system.error.validation.display_text": "ERROR",
-  "system.error.validation.category": "error",
+  "config.typewriter.too_slow.text": "typewriter_delay {0}ms too slow, using maximum: {1}ms",
+  "config.typewriter.too_slow.display_text": "WARN",
+  "config.typewriter.too_slow.category": "warning",
 
-  "system.error.terminal.text": "Terminal error: {0}",
-  "system.error.terminal.display_text": "ERROR",
-  "system.error.terminal.category": "error",
+  "config.validation.invalid_color.text": "Invalid color: {0}",
+  "config.validation.invalid_color.display_text": "CONFIG",
+  "config.validation.invalid_color.category": "error",
 
-  "system.commands.unknown.text": "Unknown command: {0}",
-  "system.commands.unknown.display_text": "ERROR",
-  "system.commands.unknown.category": "error",
+  "config.validation.invalid_log_level.text": "Invalid log level in config: '{0}', using INFO",
+  "config.validation.invalid_log_level.display_text": "CONFIG",
+  "config.validation.invalid_log_level.category": "warning",
 
-  "system.commands.version.text": "Rush Sync Server Version {0}",
-  "system.commands.version.display_text": "VERSION",
-  "system.commands.version.category": "version",
+  "config.validation.theme_load_failed.text": "Theme load failed: {0}",
+  "config.validation.theme_load_failed.display_text": "CONFIG",
+  "config.validation.theme_load_failed.category": "error",
 
-  "system.commands.restart.success.text": "🔄 Restart completed successfully",
-  "system.commands.restart.success.display_text": "INFO",
-  "system.commands.restart.success.category": "info",
+  "config.validation.theme_not_found.text": "Theme '{0}' not found",
+  "config.validation.theme_not_found.display_text": "CONFIG",
+  "config.validation.theme_not_found.category": "error",
 
-  "system.commands.language.current.text": "Current language: {0}",
-  "system.commands.language.current.display_text": "LANG",
-  "system.commands.language.current.category": "lang",
+  "config.validation.toml_error.text": "TOML error: {0}",
+  "config.validation.toml_error.display_text": "CONFIG",
+  "config.validation.toml_error.category": "error",
 
-  "system.commands.language.available.text": "Available languages: {0}",
-  "system.commands.language.available.display_text": "LANG",
-  "system.commands.language.available.category": "lang",
+  "history.manager.cleared.text": "📂 History cleared",
+  "history.manager.cleared.display_text": "HISTORY",
+  "history.manager.cleared.category": "info",
 
-  "system.commands.language.changed.text": "✅ Language switched to: {0}",
-  "system.commands.language.changed.display_text": "LANG",
-  "system.commands.language.changed.category": "lang",
+  "history.manager.loaded_entries.text": "📂 Loaded {0} history entries",
+  "history.manager.loaded_entries.display_text": "HISTORY",
+  "history.manager.loaded_entries.category": "debug",
 
-  "system.commands.language.invalid.text": "❌ Invalid language: {0}",
-  "system.commands.language.invalid.display_text": "ERROR",
-  "system.commands.language.invalid.category": "error",
+  "history.manager.save_failed.text": "Failed to save history: {0}",
+  "history.manager.save_failed.display_text": "HISTORY",
+  "history.manager.save_failed.category": "error",
 
-  "system.commands.log_level.current.text": "Current log level: {0} ({1})",
-  "system.commands.log_level.current.display_text": "INFO",
-  "system.commands.log_level.current.category": "info",
+  "language.service.config_load_error.text": "Config load error: {0}",
+  "language.service.config_load_error.display_text": "LANG",
+  "language.service.config_load_error.category": "error",
 
-  "system.commands.log_level.changed_persistent.text": "✅ Log level changed to: {0} ({1}) - Saved persistently",
-  "system.commands.log_level.changed_persistent.display_text": "INFO",
-  "system.commands.log_level.changed_persistent.category": "info",
+  "language.service.config_save_error.text": "Config save error: {0}",
+  "language.service.config_save_error.display_text": "LANG",
+  "language.service.config_save_error.category": "error",
 
-  "system.commands.log_level.invalid.text": "❌ Invalid log level: {0}. Available: 1-5, error, warn, info, debug, trace",
-  "system.commands.log_level.invalid.display_text": "ERROR",
-  "system.commands.log_level.invalid.category": "error",
+  "language.service.save_failed.text": "Failed to save language config: {0}",
+  "language.service.save_failed.display_text": "LANG",
+  "language.service.save_failed.category": "error",
 
-  "system.commands.log_level.help.text": "Available log levels:\n  1 = ERROR   (Only critical errors)\n  2 = WARN    (Warnings and errors)\n  3 = INFO    (General information) [DEFAULT]\n  4 = DEBUG   (Debug information)\n  5 = TRACE   (Very detailed tracing)\n\nUsage:\n  log-level           Show current level\n  log-level 3         Set to INFO level\n  log-level DEBUG     Set to DEBUG level\n  log-level -h        Show this help",
-  "system.commands.log_level.help.display_text": "INFO",
-  "system.commands.log_level.help.category": "info",
+  "manager.cached_entries.text": "Cached Entries",
+  "manager.cached_entries.display_text": "INFO",
+  "manager.cached_entries.category": "info",
 
-  "system.commands.history.help.text": "Available history commands:\n  history -c, --clear    Clears the history",
-  "system.commands.history.help.display_text": "INFO",
-  "system.commands.history.help.category": "info",
-
-  "system.commands.history.unknown.text": "Unknown history command. Use 'history -h' for help.",
-  "system.commands.history.unknown.display_text": "ERROR",
-  "system.commands.history.unknown.category": "error",
-
-  "system.commands.restart.help.text": "Available restart commands:\n  restart           Restart with confirmation\n  restart --force   Immediate restart",
-  "system.commands.restart.help.display_text": "INFO",
-  "system.commands.restart.help.category": "info",
-
-  "system.commands.restart.confirm.text": "Do you really want to perform a restart? (y/n)",
-  "system.commands.restart.confirm.display_text": "CONFIRM",
-  "system.commands.restart.confirm.category": "warning",
-
-  "system.commands.restart.unknown.text": "Unknown restart parameter. Use 'restart -h' for help.",
-  "system.commands.restart.unknown.display_text": "ERROR",
-  "system.commands.restart.unknown.category": "error",
-
-  "system.commands.performance.help.text": "Performance Command Help:\n  perf                   Show performance status\n  performance           Same as perf\n  stats                 Same as perf\n  perf -h               Show this help",
-  "system.commands.performance.help.display_text": "INFO",
-  "system.commands.performance.help.category": "info",
-
-  "system.commands.performance.unknown.text": "Unknown performance parameter. Use 'perf -h' for help.",
-  "system.commands.performance.unknown.display_text": "ERROR",
-  "system.commands.performance.unknown.category": "error",
-
-  "system.input.empty.text": "Input cannot be empty",
-  "system.input.empty.display_text": "WARN",
-  "system.input.empty.category": "warning",
-
-  "system.input.too_long.text": "Input too long (maximum: {0} characters)",
-  "system.input.too_long.display_text": "WARN",
-  "system.input.too_long.category": "warning",
-
-  "system.input.cancelled.text": "Operation cancelled",
-  "system.input.cancelled.display_text": "INFO",
-  "system.input.cancelled.category": "info",
-
-  "system.input.history_cleared.text": "History has been cleared",
-  "system.input.history_cleared.display_text": "INFO",
-  "system.input.history_cleared.category": "info",
-
-  "system.input.confirm_exit.text": "Do you really want to exit the program? (y/n)",
-  "system.input.confirm_exit.display_text": "CONFIRM",
-  "system.input.confirm_exit.category": "warning",
-
-  "system.input.confirm.short.text": "y",
-  "system.input.confirm.short.display_text": "INFO",
-  "system.input.confirm.short.category": "info",
-
-  "system.input.cancel.short.text": "n",
-  "system.input.cancel.short.display_text": "INFO",
-  "system.input.cancel.short.category": "info",
-
-  "terminal.setup.done.text": "✅ Terminal initialized",
-  "terminal.setup.done.display_text": "READY",
-  "terminal.setup.done.category": "info",
-
-  "terminal.cleanup.done.text": "✅ Terminal reset correctly",
-  "terminal.cleanup.done.display_text": "READY",
-  "terminal.cleanup.done.category": "info",
-
-  "screen.resize_event.text": "🔄 RESIZE EVENT: {0}x{1} → {2}x{3}",
-  "screen.resize_event.display_text": "INFO",
-  "screen.resize_event.category": "info",
-
-  "screen.resize_completed.text": "✅ Resize completed: {0}",
-  "screen.resize_completed.display_text": "INFO",
-  "screen.resize_completed.category": "info",
-
-  "screen.performance_command_detected.text": "🔧 Performance command '{0}' detected",
-  "screen.performance_command_detected.display_text": "DEBUG",
-  "screen.performance_command_detected.category": "debug",
-
-  "screen.performance_command_viewport_reset_applied.text": "✅ Performance command: viewport reset applied",
-  "screen.performance_command_viewport_reset_applied.display_text": "DEBUG",
-  "screen.performance_command_viewport_reset_applied.category": "debug",
-
-  "screen.theme.invalid_format.text": "Invalid theme update format",
-  "screen.theme.invalid_format.display_text": "ERROR",
-  "screen.theme.invalid_format.category": "error",
-
-  "screen.theme.processing.text": "🎨 Live theme update is being processed: {0}",
-  "screen.theme.processing.display_text": "DEBUG",
-  "screen.theme.processing.category": "debug",
-
-  "screen.theme.load_failed.text": "Error loading theme system: {0}",
-  "screen.theme.load_failed.display_text": "ERROR",
-  "screen.theme.load_failed.category": "error",
-
-  "screen.theme.failed.text": "Theme change failed: {0}",
-  "screen.theme.failed.display_text": "ERROR",
-  "screen.theme.failed.category": "error",
-
-  "screen.theme.applied.text": "Theme '{0}' applied: Prompt='{1}', History={2} entries",
-  "screen.theme.applied.display_text": "INFO",
-  "screen.theme.applied.category": "info",
-
-  "screen.theme.not_found.text": "❌ Theme not found: {0}",
-  "screen.theme.not_found.display_text": "ERROR",
-  "screen.theme.not_found.category": "error",
-
-  "screen.theme.not_found_feedback.text": "❌ Theme '{0}' not found",
-  "screen.theme.not_found_feedback.display_text": "ERROR",
-  "screen.theme.not_found_feedback.category": "error",
-
-  "screen.render.too_small_log.text": "Screen too small for safe rendering: {0}x{1}",
-  "screen.render.too_small_log.display_text": "ERROR",
-  "screen.render.too_small_log.category": "error",
-
-  "screen.render.too_small.text": "Terminal too small!\nMinimum: 10x5",
-  "screen.render.too_small.display_text": "ERROR",
-  "screen.render.too_small.category": "error",
-
-  "screen.render.viewport_not_usable_log.text": "Viewport not usable",
-  "screen.render.viewport_not_usable_log.display_text": "ERROR",
-  "screen.render.viewport_not_usable_log.category": "error",
-
-  "screen.render.viewport_error.text": "Viewport error!\nRestart terminal.",
-  "screen.render.viewport_error.display_text": "ERROR",
-  "screen.render.viewport_error.category": "error",
-
-  "screen.render.invalid_layout_log.text": "Invalid layout: Output={0}x{1}+{2}+{3}, Input={4}x{5}+{6}+{7}",
-  "screen.render.invalid_layout_log.display_text": "ERROR",
-  "screen.render.invalid_layout_log.category": "error",
-
-  "screen.render.exceed_bounds_log.text": "Layout exceeds terminal bounds: {0}x{1}",
-  "screen.render.exceed_bounds_log.display_text": "ERROR",
-  "screen.render.exceed_bounds_log.category": "error",
-
-  "screen.restart.start.text": "🔄 Performing internal restart...",
-  "screen.restart.start.display_text": "INFO",
-  "screen.restart.start.category": "info",
-
-  "screen.restart.done.text": "✅ Internal restart completed successfully",
-  "screen.restart.done.display_text": "INFO",
-  "screen.restart.done.category": "info",
-
-  "viewport.layout.too_small.text": "Viewport layout too small: {0}x{1}",
-  "viewport.layout.too_small.display_text": "ERROR",
-  "viewport.layout.too_small.category": "error",
-
-  "viewport.layout.failed.text": "Layout calculation failed: Input={0}, Output={1}, Available={2}",
-  "viewport.layout.failed.display_text": "ERROR",
-  "viewport.layout.failed.category": "error",
-
-  "viewport.layout.mismatch.text": "Layout sizes don't match: Terminal={0}, Used={1} (Output={2}, Input={3}, Margin={4})",
-  "viewport.layout.mismatch.display_text": "WARN",
-  "viewport.layout.mismatch.category": "warning",
-
-  "viewport.layout.broken.text": "🚨 Layout badly damaged, emergency mode activated",
-  "viewport.layout.broken.display_text": "ERROR",
-  "viewport.layout.broken.category": "error",
-
-  "viewport.layout.invalid.text": "🚨 Invalid layout areas created, using emergency layout",
-  "viewport.layout.invalid.display_text": "ERROR",
-  "viewport.layout.invalid.category": "error",
-
-  "viewport.layout.calculated.text": "Layout calculated: Terminal={0}x{1}, Output={2}x{3}+{4}+{5}, Input={6}x{7}+{8}+{9}, Window={10}",
-  "viewport.layout.calculated.display_text": "TRACE",
-  "viewport.layout.calculated.category": "trace",
-
-  "manager.no_config_found.text": "No configuration found",
-  "manager.no_config_found.display_text": "INFO",
-  "manager.no_config_found.category": "info",
+  "manager.change_theme.text": "Change theme",
+  "manager.change_theme.display_text": "INFO",
+  "manager.change_theme.category": "info",
 
   "manager.comprehensive_report_header.text": "📊 COMPREHENSIVE PERFORMANCE REPORT",
   "manager.comprehensive_report_header.display_text": "INFO",
   "manager.comprehensive_report_header.category": "info",
 
-  "manager.system_performance.text": "System Performance",
-  "manager.system_performance.display_text": "INFO",
-  "manager.system_performance.category": "info",
-
-  "manager.poll_rate.text": "Poll Rate",
-  "manager.poll_rate.display_text": "INFO",
-  "manager.poll_rate.category": "info",
-
-  "manager.typewriter_speed.text": "Typewriter Speed",
-  "manager.typewriter_speed.display_text": "INFO",
-  "manager.typewriter_speed.category": "info",
+  "manager.current_language.text": "Current Language",
+  "manager.current_language.display_text": "INFO",
+  "manager.current_language.category": "info",
 
   "manager.disabled.text": "DISABLED",
   "manager.disabled.display_text": "INFO",
   "manager.disabled.category": "info",
 
-  "manager.memory_usage.text": "Memory Usage",
-  "manager.memory_usage.display_text": "INFO",
-  "manager.memory_usage.category": "info",
-
-  "manager.total_estimated.text": "Total Estimated",
-  "manager.total_estimated.display_text": "INFO",
-  "manager.total_estimated.category": "info",
-
-  "manager.message_buffer.text": "Message Buffer",
-  "manager.message_buffer.display_text": "INFO",
-  "manager.message_buffer.category": "info",
+  "manager.enable_debug_logging.text": "Enable debug logging",
+  "manager.enable_debug_logging.display_text": "INFO",
+  "manager.enable_debug_logging.category": "info",
 
   "manager.history_buffer.text": "History Buffer",
   "manager.history_buffer.display_text": "INFO",
@@ -431,37 +187,25 @@
   "manager.i18n_performance.display_text": "INFO",
   "manager.i18n_performance.category": "info",
 
-  "manager.total_keys.text": "Total Keys",
-  "manager.total_keys.display_text": "INFO",
-  "manager.total_keys.category": "info",
+  "manager.memory_usage.text": "Memory Usage",
+  "manager.memory_usage.display_text": "INFO",
+  "manager.memory_usage.category": "info",
 
-  "manager.cached_entries.text": "Cached Entries",
-  "manager.cached_entries.display_text": "INFO",
-  "manager.cached_entries.category": "info",
+  "manager.message_buffer.text": "Message Buffer",
+  "manager.message_buffer.display_text": "INFO",
+  "manager.message_buffer.category": "info",
 
-  "manager.current_language.text": "Current Language",
-  "manager.current_language.display_text": "INFO",
-  "manager.current_language.category": "info",
+  "manager.no_config_found.text": "No configuration found",
+  "manager.no_config_found.display_text": "INFO",
+  "manager.no_config_found.category": "info",
 
-  "manager.recommendations.text": "Recommendations",
-  "manager.recommendations.display_text": "INFO",
-  "manager.recommendations.category": "info",
+  "manager.poll_rate.text": "Poll Rate",
+  "manager.poll_rate.display_text": "INFO",
+  "manager.poll_rate.category": "info",
 
-  "manager.related_commands.text": "Related Commands",
-  "manager.related_commands.display_text": "INFO",
-  "manager.related_commands.category": "info",
-
-  "manager.show_i18n_report.text": "Show i18n report",
-  "manager.show_i18n_report.display_text": "INFO",
-  "manager.show_i18n_report.category": "info",
-
-  "manager.enable_debug_logging.text": "Enable debug logging",
-  "manager.enable_debug_logging.display_text": "INFO",
-  "manager.enable_debug_logging.category": "info",
-
-  "manager.change_theme.text": "Change theme",
-  "manager.change_theme.display_text": "INFO",
-  "manager.change_theme.category": "info",
+  "manager.recommendation.all_good.text": "✅ All settings optimally configured",
+  "manager.recommendation.all_good.display_text": "INFO",
+  "manager.recommendation.all_good.category": "info",
 
   "manager.recommendation.poll_rate_too_fast.text": "⚡ poll_rate < 16ms: Very high CPU load - recommended: 16-33ms",
   "manager.recommendation.poll_rate_too_fast.display_text": "WARN",
@@ -475,37 +219,473 @@
   "manager.recommendation.typewriter_too_fast.display_text": "WARN",
   "manager.recommendation.typewriter_too_fast.category": "warning",
 
-  "manager.recommendation.all_good.text": "✅ All settings optimally configured",
-  "manager.recommendation.all_good.display_text": "INFO",
-  "manager.recommendation.all_good.category": "info",
+  "manager.recommendations.text": "Recommendations",
+  "manager.recommendations.display_text": "INFO",
+  "manager.recommendations.category": "info",
+
+  "manager.related_commands.text": "Related Commands",
+  "manager.related_commands.display_text": "INFO",
+  "manager.related_commands.category": "info",
+
+  "manager.show_i18n_report.text": "Show i18n report",
+  "manager.show_i18n_report.display_text": "INFO",
+  "manager.show_i18n_report.category": "info",
+
+  "manager.system_performance.text": "System Performance",
+  "manager.system_performance.display_text": "INFO",
+  "manager.system_performance.category": "info",
+
+  "manager.total_estimated.text": "Total Estimated",
+  "manager.total_estimated.display_text": "INFO",
+  "manager.total_estimated.category": "info",
+
+  "manager.total_keys.text": "Total Keys",
+  "manager.total_keys.display_text": "INFO",
+  "manager.total_keys.category": "info",
+
+  "manager.typewriter_speed.text": "Typewriter Speed",
+  "manager.typewriter_speed.display_text": "INFO",
+  "manager.typewriter_speed.category": "info",
+
+  "screen.performance_command_detected.text": "🔧 Performance command '{0}' detected",
+  "screen.performance_command_detected.display_text": "DEBUG",
+  "screen.performance_command_detected.category": "debug",
+
+  "screen.performance_command_viewport_reset_applied.text": "✅ Performance command: viewport reset applied",
+  "screen.performance_command_viewport_reset_applied.display_text": "DEBUG",
+  "screen.performance_command_viewport_reset_applied.category": "debug",
+
+  "screen.render.empty_buffer_error.text": "ERROR: Empty buffer",
+  "screen.render.empty_buffer_error.display_text": "RENDER",
+  "screen.render.empty_buffer_error.category": "error",
+
+  "screen.render.exceed_bounds_log.text": "Layout exceeds terminal bounds: {0}x{1}",
+  "screen.render.exceed_bounds_log.display_text": "ERROR",
+  "screen.render.exceed_bounds_log.category": "error",
+
+  "screen.render.invalid_layout.text": "⚠️ INVALID LAYOUT",
+  "screen.render.invalid_layout.display_text": "RENDER",
+  "screen.render.invalid_layout.category": "error",
+
+  "screen.render.invalid_layout_log.text": "Invalid layout: Output={0}x{1}+{2}+{3}, Input={4}x{5}+{6}+{7}",
+  "screen.render.invalid_layout_log.display_text": "ERROR",
+  "screen.render.invalid_layout_log.category": "error",
+
+  "screen.render.terminal_too_small.text": "Terminal too small!\nMinimum: 10x5",
+  "screen.render.terminal_too_small.display_text": "RENDER",
+  "screen.render.terminal_too_small.category": "error",
+
+  "screen.render.too_small.text": "Terminal too small!\nMinimum: 10x5",
+  "screen.render.too_small.display_text": "ERROR",
+  "screen.render.too_small.category": "error",
+
+  "screen.render.too_small_log.text": "Screen too small for safe rendering: {0}x{1}",
+  "screen.render.too_small_log.display_text": "ERROR",
+  "screen.render.too_small_log.category": "error",
+
+  "screen.render.viewport_error.text": "Viewport error!\nRestart terminal.",
+  "screen.render.viewport_error.display_text": "ERROR",
+  "screen.render.viewport_error.category": "error",
+
+  "screen.render.viewport_not_usable_log.text": "Viewport not usable",
+  "screen.render.viewport_not_usable_log.display_text": "ERROR",
+  "screen.render.viewport_not_usable_log.category": "error",
+
+  "screen.resize_completed.text": "✅ Resize completed: {0}",
+  "screen.resize_completed.display_text": "INFO",
+  "screen.resize_completed.category": "info",
+
+  "screen.resize_event.text": "🔄 RESIZE EVENT: {0}x{1} → {2}x{3}",
+  "screen.resize_event.display_text": "INFO",
+  "screen.resize_event.category": "info",
+
+  "screen.restart.done.text": "✅ Internal restart completed successfully",
+  "screen.restart.done.display_text": "INFO",
+  "screen.restart.done.category": "info",
+
+  "screen.restart.failed.text": "Restart failed: {0}",
+  "screen.restart.failed.display_text": "SYSTEM",
+  "screen.restart.failed.category": "error",
+
+  "screen.restart.start.text": "🔄 Performing internal restart...",
+  "screen.restart.start.display_text": "INFO",
+  "screen.restart.start.category": "info",
+
+  "screen.restart.success.text": "🔄 Restart completed successfully",
+  "screen.restart.success.display_text": "SYSTEM",
+  "screen.restart.success.category": "info",
+
+  "screen.theme.applied.text": "Theme '{0}' applied: Prompt='{1}', History={2} entries",
+  "screen.theme.applied.display_text": "INFO",
+  "screen.theme.applied.category": "info",
+
+  "screen.theme.invalid_format.text": "Invalid theme update format",
+  "screen.theme.invalid_format.display_text": "ERROR",
+  "screen.theme.invalid_format.category": "error",
+
+  "screen.theme.load_failed.text": "Theme system load failed: {0}",
+  "screen.theme.load_failed.display_text": "THEME",
+  "screen.theme.load_failed.category": "error",
+
+  "screen.theme.not_found.text": "Theme '{0}' not found",
+  "screen.theme.not_found.display_text": "THEME",
+  "screen.theme.not_found.category": "error",
+
+  "screen.theme.not_found_feedback.text": "⚫ Theme '{0}' not found",
+  "screen.theme.not_found_feedback.display_text": "ERROR",
+  "screen.theme.not_found_feedback.category": "error",
+
+  "screen.theme.processing.text": "🎨 Live theme update is being processed: {0}",
+  "screen.theme.processing.display_text": "DEBUG",
+  "screen.theme.processing.category": "debug",
+
+  "screen.theme.switched_success.text": "✅ Theme switched to: {0}",
+  "screen.theme.switched_success.display_text": "THEME",
+  "screen.theme.switched_success.category": "info",
 
   "system.cleanup.i18n_cleared.text": "i18n cache cleared",
   "system.cleanup.i18n_cleared.display_text": "DEBUG",
   "system.cleanup.i18n_cleared.category": "debug",
 
-  "utils.size.bytes.text": "bytes",
-  "utils.size.bytes.display_text": "INFO",
-  "utils.size.bytes.category": "info",
+  "system.commands.history.help.text": "📂 History Commands:\n  history        Show this help\n  history -c     Clear history\n  ↑ ↓           Navigate history\n\n  File: ~/.rss/rush.history",
+  "system.commands.history.help.display_text": "HISTORY",
+  "system.commands.history.help.category": "info",
 
-  "utils.size.KB.text": "KB",
-  "utils.size.KB.display_text": "INFO",
-  "utils.size.KB.category": "info",
+  "system.commands.history.usage.text": "📂 Use ↑↓ arrows to navigate, 'history -c' to clear",
+  "system.commands.history.usage.display_text": "HISTORY",
+  "system.commands.history.usage.category": "info",
 
-  "utils.size.MB.text": "MB",
-  "utils.size.MB.display_text": "INFO",
-  "utils.size.MB.category": "info",
+  "system.commands.language.available.text": "Available languages: {0}",
+  "system.commands.language.available.display_text": "LANG",
+  "system.commands.language.available.category": "lang",
 
-  "utils.size.GB.text": "GB",
-  "utils.size.GB.display_text": "INFO",
-  "utils.size.GB.category": "info",
+  "system.commands.language.changed.text": "✅ Language switched to: {0}",
+  "system.commands.language.changed.display_text": "LANG",
+  "system.commands.language.changed.category": "lang",
 
-  "utils.size.TB.text": "TB",
-  "utils.size.TB.display_text": "INFO",
-  "utils.size.TB.category": "info",
+  "system.commands.language.current.text": "Current language: {0}",
+  "system.commands.language.current.display_text": "LANG",
+  "system.commands.language.current.category": "lang",
+
+  "system.commands.language.invalid.text": "⚫ Invalid language: {0}",
+  "system.commands.language.invalid.display_text": "ERROR",
+  "system.commands.language.invalid.category": "error",
+
+  "system.commands.log_level.changed_persistent.text": "✅ Log level changed to: {0} ({1}) - Saved persistently",
+  "system.commands.log_level.changed_persistent.display_text": "INFO",
+  "system.commands.log_level.changed_persistent.category": "info",
+
+  "system.commands.log_level.changed_success.text": "✅ Log level changed to: {0} ({1}) - Saved persistently",
+  "system.commands.log_level.changed_success.display_text": "LOG_LEVEL",
+  "system.commands.log_level.changed_success.category": "info",
+
+  "system.commands.log_level.current.text": "Current log level: {0} ({1})",
+  "system.commands.log_level.current.display_text": "INFO",
+  "system.commands.log_level.current.category": "info",
+
+  "system.commands.log_level.current_status.text": "Current log level: {0} ({1})",
+  "system.commands.log_level.current_status.display_text": "LOG_LEVEL",
+  "system.commands.log_level.current_status.category": "info",
+
+  "system.commands.log_level.help.text": "Available log levels:\n  1 = ERROR   (Only critical errors)\n  2 = WARN    (Warnings and errors)\n  3 = INFO    (General information) [DEFAULT]\n  4 = DEBUG   (Debug information)\n  5 = TRACE   (Very detailed tracing)\n\nUsage:\n  log-level           Show current level\n  log-level 3         Set to INFO level\n  log-level DEBUG     Set to DEBUG level\n  log-level -h        Show this help",
+  "system.commands.log_level.help.display_text": "INFO",
+  "system.commands.log_level.help.category": "info",
+
+  "system.commands.log_level.help_text.text": "Available log levels:\n  1 = ERROR   (Only critical errors)\n  2 = WARN    (Warnings and errors)\n  3 = INFO    (General information) [DEFAULT]\n  4 = DEBUG   (Debug information)\n  5 = TRACE   (Very detailed tracing)\n\nUsage:\n  log-level           Show current level\n  log-level 3         Set to INFO level\n  log-level DEBUG     Set to DEBUG level\n  log-level -h        Show this help",
+  "system.commands.log_level.help_text.display_text": "LOG_LEVEL",
+  "system.commands.log_level.help_text.category": "info",
+
+  "system.commands.log_level.invalid.text": "⚫ Invalid log level: {0}. Available: 1-5, error, warn, info, debug, trace",
+  "system.commands.log_level.invalid.display_text": "ERROR",
+  "system.commands.log_level.invalid.category": "error",
+
+  "system.commands.log_level.invalid_level.text": "⚫ Invalid log level: {0}. Available: 1-5, error, warn, info, debug, trace",
+  "system.commands.log_level.invalid_level.display_text": "LOG_LEVEL",
+  "system.commands.log_level.invalid_level.category": "error",
+
+  "system.commands.performance.help.text": "Performance Command Help:\n  perf                   Show performance status\n  performance           Same as perf\n  stats                 Same as perf\n  perf -h               Show this help",
+  "system.commands.performance.help.display_text": "INFO",
+  "system.commands.performance.help.category": "info",
+
+  "system.commands.performance.unknown.text": "Unknown performance parameter. Use 'perf -h' for help.",
+  "system.commands.performance.unknown.display_text": "ERROR",
+  "system.commands.performance.unknown.category": "error",
+
+  "system.commands.restart.confirm.text": "Do you really want to perform a restart? (y/n)",
+  "system.commands.restart.confirm.display_text": "CONFIRM",
+  "system.commands.restart.confirm.category": "warning",
+
+  "system.commands.restart.help.text": "Available restart commands:\n  restart           Restart with confirmation\n  restart --force   Immediate restart",
+  "system.commands.restart.help.display_text": "INFO",
+  "system.commands.restart.help.category": "info",
+
+  "system.commands.restart.success.text": "🔄 Restart completed successfully",
+  "system.commands.restart.success.display_text": "INFO",
+  "system.commands.restart.success.category": "info",
+
+  "system.commands.restart.unknown.text": "Unknown restart parameter. Use 'restart -h' for help.",
+  "system.commands.restart.unknown.display_text": "ERROR",
+  "system.commands.restart.unknown.category": "error",
+
+  "system.commands.theme.add_sections_hint.text": "💡 Add [theme.xyz] sections to rush.toml",
+  "system.commands.theme.add_sections_hint.display_text": "THEME",
+  "system.commands.theme.add_sections_hint.category": "info",
+
+  "system.commands.theme.changed_success.text": "🎨 Theme changed to: {0} ✨",
+  "system.commands.theme.changed_success.display_text": "THEME",
+  "system.commands.theme.changed_success.category": "info",
+
+  "system.commands.theme.current_status.text": "Current theme: {0} (from TOML)\nAvailable: {1}",
+  "system.commands.theme.current_status.display_text": "THEME",
+  "system.commands.theme.current_status.category": "info",
+
+  "system.commands.theme.debug_details.text": "📂 Theme '{0}':\ninput_text: '{1}'\ninput_bg: '{2}'\noutput_text: '{3}'\noutput_bg: '{4}'\ninput_cursor_prefix: '{5}'\ninput_cursor_color: '{6}'\ninput_cursor: '{7}'\noutput_cursor: '{8}'\noutput_cursor_color: '{9}'",
+  "system.commands.theme.debug_details.display_text": "THEME",
+  "system.commands.theme.debug_details.category": "info",
+
+  "system.commands.theme.debug_missing_name.text": "⚫ Theme name missing. Usage: theme debug <name>",
+  "system.commands.theme.debug_missing_name.display_text": "THEME",
+  "system.commands.theme.debug_missing_name.category": "error",
+
+  "system.commands.theme.debug_not_found.text": "⚫ Theme '{0}' not found!",
+  "system.commands.theme.debug_not_found.display_text": "THEME",
+  "system.commands.theme.debug_not_found.category": "error",
+
+  "system.commands.theme.help.add_sections.text": "📂 Add any [theme.your_name] sections for new themes",
+  "system.commands.theme.help.add_sections.display_text": "THEME",
+  "system.commands.theme.help.add_sections.category": "info",
+
+  "system.commands.theme.help.cursor_config.text": "🎯 NEW: Cursor configuration via output_cursor + output_color!",
+  "system.commands.theme.help.cursor_config.display_text": "THEME",
+  "system.commands.theme.help.cursor_config.category": "info",
+
+  "system.commands.theme.help.cursor_options.text": "🎛️ Cursor Options:\n• output_cursor: BLOCK, PIPE, UNDERSCORE\n• output_color: Any supported color (White, Green, etc.)",
+  "system.commands.theme.help.cursor_options.display_text": "THEME",
+  "system.commands.theme.help.cursor_options.category": "info",
+
+  "system.commands.theme.help.header.text": "🎨 TOML-Theme Commands (Live Update - Loaded from rush.toml!):",
+  "system.commands.theme.help.header.display_text": "THEME",
+  "system.commands.theme.help.header.category": "info",
+
+  "system.commands.theme.help.live_changes.text": "🔄 Changes are applied immediately (no restart needed)",
+  "system.commands.theme.help.live_changes.display_text": "THEME",
+  "system.commands.theme.help.live_changes.category": "info",
+
+  "system.commands.theme.help.live_loaded.text": "✨ All themes are loaded LIVE from [theme.*] sections in rush.toml!",
+  "system.commands.theme.help.live_loaded.display_text": "THEME",
+  "system.commands.theme.help.live_loaded.category": "info",
+
+  "system.commands.theme.help.preview_theme.text": "theme preview <name> Preview theme colors + cursor config ✅ NEW!",
+  "system.commands.theme.help.preview_theme.display_text": "THEME",
+  "system.commands.theme.help.preview_theme.category": "info",
+
+  "system.commands.theme.help.select_theme.text": "theme <name>         Select theme: {0}",
+  "system.commands.theme.help.select_theme.display_text": "THEME",
+  "system.commands.theme.help.select_theme.category": "info",
+
+  "system.commands.theme.help.show_help.text": "theme -h             Show this help",
+  "system.commands.theme.help.show_help.display_text": "THEME",
+  "system.commands.theme.help.show_help.category": "info",
+
+  "system.commands.theme.help.show_themes.text": "theme                Show available TOML-themes",
+  "system.commands.theme.help.show_themes.display_text": "THEME",
+  "system.commands.theme.help.show_themes.category": "info",
+
+  "system.commands.theme.how_to_add_themes.text": "📂 Add [theme.my_theme] sections to rush.toml:\n\n[theme.my_theme]\ninput_text = \"White\"\ninput_bg = \"Black\"\ncursor = \"Green\"\noutput_text = \"Gray\"\noutput_bg = \"Black\"\nprompt_text = \">> \"\nprompt_color = \"Cyan\"\noutput_cursor = \"BLOCK\"\noutput_color = \"LightGreen\"",
+  "system.commands.theme.how_to_add_themes.display_text": "THEME",
+  "system.commands.theme.how_to_add_themes.category": "info",
+
+  "system.commands.theme.load_failed.text": "⚫ Theme system failed to load: {0}",
+  "system.commands.theme.load_failed.display_text": "THEME",
+  "system.commands.theme.load_failed.category": "error",
+
+  "system.commands.theme.no_themes_available.text": "⚫ No themes available!",
+  "system.commands.theme.no_themes_available.display_text": "THEME",
+  "system.commands.theme.no_themes_available.category": "error",
+
+  "system.commands.theme.no_themes_found.text": "⚫ No themes available! Add [theme.xyz] sections to rush.toml.",
+  "system.commands.theme.no_themes_found.display_text": "THEME",
+  "system.commands.theme.no_themes_found.category": "error",
+
+  "system.commands.theme.no_themes_hint.text": "No themes found in configuration.",
+  "system.commands.theme.no_themes_hint.display_text": "THEME",
+  "system.commands.theme.no_themes_hint.category": "warning",
+
+  "system.commands.theme.not_found.text": "⚫ Theme '{0}' not found. Available: {1}",
+  "system.commands.theme.not_found.display_text": "THEME",
+  "system.commands.theme.not_found.category": "error",
+
+  "system.commands.theme.preview_details.text": "🎨 Theme '{0}' Preview:\nInput: {1} on {2}\nOutput: {3} on {4}\nCursor Prefix: '{5}' in {6}\nInput Cursor: {7}\nOutput Cursor: {8} in {9}\n\n📂 Source: [theme.{10}] in rush.toml",
+  "system.commands.theme.preview_details.display_text": "THEME",
+  "system.commands.theme.preview_details.category": "info",
+
+  "system.commands.theme.preview_missing_name.text": "⚫ Theme name missing. Usage: theme preview <name>",
+  "system.commands.theme.preview_missing_name.display_text": "THEME",
+  "system.commands.theme.preview_missing_name.category": "error",
+
+  "system.commands.unknown.text": "Unknown command: {0}",
+  "system.commands.unknown.display_text": "ERROR",
+  "system.commands.unknown.category": "error",
+
+  "system.commands.version.text": "Rush Sync Server Version {0}",
+  "system.commands.version.display_text": "VERSION",
+  "system.commands.version.category": "version",
+
+  "system.config.dir_created.text": "Configuration directory created: {0}",
+  "system.config.dir_created.display_text": "DEBUG",
+  "system.config.dir_created.category": "debug",
+
+  "system.config.dir_error.text": "Could not determine program directory",
+  "system.config.dir_error.display_text": "ERROR",
+  "system.config.dir_error.category": "error",
+
+  "system.config.file_created.text": "Configuration file created: {0}",
+  "system.config.file_created.display_text": "INFO",
+  "system.config.file_created.category": "info",
+
+  "system.config.language_set_failed.text": "Failed to set language: {0}",
+  "system.config.language_set_failed.display_text": "WARN",
+  "system.config.language_set_failed.category": "warning",
+
+  "system.config.load_error.text": "Error loading new configuration: {0}",
+  "system.config.load_error.display_text": "ERROR",
+  "system.config.load_error.category": "error",
+
+  "system.config.new_default.text": "✅ New default configuration created: {0}",
+  "system.config.new_default.display_text": "INFO",
+  "system.config.new_default.category": "info",
+
+  "system.config.no_existing.text": "No existing configuration found, creating default",
+  "system.config.no_existing.display_text": "INFO",
+  "system.config.no_existing.category": "info",
+
+  "system.config.setup_failed.text": "Default configuration setup failed: {0}",
+  "system.config.setup_failed.display_text": "ERROR",
+  "system.config.setup_failed.category": "error",
+
+  "system.error.io.text": "IO error: {0}",
+  "system.error.io.display_text": "ERROR",
+  "system.error.io.category": "error",
+
+  "system.error.io_error.text": "IO error: {0}",
+  "system.error.io_error.display_text": "ERROR",
+  "system.error.io_error.category": "error",
+
+  "system.error.terminal.text": "Terminal error: {0}",
+  "system.error.terminal.display_text": "ERROR",
+  "system.error.terminal.category": "error",
+
+  "system.error.terminal_error.text": "Terminal error: {0}",
+  "system.error.terminal_error.display_text": "ERROR",
+  "system.error.terminal_error.category": "error",
+
+  "system.error.translation_error.text": "Translation error: {0}",
+  "system.error.translation_error.display_text": "ERROR",
+  "system.error.translation_error.category": "error",
+
+  "system.error.validation.text": "Validation error: {0}",
+  "system.error.validation.display_text": "ERROR",
+  "system.error.validation.category": "error",
+
+  "system.error.validation_error.text": "Validation error: {0}",
+  "system.error.validation_error.display_text": "ERROR",
+  "system.error.validation_error.category": "error",
+
+  "system.input.cancel.short.text": "n",
+  "system.input.cancel.short.display_text": "INFO",
+  "system.input.cancel.short.category": "info",
+
+  "system.input.cancelled.text": "Operation cancelled",
+  "system.input.cancelled.display_text": "INFO",
+  "system.input.cancelled.category": "info",
+
+  "system.input.clipboard.cleared.text": "Input cleared",
+  "system.input.clipboard.cleared.display_text": "INPUT",
+  "system.input.clipboard.cleared.category": "info",
+
+  "system.input.clipboard.copied.text": "📋 Copied: \"{0}\"",
+  "system.input.clipboard.copied.display_text": "CLIPBOARD",
+  "system.input.clipboard.copied.category": "info",
+
+  "system.input.clipboard.copy_failed.text": "⚪ Copy failed",
+  "system.input.clipboard.copy_failed.display_text": "CLIPBOARD",
+  "system.input.clipboard.copy_failed.category": "error",
+
+  "system.input.clipboard.cut.text": "📋 Cut: \"{0}\"",
+  "system.input.clipboard.cut.display_text": "CLIPBOARD",
+  "system.input.clipboard.cut.category": "info",
+
+  "system.input.clipboard.empty.text": "⚪ Clipboard empty",
+  "system.input.clipboard.empty.display_text": "CLIPBOARD",
+  "system.input.clipboard.empty.category": "warning",
+
+  "system.input.clipboard.nothing_to_copy.text": "⚪ Nothing to copy",
+  "system.input.clipboard.nothing_to_copy.display_text": "CLIPBOARD",
+  "system.input.clipboard.nothing_to_copy.category": "warning",
+
+  "system.input.clipboard.nothing_to_paste.text": "⚪ Nothing to paste",
+  "system.input.clipboard.nothing_to_paste.display_text": "CLIPBOARD",
+  "system.input.clipboard.nothing_to_paste.category": "warning",
+
+  "system.input.clipboard.pasted.text": "📋 Pasted {0} chars",
+  "system.input.clipboard.pasted.display_text": "CLIPBOARD",
+  "system.input.clipboard.pasted.category": "info",
+
+  "system.input.confirm.short.text": "y",
+  "system.input.confirm.short.display_text": "INFO",
+  "system.input.confirm.short.category": "info",
+
+  "system.input.confirm_exit.text": "Do you really want to exit the program? (y/n)",
+  "system.input.confirm_exit.display_text": "CONFIRM",
+  "system.input.confirm_exit.category": "warning",
+
+  "system.input.empty.text": "Input cannot be empty",
+  "system.input.empty.display_text": "WARN",
+  "system.input.empty.category": "warning",
+
+  "system.input.history_cleared.text": "History has been cleared",
+  "system.input.history_cleared.display_text": "INFO",
+  "system.input.history_cleared.category": "info",
+
+  "system.input.too_long.text": "Input too long (maximum: {0} characters)",
+  "system.input.too_long.display_text": "WARN",
+  "system.input.too_long.category": "warning",
+
+  "system.startup.i18n_initialized.text": "i18n system initialized for language: {0}",
+  "system.startup.i18n_initialized.display_text": "READY",
+  "system.startup.i18n_initialized.category": "info",
+
+  "system.startup.logger_init_failed.text": "Logger initialization failed: {0}",
+  "system.startup.logger_init_failed.display_text": "ERROR",
+  "system.startup.logger_init_failed.category": "error",
+
+  "system.startup.version.text": "Welcome to Rush Sync Version {0}",
+  "system.startup.version.display_text": "READY",
+  "system.startup.version.category": "startup",
+
+  "terminal.cleanup.done.text": "✅ Terminal reset correctly",
+  "terminal.cleanup.done.display_text": "READY",
+  "terminal.cleanup.done.category": "info",
+
+  "terminal.manager.emergency_cleanup.text": "🚨 Emergency terminal cleanup in destructor",
+  "terminal.manager.emergency_cleanup.display_text": "TERMINAL",
+  "terminal.manager.emergency_cleanup.category": "warning",
+
+  "terminal.manager.raw_mode_lost.text": "⚠ Raw mode was lost, re-enabling...",
+  "terminal.manager.raw_mode_lost.display_text": "TERMINAL",
+  "terminal.manager.raw_mode_lost.category": "warning",
+
+  "terminal.setup.done.text": "✅ Terminal initialized",
+  "terminal.setup.done.display_text": "READY",
+  "terminal.setup.done.category": "info",
 
   "utils.duration.hours_minutes.text": "{0}h {1}min",
   "utils.duration.hours_minutes.display_text": "INFO",
   "utils.duration.hours_minutes.category": "info",
+
+  "utils.duration.milliseconds.text": "{0}ms",
+  "utils.duration.milliseconds.display_text": "INFO",
+  "utils.duration.milliseconds.category": "info",
 
   "utils.duration.minutes_seconds.text": "{0}min {1}s",
   "utils.duration.minutes_seconds.display_text": "INFO",
@@ -515,7 +695,47 @@
   "utils.duration.seconds.display_text": "INFO",
   "utils.duration.seconds.category": "info",
 
-  "utils.duration.milliseconds.text": "{0}ms",
-  "utils.duration.milliseconds.display_text": "INFO",
-  "utils.duration.milliseconds.category": "info"
+  "utils.size.bytes.text": "bytes",
+  "utils.size.bytes.display_text": "INFO",
+  "utils.size.bytes.category": "info",
+
+  "utils.size.GB.text": "GB",
+  "utils.size.GB.display_text": "INFO",
+  "utils.size.GB.category": "info",
+
+  "utils.size.KB.text": "KB",
+  "utils.size.KB.display_text": "INFO",
+  "utils.size.KB.category": "info",
+
+  "utils.size.MB.text": "MB",
+  "utils.size.MB.display_text": "INFO",
+  "utils.size.MB.category": "info",
+
+  "utils.size.TB.text": "TB",
+  "utils.size.TB.display_text": "INFO",
+  "utils.size.TB.category": "info",
+
+  "viewport.layout.broken.text": "🚨 Layout badly damaged, emergency mode activated",
+  "viewport.layout.broken.display_text": "ERROR",
+  "viewport.layout.broken.category": "error",
+
+  "viewport.layout.calculated.text": "Layout calculated: Terminal={0}x{1}, Output={2}x{3}+{4}+{5}, Input={6}x{7}+{8}+{9}, Window={10}",
+  "viewport.layout.calculated.display_text": "TRACE",
+  "viewport.layout.calculated.category": "trace",
+
+  "viewport.layout.failed.text": "Layout calculation failed: Input={0}, Output={1}, Available={2}",
+  "viewport.layout.failed.display_text": "ERROR",
+  "viewport.layout.failed.category": "error",
+
+  "viewport.layout.invalid.text": "🚨 Invalid layout areas created, using emergency layout",
+  "viewport.layout.invalid.display_text": "ERROR",
+  "viewport.layout.invalid.category": "error",
+
+  "viewport.layout.mismatch.text": "Layout sizes don't match: Terminal={0}, Used={1} (Output={2}, Input={3}, Margin={4})",
+  "viewport.layout.mismatch.display_text": "WARN",
+  "viewport.layout.mismatch.category": "warning",
+
+  "viewport.layout.too_small.text": "Viewport layout too small: {0}x{1}",
+  "viewport.layout.too_small.display_text": "ERROR",
+  "viewport.layout.too_small.category": "error"
 }

@@ -1,6 +1,6 @@
+// ## FILE: src/i18n/mod.rs - KOMPRIMIERTE VERSION
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
-use lazy_static::lazy_static;
 use rust_embed::RustEmbed;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -37,19 +37,19 @@ struct Entry {
 
 impl Entry {
     fn format(&self, params: &[&str]) -> String {
-        let mut text = self.text.clone();
-        for (i, param) in params.iter().enumerate() {
-            text = text.replace(&format!("{{{}}}", i), param);
-        }
-        for param in params {
-            if text.contains("{}") {
-                text = text.replacen("{}", param, 1);
-            }
-        }
-        text
+        params
+            .iter()
+            .enumerate()
+            .fold(self.text.clone(), |mut text, (i, param)| {
+                text = text.replace(&format!("{{{}}}", i), param);
+                if text.contains("{}") {
+                    text = text.replacen("{}", param, 1);
+                }
+                text
+            })
     }
 
-    fn get_color(&self) -> AppColor {
+    fn color(&self) -> AppColor {
         AppColor::from_any(&self.category)
     }
 }
@@ -59,55 +59,48 @@ struct I18nService {
     entries: HashMap<String, Entry>,
     fallback: HashMap<String, Entry>,
     cache: HashMap<String, (String, AppColor)>,
-    display_to_category: HashMap<String, String>,
+    display_map: HashMap<String, String>,
 }
 
 impl I18nService {
     fn new() -> Self {
         Self {
-            language: DEFAULT_LANGUAGE.to_string(),
+            language: DEFAULT_LANGUAGE.into(),
             entries: HashMap::new(),
             fallback: HashMap::new(),
             cache: HashMap::new(),
-            display_to_category: HashMap::new(),
+            display_map: HashMap::new(),
         }
     }
 
     fn load_language(&mut self, lang: &str) -> Result<()> {
-        if !Self::get_available_languages()
+        // Validate
+        if !Self::available_languages()
             .iter()
-            .any(|l| l.to_lowercase() == lang.to_lowercase())
+            .any(|l| l.eq_ignore_ascii_case(lang))
         {
             return Err(AppError::Translation(TranslationError::InvalidLanguage(
-                lang.to_string(),
+                lang.into(),
             )));
         }
 
+        // Load entries
         self.entries = Self::load_entries(lang)?;
-
         if lang != DEFAULT_LANGUAGE {
             self.fallback = Self::load_entries(DEFAULT_LANGUAGE).unwrap_or_default();
         }
 
-        self.build_display_to_category_mapping();
+        self.build_display_map();
         self.cache.clear();
-        self.language = lang.to_string();
+        self.language = lang.into();
         Ok(())
     }
 
-    fn build_display_to_category_mapping(&mut self) {
-        self.display_to_category.clear();
-
-        for entry in self.entries.values() {
-            let display_key = entry.display.to_lowercase();
-            self.display_to_category
-                .insert(display_key, entry.category.clone());
-        }
-
-        for entry in self.fallback.values() {
-            let display_key = entry.display.to_lowercase();
-            self.display_to_category
-                .entry(display_key)
+    fn build_display_map(&mut self) {
+        self.display_map.clear();
+        for entry in self.entries.values().chain(self.fallback.values()) {
+            self.display_map
+                .entry(entry.display.to_lowercase())
                 .or_insert_with(|| entry.category.clone());
         }
     }
@@ -127,97 +120,88 @@ impl I18nService {
         let raw: HashMap<String, String> = serde_json::from_str(content_str)
             .map_err(|e| AppError::Translation(TranslationError::LoadError(e.to_string())))?;
 
-        let mut entries = HashMap::new();
+        Ok(raw
+            .iter()
+            .filter_map(|(key, value)| {
+                key.strip_suffix(".text").map(|base_key| {
+                    let display = raw
+                        .get(&format!("{}.display_text", base_key))
+                        .unwrap_or(&base_key.to_uppercase())
+                        .clone();
+                    let category = raw
+                        .get(&format!("{}.category", base_key))
+                        .unwrap_or(&"info".to_string())
+                        .clone();
 
-        for (key, value) in raw.iter() {
-            if key.ends_with(".text") {
-                let base_key = &key[0..key.len() - 5];
-                let display = raw
-                    .get(&format!("{}.display_text", base_key))
-                    .unwrap_or(&base_key.to_uppercase())
-                    .clone();
-                let category = raw
-                    .get(&format!("{}.category", base_key))
-                    .unwrap_or(&"info".to_string())
-                    .clone();
-
-                entries.insert(
-                    base_key.to_string(),
-                    Entry {
-                        text: value.clone(),
-                        display,
-                        category,
-                    },
-                );
-            }
-        }
-
-        Ok(entries)
+                    (
+                        base_key.into(),
+                        Entry {
+                            text: value.clone(),
+                            display,
+                            category,
+                        },
+                    )
+                })
+            })
+            .collect())
     }
 
     fn get_translation(&mut self, key: &str, params: &[&str]) -> (String, AppColor) {
+        // Cache key
         let cache_key = if params.is_empty() {
-            key.to_string()
+            key.into()
         } else {
             format!("{}:{}", key, params.join(":"))
         };
 
+        // Check cache
         if let Some(cached) = self.cache.get(&cache_key) {
             return cached.clone();
         }
 
-        let entry = self.entries.get(key).or_else(|| self.fallback.get(key));
-
-        let (text, color) = match entry {
-            Some(e) => (e.format(params), e.get_color()),
-            None => {
-                log::warn!("Missing key: {}", key);
-                (format!("Missing: {}", key), AppColor::from_any("warning"))
-            }
+        // Get entry
+        let (text, color) = match self.entries.get(key).or_else(|| self.fallback.get(key)) {
+            Some(entry) => (entry.format(params), entry.color()),
+            None => (format!("Missing: {}", key), AppColor::from_any("warning")),
         };
 
+        // Cache with size limit
         if self.cache.len() >= 1000 {
             self.cache.clear();
         }
         self.cache.insert(cache_key, (text.clone(), color));
-
         (text, color)
     }
 
     fn get_command_translation(&mut self, key: &str, params: &[&str]) -> String {
-        if let Some(entry) = self.entries.get(key).or_else(|| self.fallback.get(key)) {
-            format!("[{}] {}", entry.display, entry.format(params))
-        } else {
-            format!("[WARNING] Missing: {}", key)
+        match self.entries.get(key).or_else(|| self.fallback.get(key)) {
+            Some(entry) => format!("[{}] {}", entry.display, entry.format(params)),
+            None => format!("[WARNING] Missing: {}", key),
         }
     }
 
-    fn get_category_for_display(&self, display_text: &str) -> String {
-        let display_lower = display_text.to_lowercase();
-
-        if let Some(category) = self.display_to_category.get(&display_lower) {
-            return category.clone();
-        }
-
-        "info".to_string()
+    fn get_category_for_display(&self, display: &str) -> String {
+        self.display_map
+            .get(&display.to_lowercase())
+            .cloned()
+            .unwrap_or_else(|| "info".into())
     }
 
-    fn get_available_languages() -> Vec<String> {
+    fn available_languages() -> Vec<String> {
         Langs::iter()
-            .filter_map(|f| f.as_ref().strip_suffix(".json").map(|s| s.to_uppercase()))
+            .filter_map(|f| {
+                let filename = f.as_ref();
+                filename.strip_suffix(".json").map(|s| s.to_uppercase())
+            })
             .collect()
     }
-
-    fn clear_cache(&mut self) {
-        self.cache.clear();
-    }
 }
 
-lazy_static! {
-    static ref SERVICE: Arc<RwLock<I18nService>> = Arc::new(RwLock::new(I18nService::new()));
-}
+// ✅ KOMPRIMIERTE SINGLETON
+static SERVICE: std::sync::LazyLock<Arc<RwLock<I18nService>>> =
+    std::sync::LazyLock::new(|| Arc::new(RwLock::new(I18nService::new())));
 
-// Öffentliche API
+// ✅ KOMPRIMIERTE PUBLIC API
 pub async fn init() -> Result<()> {
     set_language(DEFAULT_LANGUAGE)
 }
@@ -237,11 +221,8 @@ pub fn get_command_translation(key: &str, params: &[&str]) -> String {
         .get_command_translation(key, params)
 }
 
-pub fn get_color_category_for_display(display_category: &str) -> String {
-    SERVICE
-        .read()
-        .unwrap()
-        .get_category_for_display(display_category)
+pub fn get_color_category_for_display(display: &str) -> String {
+    SERVICE.read().unwrap().get_category_for_display(display)
 }
 
 pub fn get_current_language() -> String {
@@ -249,7 +230,7 @@ pub fn get_current_language() -> String {
 }
 
 pub fn get_available_languages() -> Vec<String> {
-    I18nService::get_available_languages()
+    I18nService::available_languages()
 }
 
 pub fn has_translation(key: &str) -> bool {
@@ -258,51 +239,49 @@ pub fn has_translation(key: &str) -> bool {
 }
 
 pub fn clear_translation_cache() {
-    SERVICE.write().unwrap().clear_cache();
+    SERVICE.write().unwrap().cache.clear();
 }
 
+// ✅ KOMPRIMIERTE STATS & DEBUG
 pub fn get_all_translation_keys() -> Vec<String> {
     let service = SERVICE.read().unwrap();
-    let mut keys: Vec<String> = service.entries.keys().cloned().collect();
-    keys.extend(service.fallback.keys().cloned());
-    keys.sort();
+    let mut keys: Vec<String> = service
+        .entries
+        .keys()
+        .chain(service.fallback.keys())
+        .cloned()
+        .collect();
+    keys.sort_unstable();
     keys.dedup();
     keys
 }
 
 pub fn get_translation_stats() -> HashMap<String, usize> {
     let service = SERVICE.read().unwrap();
-    let mut stats = HashMap::new();
-    stats.insert("total_keys".to_string(), service.entries.len());
-    stats.insert("fallback_keys".to_string(), service.fallback.len());
-    stats.insert("cached_entries".to_string(), service.cache.len());
-    stats.insert(
-        "display_mappings".to_string(),
-        service.display_to_category.len(),
-    );
-    stats
+    [
+        ("total_keys", service.entries.len()),
+        ("fallback_keys", service.fallback.len()),
+        ("cached_entries", service.cache.len()),
+        ("display_mappings", service.display_map.len()),
+    ]
+    .into_iter()
+    .map(|(k, v)| (k.into(), v))
+    .collect()
 }
 
 pub fn get_missing_keys_report() -> Vec<String> {
     Vec::new()
 }
 
+// ✅ MACROS (unverändert)
 #[macro_export]
 macro_rules! t {
-    ($key:expr) => {
-        $crate::i18n::get_translation($key, &[])
-    };
-    ($key:expr, $($arg:expr),+) => {
-        $crate::i18n::get_translation($key, &[$($arg),+])
-    };
+    ($key:expr) => { $crate::i18n::get_translation($key, &[]) };
+    ($key:expr, $($arg:expr),+) => { $crate::i18n::get_translation($key, &[$($arg),+]) };
 }
 
 #[macro_export]
 macro_rules! tc {
-    ($key:expr) => {
-        $crate::i18n::get_command_translation($key, &[])
-    };
-    ($key:expr, $($arg:expr),+) => {
-        $crate::i18n::get_command_translation($key, &[$($arg),+])
-    };
+    ($key:expr) => { $crate::i18n::get_command_translation($key, &[]) };
+    ($key:expr, $($arg:expr),+) => { $crate::i18n::get_command_translation($key, &[$($arg),+]) };
 }

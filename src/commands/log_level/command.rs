@@ -21,13 +21,14 @@ impl Command for LogLevelCommand {
             || (cmd.starts_with("config") && cmd.contains("--log-level"))
     }
 
+    // ✅ FIXED EXECUTE_SYNC - Proper error handling
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
         match args.first() {
             None => Ok(LogLevelManager::show_status()),
-            Some(&"--help" | &"-h" | &"help") => Ok(LogLevelManager::show_help()),
+            Some(&"--help" | &"-h" | &"help") => Ok(LogLevelManager::show_help_i18n()),
             Some(&level) => match LogLevelManager::set_level_persistent(level) {
                 Ok(success_msg) => Ok(success_msg),
-                Err(error_msg) => Ok(error_msg),
+                Err(error_msg) => Ok(error_msg), // Convert String error to String success
             },
         }
     }

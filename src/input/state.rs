@@ -1,7 +1,4 @@
-// =====================================================
-// FILE: src/input/state.rs - CLEANED VERSION ohne Debug Commands
-// =====================================================
-
+// ## FILE: src/input/state.rs - KOMPRIMIERTE VERSION
 use crate::commands::handler::CommandHandler;
 use crate::commands::history::{
     HistoryAction, HistoryConfig, HistoryEvent, HistoryEventHandler, HistoryKeyboardHandler,
@@ -10,10 +7,11 @@ use crate::commands::history::{
 use crate::core::prelude::*;
 use crate::input::keyboard::{KeyAction, KeyboardManager};
 use crate::ui::cursor::{CursorKind, UiCursor};
-use crate::ui::widget::{InputWidget, Widget};
+use crate::ui::widget::{AnimatedWidget, CursorWidget, StatefulWidget, Widget};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
 pub struct InputState {
     content: String,
@@ -23,8 +21,14 @@ pub struct InputState {
     config: Config,
     command_handler: CommandHandler,
     keyboard_manager: KeyboardManager,
-    waiting_for_exit_confirmation: bool,
-    waiting_for_restart_confirmation: bool,
+    confirmation_state: ConfirmationState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum ConfirmationState {
+    None,
+    Exit,
+    Restart,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -37,7 +41,6 @@ pub struct InputStateBackup {
 impl InputState {
     pub fn new(config: &Config) -> Self {
         let history_config = HistoryConfig::from_main_config(config);
-
         Self {
             content: String::with_capacity(100),
             cursor: UiCursor::from_config(config, CursorKind::Input),
@@ -46,8 +49,7 @@ impl InputState {
             config: config.clone(),
             command_handler: CommandHandler::new(),
             keyboard_manager: KeyboardManager::new(),
-            waiting_for_exit_confirmation: false,
-            waiting_for_restart_confirmation: false,
+            confirmation_state: ConfirmationState::None,
         }
     }
 
@@ -57,271 +59,23 @@ impl InputState {
         self.config = config.clone();
     }
 
-    pub fn validate_input(&self, input: &str) -> crate::core::error::Result<()> {
-        if input.trim().is_empty() {
-            return Err(AppError::Validation(t!("system.input.empty")));
-        }
-        let grapheme_count = input.graphemes(true).count();
-        let max_length = 1024;
-
-        if grapheme_count > max_length {
-            return Err(AppError::Validation(t!(
-                "system.input.too_long",
-                &max_length.to_string()
-            )));
-        }
-        Ok(())
-    }
-
     pub fn reset_for_language_change(&mut self) {
-        self.waiting_for_exit_confirmation = false;
-        self.waiting_for_restart_confirmation = false;
-        self.content.clear();
-        self.history_manager.reset_position();
-        self.cursor.move_to_start();
+        self.confirmation_state = ConfirmationState::None;
+        self.clear_input();
     }
 
-    fn handle_exit_confirmation(&mut self, action: KeyAction) -> Option<String> {
-        match action {
-            KeyAction::Submit => {
-                self.waiting_for_exit_confirmation = false;
-                let confirm_short = t!("system.input.confirm.short");
-                let cancel_short = t!("system.input.cancel.short");
-                match self.content.trim().to_lowercase().as_str() {
-                    input if input == confirm_short.to_lowercase() => {
-                        self.content.clear();
-                        Some("__EXIT__".to_string())
-                    }
-                    input if input == cancel_short.to_lowercase() => {
-                        self.clear_input();
-                        Some(t!("system.input.cancelled"))
-                    }
-                    _ => {
-                        self.clear_input();
-                        Some(t!("system.input.cancelled"))
-                    }
-                }
-            }
-            KeyAction::InsertChar(c) => {
-                let confirm_short = t!("system.input.confirm.short");
-                let cancel_short = t!("system.input.cancel.short");
-                if c.to_lowercase().to_string() == confirm_short.to_lowercase()
-                    || c.to_lowercase().to_string() == cancel_short.to_lowercase()
-                {
-                    self.content.clear();
-                    self.content.push(c);
-                    self.cursor.update_text_length(&self.content);
-                    self.cursor.move_to_end();
-                }
-                None
-            }
-            KeyAction::Backspace | KeyAction::Delete | KeyAction::ClearLine => {
-                self.clear_input();
-                None
-            }
-            _ => None,
-        }
+    pub fn get_content(&self) -> &str {
+        &self.content
+    }
+    pub fn get_history_count(&self) -> usize {
+        self.history_manager.entry_count()
     }
 
-    fn handle_restart_confirmation(&mut self, action: KeyAction) -> Option<String> {
-        match action {
-            KeyAction::Submit => {
-                self.waiting_for_restart_confirmation = false;
-                let confirm_short = t!("system.input.confirm.short");
-                let cancel_short = t!("system.input.cancel.short");
-                match self.content.trim().to_lowercase().as_str() {
-                    input if input == confirm_short.to_lowercase() => {
-                        self.content.clear();
-                        Some("__RESTART__".to_string())
-                    }
-                    input if input == cancel_short.to_lowercase() => {
-                        self.clear_input();
-                        Some(t!("system.input.cancelled"))
-                    }
-                    _ => {
-                        self.clear_input();
-                        Some(t!("system.input.cancelled"))
-                    }
-                }
-            }
-            KeyAction::InsertChar(c) => {
-                let confirm_short = t!("system.input.confirm.short");
-                let cancel_short = t!("system.input.cancel.short");
-                if c.to_lowercase().to_string() == confirm_short.to_lowercase()
-                    || c.to_lowercase().to_string() == cancel_short.to_lowercase()
-                {
-                    self.content.clear();
-                    self.content.push(c);
-                    self.cursor.update_text_length(&self.content);
-                    self.cursor.move_to_end();
-                }
-                None
-            }
-            KeyAction::Backspace | KeyAction::Delete | KeyAction::ClearLine => {
-                self.clear_input();
-                None
-            }
-            _ => None,
-        }
-    }
-
-    fn clear_input(&mut self) {
-        self.content.clear();
-        self.history_manager.reset_position();
-        self.cursor.move_to_start();
-    }
-
-    fn handle_history_action(&mut self, action: HistoryAction) -> Option<String> {
-        match action {
-            HistoryAction::NavigatePrevious => {
-                if let Some(entry) = self.history_manager.navigate_previous() {
-                    self.content = entry;
-                    self.cursor.update_text_length(&self.content);
-                    self.cursor.move_to_end();
-                }
-            }
-            HistoryAction::NavigateNext => {
-                if let Some(entry) = self.history_manager.navigate_next() {
-                    self.content = entry;
-                    self.cursor.update_text_length(&self.content);
-                    self.cursor.move_to_end();
-                }
-            }
-        }
-        None
-    }
-
-    fn handle_history_event(&mut self, event: HistoryEvent) -> String {
-        match event {
-            HistoryEvent::Clear => {
-                self.history_manager.clear();
-                HistoryEventHandler::create_clear_response()
-            }
-            HistoryEvent::Add(entry) => {
-                self.history_manager.add_entry(entry);
-                String::new()
-            }
-            _ => String::new(),
-        }
-    }
-
-    pub fn execute(&self) -> crate::core::error::Result<String> {
-        Ok(format!(
-            "__CONFIRM_EXIT__{}",
-            t!("system.input.confirm_exit")
-        ))
-    }
-
-    fn read_clipboard(&self) -> Option<String> {
-        #[cfg(target_os = "macos")]
-        {
-            std::process::Command::new("pbpaste")
-                .output()
-                .ok()
-                .and_then(|output| {
-                    let text = String::from_utf8_lossy(&output.stdout).to_string();
-                    if text.trim().is_empty() {
-                        None
-                    } else {
-                        Some(text.trim().to_string())
-                    }
-                })
-        }
-
-        #[cfg(target_os = "linux")]
-        {
-            std::process::Command::new("xclip")
-                .args(["-selection", "clipboard", "-o"])
-                .output()
-                .or_else(|_| {
-                    std::process::Command::new("xsel")
-                        .args(["-b", "-o"])
-                        .output()
-                })
-                .ok()
-                .and_then(|output| {
-                    let text = String::from_utf8_lossy(&output.stdout).to_string();
-                    if text.trim().is_empty() {
-                        None
-                    } else {
-                        Some(text.trim().to_string())
-                    }
-                })
-        }
-
-        #[cfg(target_os = "windows")]
-        {
-            std::process::Command::new("powershell")
-                .args(["-Command", "Get-Clipboard"])
-                .output()
-                .ok()
-                .and_then(|output| {
-                    let text = String::from_utf8_lossy(&output.stdout).to_string();
-                    if text.trim().is_empty() {
-                        None
-                    } else {
-                        Some(text.trim().to_string())
-                    }
-                })
-        }
-
-        #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
-        None
-    }
-
-    // ✅ EINFACHES CLIPBOARD SCHREIBEN
-    fn write_clipboard(&self, text: &str) -> bool {
-        if text.is_empty() {
-            return false;
-        }
-
-        #[cfg(target_os = "macos")]
-        {
-            std::process::Command::new("pbcopy")
-                .stdin(std::process::Stdio::piped())
-                .spawn()
-                .and_then(|mut child| {
-                    use std::io::Write;
-                    if let Some(stdin) = child.stdin.as_mut() {
-                        stdin.write_all(text.as_bytes())?;
-                    }
-                    child.wait()
-                })
-                .is_ok()
-        }
-
-        #[cfg(target_os = "linux")]
-        {
-            std::process::Command::new("xclip")
-                .args(["-selection", "clipboard"])
-                .stdin(std::process::Stdio::piped())
-                .spawn()
-                .and_then(|mut child| {
-                    use std::io::Write;
-                    if let Some(stdin) = child.stdin.as_mut() {
-                        stdin.write_all(text.as_bytes())?;
-                    }
-                    child.wait()
-                })
-                .is_ok()
-        }
-
-        #[cfg(target_os = "windows")]
-        {
-            std::process::Command::new("cmd")
-                .args(["/C", &format!("echo {}| clip", text)])
-                .output()
-                .is_ok()
-        }
-
-        #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
-        false
-    }
-
-    // ✅ NEUE SELECTION HANDLING
+    // ✅ KOMPRIMIERTE INPUT HANDLING
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Option<String> {
-        if let Some(history_action) = HistoryKeyboardHandler::get_history_action(&key) {
-            return self.handle_history_action(history_action);
+        // History navigation
+        if let Some(action) = HistoryKeyboardHandler::get_history_action(&key) {
+            return self.handle_history(action);
         }
 
         if key.code == KeyCode::Esc {
@@ -330,168 +84,21 @@ impl InputState {
 
         let action = self.keyboard_manager.get_action(&key);
 
-        if self.waiting_for_exit_confirmation {
-            return self.handle_exit_confirmation(action);
-        }
-        if self.waiting_for_restart_confirmation {
-            return self.handle_restart_confirmation(action);
+        // Confirmation handling
+        if self.confirmation_state != ConfirmationState::None {
+            return self.handle_confirmation(action);
         }
 
+        // Regular input handling
         match action {
-            // ✅ FIXED: PASTE - Kompletten Text einfügen
-            KeyAction::PasteBuffer => {
-                if let Some(clipboard_text) = self.read_clipboard() {
-                    // Text säubern: Keine Newlines, nur druckbare Zeichen
-                    let clean_text = clipboard_text
-                        .replace('\n', " ")
-                        .replace('\r', "")
-                        .replace('\t', " ")
-                        .chars()
-                        .filter(|c| !c.is_control() || *c == ' ')
-                        .collect::<String>();
-
-                    if !clean_text.is_empty() {
-                        // Verfügbaren Platz berechnen
-                        let current_length = self.content.graphemes(true).count();
-                        let available_space =
-                            self.config.input_max_length.saturating_sub(current_length);
-
-                        // Text kürzen falls nötig
-                        let paste_text = if clean_text.graphemes(true).count() > available_space {
-                            clean_text
-                                .graphemes(true)
-                                .take(available_space)
-                                .collect::<String>()
-                        } else {
-                            clean_text
-                        };
-
-                        if !paste_text.is_empty() {
-                            // An Cursor-Position einfügen
-                            let byte_pos = self.cursor.get_byte_position(&self.content);
-                            self.content.insert_str(byte_pos, &paste_text);
-
-                            // Cursor nach eingefügtem Text positionieren
-                            let chars_added = paste_text.graphemes(true).count();
-                            self.cursor.update_text_length(&self.content);
-                            for _ in 0..chars_added {
-                                self.cursor.move_right();
-                            }
-
-                            return Some(format!("📋 Pasted {} chars", chars_added));
-                        }
-                    }
-                }
-                Some("❌ Clipboard empty or invalid".to_string())
-            }
-
-            // ✅ FIXED: COPY - Ganzen Input kopieren oder Selection
-            KeyAction::CopySelection => {
-                if !self.content.is_empty() {
-                    if self.write_clipboard(&self.content) {
-                        Some(format!(
-                            "📋 Copied: \"{}\"",
-                            if self.content.len() > 50 {
-                                format!("{}...", &self.content[..50])
-                            } else {
-                                self.content.clone()
-                            }
-                        ))
-                    } else {
-                        Some("❌ Copy failed".to_string())
-                    }
-                } else {
-                    Some("❌ Nothing to copy".to_string())
-                }
-            }
-
-            // Rest bleibt gleich...
-            KeyAction::Submit => {
-                if self.content.is_empty() {
-                    return None;
-                }
-                if self.validate_input(&self.content).is_ok() {
-                    let content = std::mem::take(&mut self.content);
-                    self.cursor.reset_for_empty_text();
-                    self.history_manager.add_entry(content.clone());
-                    let result = self.command_handler.handle_input(&content);
-
-                    if let Some(event) = HistoryEventHandler::handle_command_result(&result.message)
-                    {
-                        return Some(self.handle_history_event(event));
-                    }
-                    if result.message.starts_with("__CONFIRM_EXIT__") {
-                        self.waiting_for_exit_confirmation = true;
-                        return Some(result.message.replace("__CONFIRM_EXIT__", ""));
-                    }
-                    if result.message.starts_with("__CONFIRM_RESTART__") {
-                        self.waiting_for_restart_confirmation = true;
-                        return Some(result.message.replace("__CONFIRM_RESTART__", ""));
-                    }
-                    if result.message.starts_with("__RESTART_FORCE__")
-                        || result.message.starts_with("__RESTART__")
-                    {
-                        let feedback_text = if result.message.starts_with("__RESTART_FORCE__") {
-                            result
-                                .message
-                                .replace("__RESTART_FORCE__", "")
-                                .trim()
-                                .to_string()
-                        } else {
-                            result.message.replace("__RESTART__", "").trim().to_string()
-                        };
-                        if !feedback_text.is_empty() {
-                            return Some(format!("__RESTART_WITH_MSG__{}", feedback_text));
-                        } else {
-                            return Some("__RESTART__".to_string());
-                        }
-                    }
-                    if result.should_exit {
-                        return Some(format!("__EXIT__{}", result.message));
-                    }
-                    return Some(result.message);
-                }
-                None
-            }
-
+            KeyAction::Submit => self.handle_submit(),
+            KeyAction::PasteBuffer => self.handle_paste(),
+            KeyAction::CopySelection => self.handle_copy(),
+            KeyAction::ClearLine => self.handle_clear_line(),
             KeyAction::InsertChar(c) => {
-                if self.content.graphemes(true).count() < self.config.input_max_length {
-                    let byte_pos = self.cursor.get_byte_position(&self.content);
-                    self.content.insert(byte_pos, c);
-                    self.cursor.update_text_length(&self.content);
-                    self.cursor.move_right();
-                }
+                self.insert_char(c);
                 None
             }
-
-            KeyAction::ClearLine => {
-                if !self.content.is_empty() {
-                    // Vor dem Löschen in Clipboard kopieren
-                    if self.write_clipboard(&self.content) {
-                        let old_content = self.content.clone();
-                        self.content.clear();
-                        self.cursor.reset_for_empty_text();
-                        self.history_manager.reset_position();
-                        Some(format!(
-                            "📋 Cut: \"{}\"",
-                            if old_content.len() > 50 {
-                                format!("{}...", &old_content[..50])
-                            } else {
-                                old_content
-                            }
-                        ))
-                    } else {
-                        self.content.clear();
-                        self.cursor.reset_for_empty_text();
-                        self.history_manager.reset_position();
-                        Some("Input cleared".to_string())
-                    }
-                } else {
-                    None
-                }
-            }
-
-            // Cursor movement...
             KeyAction::MoveLeft => {
                 self.cursor.move_left();
                 None
@@ -508,110 +115,374 @@ impl InputState {
                 self.cursor.move_to_end();
                 None
             }
-
             KeyAction::Backspace => {
-                if self.content.is_empty() || self.cursor.get_position() == 0 {
-                    return None;
-                }
-                let current_byte_pos = self.cursor.get_byte_position(&self.content);
-                let prev_byte_pos = self.cursor.get_prev_byte_position(&self.content);
-                if prev_byte_pos >= current_byte_pos || current_byte_pos > self.content.len() {
-                    self.cursor.update_text_length(&self.content);
-                    return None;
-                }
-                self.cursor.move_left();
-                self.content
-                    .replace_range(prev_byte_pos..current_byte_pos, "");
-                self.cursor.update_text_length(&self.content);
-                if self.content.is_empty() {
-                    self.cursor.reset_for_empty_text();
-                }
+                self.handle_backspace();
                 None
             }
-
             KeyAction::Delete => {
-                let text_length = self.content.graphemes(true).count();
-                if self.cursor.get_position() >= text_length || text_length == 0 {
-                    return None;
-                }
-                let current_byte_pos = self.cursor.get_byte_position(&self.content);
-                let next_byte_pos = self.cursor.get_next_byte_position(&self.content);
-                if current_byte_pos >= next_byte_pos || next_byte_pos > self.content.len() {
+                self.handle_delete();
+                None
+            }
+            _ => None,
+        }
+    }
+
+    // ✅ KOMPRIMIERTE CONFIRMATION LOGIC
+    fn handle_confirmation(&mut self, action: KeyAction) -> Option<String> {
+        match action {
+            KeyAction::Submit => {
+                let confirm = t!("system.input.confirm.short").to_lowercase();
+                let result = if self.content.trim().to_lowercase() == confirm {
+                    match self.confirmation_state {
+                        ConfirmationState::Exit => "__EXIT__".to_string(),
+                        ConfirmationState::Restart => "__RESTART__".to_string(),
+                        _ => get_translation("system.input.cancelled", &[]),
+                    }
+                } else {
+                    get_translation("system.input.cancelled", &[])
+                };
+
+                self.confirmation_state = ConfirmationState::None;
+                self.clear_input();
+                Some(result)
+            }
+            KeyAction::InsertChar(c) => {
+                let confirm_char = t!("system.input.confirm.short").to_lowercase();
+                let cancel_char = t!("system.input.cancel.short").to_lowercase();
+
+                if [confirm_char, cancel_char].contains(&c.to_lowercase().to_string()) {
+                    self.content.clear();
+                    self.content.push(c);
                     self.cursor.update_text_length(&self.content);
-                    return None;
-                }
-                self.content
-                    .replace_range(current_byte_pos..next_byte_pos, "");
-                self.cursor.update_text_length(&self.content);
-                if self.content.is_empty() {
-                    self.cursor.reset_for_empty_text();
+                    self.cursor.move_to_end();
                 }
                 None
             }
-
-            KeyAction::ScrollUp
-            | KeyAction::ScrollDown
-            | KeyAction::PageUp
-            | KeyAction::PageDown
-            | KeyAction::Cancel
-            | KeyAction::Quit
-            | KeyAction::NoAction => None,
+            KeyAction::Backspace | KeyAction::Delete | KeyAction::ClearLine => {
+                self.clear_input();
+                None
+            }
+            _ => None,
         }
     }
 
-    pub fn export_state(&self) -> InputStateBackup {
-        InputStateBackup {
-            content: self.content.clone(),
-            history: self.history_manager.get_all_entries(),
-            cursor_pos: self.cursor.get_current_position(),
+    fn handle_history(&mut self, action: HistoryAction) -> Option<String> {
+        let entry = match action {
+            HistoryAction::NavigatePrevious => self.history_manager.navigate_previous(),
+            HistoryAction::NavigateNext => self.history_manager.navigate_next(),
+        };
+
+        if let Some(entry) = entry {
+            self.content = entry;
+            self.cursor.update_text_length(&self.content);
+            self.cursor.move_to_end();
+        }
+        None
+    }
+
+    fn handle_submit(&mut self) -> Option<String> {
+        if self.content.is_empty() || self.content.trim().is_empty() {
+            return None;
+        }
+
+        if self.content.graphemes(true).count() > 1024 {
+            return Some(get_translation("system.input.too_long", &["1024"]));
+        }
+
+        let content = std::mem::take(&mut self.content);
+        self.cursor.reset_for_empty_text();
+        self.history_manager.add_entry(content.clone());
+
+        let result = self.command_handler.handle_input(&content);
+
+        // Handle special responses (unchanged)
+        if let Some(event) = HistoryEventHandler::handle_command_result(&result.message) {
+            return Some(self.handle_history_event(event));
+        }
+
+        // Handle confirmations with i18n
+        if result.message.starts_with("__CONFIRM_EXIT__") {
+            self.confirmation_state = ConfirmationState::Exit;
+            return Some(result.message.replace("__CONFIRM_EXIT__", ""));
+        }
+        if result.message.starts_with("__CONFIRM_RESTART__") {
+            self.confirmation_state = ConfirmationState::Restart;
+            return Some(result.message.replace("__CONFIRM_RESTART__", ""));
+        }
+
+        // Handle restart commands (unchanged)
+        if result.message.starts_with("__RESTART") {
+            let feedback = if result.message.starts_with("__RESTART_FORCE__") {
+                result
+                    .message
+                    .replace("__RESTART_FORCE__", "")
+                    .trim()
+                    .to_string()
+            } else {
+                result.message.replace("__RESTART__", "").trim().to_string()
+            };
+
+            return Some(if feedback.is_empty() {
+                "__RESTART__".to_string()
+            } else {
+                format!("__RESTART_WITH_MSG__{}", feedback)
+            });
+        }
+
+        if result.should_exit {
+            Some(format!("__EXIT__{}", result.message))
+        } else {
+            Some(result.message)
         }
     }
 
-    pub fn import_state(&mut self, backup: InputStateBackup) {
-        self.content = backup.content;
-        self.history_manager.import_entries(backup.history);
-        self.cursor.update_text_length(&self.content);
+    fn handle_history_event(&mut self, event: HistoryEvent) -> String {
+        match event {
+            HistoryEvent::Clear => {
+                self.history_manager.clear();
+                HistoryEventHandler::create_clear_response()
+            }
+            HistoryEvent::Add(entry) => {
+                self.history_manager.add_entry(entry);
+                String::new()
+            }
+            _ => String::new(),
+        }
     }
 
-    pub fn get_content(&self) -> &str {
-        &self.content
+    // ✅ KOMPRIMIERTE CLIPBOARD OPERATIONS
+    fn handle_paste(&mut self) -> Option<String> {
+        let text = self.read_clipboard()?;
+        let clean = text
+            .replace(['\n', '\r', '\t'], " ")
+            .chars()
+            .filter(|c| !c.is_control() || *c == ' ')
+            .collect::<String>();
+
+        if clean.is_empty() {
+            return Some(get_translation("system.input.clipboard.empty", &[]));
+        }
+
+        let current_len = self.content.graphemes(true).count();
+        let available = self.config.input_max_length.saturating_sub(current_len);
+        let paste_text = clean.graphemes(true).take(available).collect::<String>();
+
+        if !paste_text.is_empty() {
+            let byte_pos = self.cursor.get_byte_position(&self.content);
+            self.content.insert_str(byte_pos, &paste_text);
+            let chars_added = paste_text.graphemes(true).count();
+            self.cursor.update_text_length(&self.content);
+
+            for _ in 0..chars_added {
+                self.cursor.move_right();
+            }
+            Some(get_translation(
+                "system.input.clipboard.pasted",
+                &[&chars_added.to_string()],
+            ))
+        } else {
+            Some(get_translation(
+                "system.input.clipboard.nothing_to_paste",
+                &[],
+            ))
+        }
     }
 
-    pub fn get_history_count(&self) -> usize {
-        self.history_manager.entry_count()
+    fn handle_copy(&self) -> Option<String> {
+        if self.content.is_empty() {
+            return Some(get_translation(
+                "system.input.clipboard.nothing_to_copy",
+                &[],
+            ));
+        }
+
+        if self.write_clipboard(&self.content) {
+            let preview = if self.content.chars().count() > 50 {
+                format!("{}...", self.content.chars().take(50).collect::<String>())
+            } else {
+                self.content.clone()
+            };
+            Some(get_translation(
+                "system.input.clipboard.copied",
+                &[&preview],
+            ))
+        } else {
+            Some(get_translation("system.input.clipboard.copy_failed", &[]))
+        }
+    }
+
+    fn handle_clear_line(&mut self) -> Option<String> {
+        if self.content.is_empty() {
+            return None;
+        }
+
+        let result = if self.write_clipboard(&self.content) {
+            let preview = if self.content.chars().count() > 50 {
+                format!("{}...", self.content.chars().take(50).collect::<String>())
+            } else {
+                self.content.clone()
+            };
+            get_translation("system.input.clipboard.cut", &[&preview])
+        } else {
+            get_translation("system.input.clipboard.cleared", &[])
+        };
+
+        self.clear_input();
+        Some(result)
+    }
+
+    // ✅ KOMPRIMIERTE CLIPBOARD SYSTEM
+    fn read_clipboard(&self) -> Option<String> {
+        let output = self.get_clipboard_cmd("read")?.output().ok()?;
+        let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if text.is_empty() {
+            None
+        } else {
+            Some(text)
+        }
+    }
+
+    fn write_clipboard(&self, text: &str) -> bool {
+        if text.is_empty() {
+            return false;
+        }
+
+        if let Some(mut cmd) = self.get_clipboard_cmd("write") {
+            if let Ok(mut child) = cmd.stdin(std::process::Stdio::piped()).spawn() {
+                if let Some(stdin) = child.stdin.as_mut() {
+                    use std::io::Write;
+                    let _ = stdin.write_all(text.as_bytes());
+                }
+                return child.wait().is_ok();
+            }
+        }
+        false
+    }
+
+    fn get_clipboard_cmd(&self, op: &str) -> Option<std::process::Command> {
+        #[cfg(target_os = "macos")]
+        {
+            Some(std::process::Command::new(if op == "read" {
+                "pbpaste"
+            } else {
+                "pbcopy"
+            }))
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            let mut cmd = std::process::Command::new("xclip");
+            if op == "read" {
+                cmd.args(["-selection", "clipboard", "-o"]);
+            } else {
+                cmd.args(["-selection", "clipboard"]);
+            }
+            Some(cmd)
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            if op == "read" {
+                let mut cmd = std::process::Command::new("powershell");
+                cmd.args(["-Command", "Get-Clipboard"]);
+                Some(cmd)
+            } else {
+                None // Windows write handling unterschiedlich
+            }
+        }
+
+        #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+        None
+    }
+
+    // ✅ KOMPRIMIERTE TEXT EDITING
+    fn insert_char(&mut self, c: char) {
+        if self.content.graphemes(true).count() < self.config.input_max_length {
+            let byte_pos = self.cursor.get_byte_position(&self.content);
+            self.content.insert(byte_pos, c);
+            self.cursor.update_text_length(&self.content);
+            self.cursor.move_right();
+        }
+    }
+
+    fn handle_backspace(&mut self) {
+        if self.content.is_empty() || self.cursor.get_position() == 0 {
+            return;
+        }
+
+        let current = self.cursor.get_byte_position(&self.content);
+        let prev = self.cursor.get_prev_byte_position(&self.content);
+
+        if prev < current && current <= self.content.len() {
+            self.cursor.move_left();
+            self.content.replace_range(prev..current, "");
+            self.cursor.update_text_length(&self.content);
+
+            if self.content.is_empty() {
+                self.cursor.reset_for_empty_text();
+            }
+        }
+    }
+
+    fn handle_delete(&mut self) {
+        let text_len = self.content.graphemes(true).count();
+        if self.cursor.get_position() >= text_len || text_len == 0 {
+            return;
+        }
+
+        let current = self.cursor.get_byte_position(&self.content);
+        let next = self.cursor.get_next_byte_position(&self.content);
+
+        if current < next && next <= self.content.len() {
+            self.content.replace_range(current..next, "");
+            self.cursor.update_text_length(&self.content);
+
+            if self.content.is_empty() {
+                self.cursor.reset_for_empty_text();
+            }
+        }
+    }
+
+    fn clear_input(&mut self) {
+        self.content.clear();
+        self.history_manager.reset_position();
+        self.cursor.move_to_start();
     }
 }
 
+// ✅ WIDGET TRAIT IMPLEMENTATIONS (angepasst an neue Namen)
 impl Widget for InputState {
     fn render(&self) -> Paragraph {
         self.render_with_cursor().0
     }
 
-    fn render_with_cursor(&self) -> (Paragraph, Option<(u16, u16)>) {
-        use unicode_width::UnicodeWidthStr;
+    fn handle_input(&mut self, key: KeyEvent) -> Option<String> {
+        self.handle_key_event(key)
+    }
+}
 
+impl CursorWidget for InputState {
+    fn render_with_cursor(&self) -> (Paragraph, Option<(u16, u16)>) {
         let graphemes: Vec<&str> = self.content.graphemes(true).collect();
         let cursor_pos = self.cursor.get_position();
-
-        let prompt_display = self.config.theme.input_cursor_prefix.clone();
-        let prompt_width = prompt_display.width();
-
+        let prompt_width = self.prompt.width();
         let available_width = self
             .config
             .input_max_length
             .saturating_sub(prompt_width + 4);
 
+        // Viewport calculation
         let viewport_start = if cursor_pos > available_width {
             cursor_pos - available_width + 10
         } else {
             0
         };
 
-        let mut spans = Vec::new();
-        spans.push(Span::styled(
-            prompt_display,
+        // Create spans
+        let mut spans = vec![Span::styled(
+            &self.prompt,
             Style::default().fg(self.config.theme.input_cursor_color.into()),
-        ));
+        )];
 
         let end_pos = (viewport_start + available_width).min(graphemes.len());
         let visible = graphemes
@@ -630,47 +501,40 @@ impl Widget for InputState {
                 .style(Style::default().bg(self.config.theme.input_bg.into())),
         );
 
-        let cursor_coord = if self.cursor.is_visible() {
-            let visible_chars_before_cursor = if cursor_pos > viewport_start {
-                let chars_before = graphemes.get(viewport_start..cursor_pos).unwrap_or(&[]);
-                chars_before
-                    .iter()
-                    .map(|g| UnicodeWidthStr::width(*g))
-                    .sum::<usize>()
-            } else {
-                0
-            };
-
-            let rel_x = (prompt_width + visible_chars_before_cursor) as u16;
-            let rel_y = 0u16;
-
-            Some((rel_x, rel_y))
+        // Cursor coordinates
+        let cursor_coord = if self.cursor.is_visible() && cursor_pos >= viewport_start {
+            let chars_before = graphemes.get(viewport_start..cursor_pos).unwrap_or(&[]);
+            let visible_width: usize = chars_before
+                .iter()
+                .map(|g| UnicodeWidthStr::width(*g))
+                .sum();
+            Some(((prompt_width + visible_width) as u16, 0u16))
         } else {
             None
         };
 
         (paragraph, cursor_coord)
     }
+}
 
-    fn handle_input(&mut self, key: KeyEvent) -> Option<String> {
-        self.handle_key_event(key)
+impl StatefulWidget for InputState {
+    fn export_state(&self) -> InputStateBackup {
+        InputStateBackup {
+            content: self.content.clone(),
+            history: self.history_manager.get_all_entries(),
+            cursor_pos: self.cursor.get_current_position(),
+        }
     }
 
-    fn as_input_state(&mut self) -> Option<&mut dyn InputWidget> {
-        Some(self)
-    }
-
-    fn get_backup_data(&self) -> Option<InputStateBackup> {
-        Some(self.export_state())
-    }
-
-    fn restore_backup_data(&mut self, backup: InputStateBackup) {
-        self.import_state(backup);
+    fn import_state(&mut self, state: InputStateBackup) {
+        self.content = state.content;
+        self.history_manager.import_entries(state.history);
+        self.cursor.update_text_length(&self.content);
     }
 }
 
-impl InputWidget for InputState {
-    fn update_cursor_blink(&mut self) {
+impl AnimatedWidget for InputState {
+    fn tick(&mut self) {
         self.cursor.update_blink();
     }
 }

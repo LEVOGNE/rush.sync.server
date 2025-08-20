@@ -1,7 +1,4 @@
-// =====================================================
-// FILE: src/core/config.rs - BEREINIGTE THEME-KONVERTIERUNG
-// =====================================================
-
+// ## FILE: src/core/config.rs - KOMPRIMIERTE VERSION
 use crate::core::constants::{DEFAULT_BUFFER_SIZE, DEFAULT_POLL_RATE};
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
@@ -25,7 +22,7 @@ struct GeneralConfig {
     max_history: usize,
     poll_rate: u64,
     log_level: String,
-    #[serde(default = "default_theme_name")]
+    #[serde(default = "default_theme")]
     current_theme: String,
 }
 
@@ -40,43 +37,33 @@ struct ThemeDefinitionConfig {
     input_bg: String,
     output_text: String,
     output_bg: String,
-
-    // ✅ DIREKTE FELD-ZUORDNUNG (Feld-Namen stimmen mit Config-Struct überein)
-    #[serde(default = "default_input_cursor_prefix")]
+    #[serde(default = "default_prefix")]
     input_cursor_prefix: String,
-
-    #[serde(default = "default_input_cursor_color")]
+    #[serde(default = "default_input_color")]
     input_cursor_color: String,
-
-    #[serde(default = "default_input_cursor")]
+    #[serde(default = "default_cursor")]
     input_cursor: String,
-
-    #[serde(default = "default_output_cursor")]
+    #[serde(default = "default_cursor")]
     output_cursor: String,
-
-    #[serde(default = "default_output_cursor_color")]
+    #[serde(default = "default_output_color")]
     output_cursor_color: String,
 }
 
-fn default_theme_name() -> String {
-    "dark".to_string()
+// ✅ KOMPRIMIERTE DEFAULTS
+fn default_theme() -> String {
+    "dark".into()
 }
-
-// ✅ KONSISTENTE CURSOR-DEFAULTS
-fn default_input_cursor_prefix() -> String {
-    "/// ".to_string()
+fn default_prefix() -> String {
+    "/// ".into()
 }
-fn default_input_cursor_color() -> String {
-    "LightBlue".to_string()
+fn default_input_color() -> String {
+    "LightBlue".into()
 }
-fn default_input_cursor() -> String {
-    "PIPE".to_string()
+fn default_output_color() -> String {
+    "White".into()
 }
-fn default_output_cursor() -> String {
-    "PIPE".to_string()
-}
-fn default_output_cursor_color() -> String {
-    "White".to_string()
+fn default_cursor() -> String {
+    "PIPE".into()
 }
 
 #[derive(Clone)]
@@ -100,8 +87,6 @@ pub struct Theme {
     pub input_bg: AppColor,
     pub output_text: AppColor,
     pub output_bg: AppColor,
-
-    // ✅ EXAKTE FELD-ÜBEREINSTIMMUNG mit ThemeDefinition
     pub input_cursor_prefix: String,
     pub input_cursor_color: AppColor,
     pub input_cursor: String,
@@ -116,12 +101,10 @@ impl Default for Theme {
             input_bg: AppColor::new(Color::Black),
             output_text: AppColor::new(Color::White),
             output_bg: AppColor::new(Color::Black),
-
-            // ✅ KONSISTENTE DEFAULTS
-            input_cursor_prefix: "/// ".to_string(),
+            input_cursor_prefix: "/// ".into(),
             input_cursor_color: AppColor::new(Color::LightBlue),
-            input_cursor: "PIPE".to_string(),
-            output_cursor: "PIPE".to_string(),
+            input_cursor: "PIPE".into(),
+            output_cursor: "PIPE".into(),
             output_cursor_color: AppColor::new(Color::White),
         }
     }
@@ -133,41 +116,29 @@ impl Config {
     }
 
     pub async fn load_with_messages(show_messages: bool) -> Result<Self> {
+        // Try existing configs
         for path in crate::setup::setup_toml::get_config_paths() {
             if path.exists() {
                 if let Ok(config) = Self::from_file(&path).await {
-                    if show_messages && config.poll_rate.as_millis() < 16 {
-                        log::warn!("⚡ PERFORMANCE: poll_rate sehr niedrig!");
-                    }
-
-                    let _ = crate::commands::lang::LanguageService::new()
-                        .load_and_apply_from_config(&config)
-                        .await;
-
                     if show_messages {
-                        log::info!("Rush Sync Server v{}", crate::core::constants::VERSION);
+                        Self::log_startup(&config);
                     }
+                    Self::apply_language(&config).await;
                     return Ok(config);
                 }
             }
         }
 
-        if show_messages {
-            log::info!("Keine Config gefunden, erstelle neue");
-        }
-
-        let config_path = crate::setup::setup_toml::ensure_config_exists().await?;
-        let mut config = Self::from_file(&config_path).await?;
+        // Create new config
+        let path = crate::setup::setup_toml::ensure_config_exists().await?;
+        let mut config = Self::from_file(&path).await?;
 
         if show_messages {
-            config.debug_info = Some(format!("Neue Config erstellt: {}", config_path.display()));
-            log::info!("Rush Sync Server v{}", crate::core::constants::VERSION);
+            config.debug_info = Some(format!("New config: {}", path.display()));
+            Self::log_startup(&config);
         }
 
-        let _ = crate::commands::lang::LanguageService::new()
-            .load_and_apply_from_config(&config)
-            .await;
-
+        Self::apply_language(&config).await;
         Ok(config)
     }
 
@@ -175,137 +146,111 @@ impl Config {
         let content = tokio::fs::read_to_string(&path)
             .await
             .map_err(AppError::Io)?;
-        let config_file: ConfigFile = toml::from_str(&content)
-            .map_err(|e| AppError::Validation(format!("TOML Error: {}", e)))?;
+        let file: ConfigFile =
+            toml::from_str(&content).map_err(|e| AppError::Validation(format!("TOML: {}", e)))?;
 
-        let poll_rate = Self::validate_range(config_file.general.poll_rate, 16, 1000, 16);
-        let typewriter_delay =
-            Self::validate_range(config_file.general.typewriter_delay, 0, 2000, 50);
-
-        let theme = Self::load_theme_from_config(&config_file)?;
+        let poll_rate = Self::clamp(file.general.poll_rate, 16, 1000, 16);
+        let typewriter = Self::clamp(file.general.typewriter_delay, 0, 2000, 50);
+        let theme = Self::load_theme(&file).unwrap_or_default();
 
         let config = Self {
             config_path: Some(path.as_ref().to_string_lossy().into_owned()),
-            max_messages: config_file.general.max_messages,
-            typewriter_delay: Duration::from_millis(typewriter_delay),
-            input_max_length: config_file.general.input_max_length,
-            max_history: config_file.general.max_history,
+            max_messages: file.general.max_messages,
+            typewriter_delay: Duration::from_millis(typewriter),
+            input_max_length: file.general.input_max_length,
+            max_history: file.general.max_history,
             poll_rate: Duration::from_millis(poll_rate),
-            log_level: config_file.general.log_level,
+            log_level: file.general.log_level,
             theme,
-            current_theme_name: config_file.general.current_theme,
-            language: config_file.language.current,
+            current_theme_name: file.general.current_theme,
+            language: file.language.current,
             debug_info: None,
         };
 
-        if poll_rate != config_file.general.poll_rate
-            || typewriter_delay != config_file.general.typewriter_delay
-        {
-            log::warn!("Config-Werte korrigiert und gespeichert");
+        // Auto-save corrected values
+        if poll_rate != file.general.poll_rate || typewriter != file.general.typewriter_delay {
             let _ = config.save().await;
         }
 
         Ok(config)
     }
 
-    fn validate_range(value: u64, min: u64, max: u64, default: u64) -> u64 {
+    fn clamp(value: u64, min: u64, max: u64, default: u64) -> u64 {
         if value < min || value > max {
-            log::warn!(
-                "Wert {} außerhalb Bereich {}-{}, verwende {}",
-                value,
-                min,
-                max,
-                default
-            );
             default
         } else {
             value
         }
     }
 
-    fn load_theme_from_config(config_file: &ConfigFile) -> Result<Theme> {
-        let current_theme_name = &config_file.general.current_theme;
-
-        if let Some(ref themes) = config_file.theme {
-            if let Some(theme_def) = themes.get(current_theme_name) {
-                return Theme::from_config(theme_def);
-            }
-        }
-
-        log::warn!(
-            "Theme '{}' nicht gefunden, verwende Standard",
-            current_theme_name
-        );
-        Ok(Theme::default())
+    fn load_theme(file: &ConfigFile) -> Option<Theme> {
+        let themes = file.theme.as_ref()?;
+        let def = themes.get(&file.general.current_theme)?;
+        Theme::from_config(def).ok()
     }
 
+    // ✅ KOMPRIMIERTES SAVE
     pub async fn save(&self) -> Result<()> {
-        if let Some(path) = &self.config_path {
-            let existing_themes = Self::load_themes_from_config().await.unwrap_or_default();
+        let Some(path) = &self.config_path else {
+            return Ok(());
+        };
 
-            let config_file = ConfigFile {
-                general: GeneralConfig {
-                    max_messages: self.max_messages,
-                    typewriter_delay: self.typewriter_delay.as_millis() as u64,
-                    input_max_length: self.input_max_length,
-                    max_history: self.max_history,
-                    poll_rate: self.poll_rate.as_millis() as u64,
-                    log_level: self.log_level.clone(),
-                    current_theme: self.current_theme_name.clone(),
-                },
-                theme: if existing_themes.is_empty() {
-                    None
-                } else {
-                    Some(existing_themes)
-                },
-                language: LanguageConfig {
-                    current: self.language.clone(),
-                },
-            };
+        let themes = Self::load_existing_themes().await.unwrap_or_default();
+        let file = ConfigFile {
+            general: GeneralConfig {
+                max_messages: self.max_messages,
+                typewriter_delay: self.typewriter_delay.as_millis() as u64,
+                input_max_length: self.input_max_length,
+                max_history: self.max_history,
+                poll_rate: self.poll_rate.as_millis() as u64,
+                log_level: self.log_level.clone(),
+                current_theme: self.current_theme_name.clone(),
+            },
+            theme: if themes.is_empty() {
+                None
+            } else {
+                Some(themes)
+            },
+            language: LanguageConfig {
+                current: self.language.clone(),
+            },
+        };
 
-            let content = toml::to_string_pretty(&config_file)
-                .map_err(|e| AppError::Validation(format!("TOML Error: {}", e)))?;
+        let content = toml::to_string_pretty(&file)
+            .map_err(|e| AppError::Validation(format!("TOML: {}", e)))?;
 
-            if let Some(parent) = std::path::PathBuf::from(path).parent() {
-                tokio::fs::create_dir_all(parent)
-                    .await
-                    .map_err(AppError::Io)?;
-            }
-
-            tokio::fs::write(path, content)
+        // Ensure dir exists
+        if let Some(parent) = std::path::PathBuf::from(path).parent() {
+            tokio::fs::create_dir_all(parent)
                 .await
                 .map_err(AppError::Io)?;
         }
-        Ok(())
+
+        tokio::fs::write(path, content).await.map_err(AppError::Io)
     }
 
-    pub async fn change_theme(&mut self, theme_name: &str) -> Result<()> {
-        let available_themes = Self::load_themes_from_config().await?;
+    // ✅ KOMPRIMIERTES THEME SWITCHING
+    pub async fn change_theme(&mut self, name: &str) -> Result<()> {
+        let themes = Self::load_existing_themes().await?;
+        let def = themes
+            .get(name)
+            .ok_or_else(|| AppError::Validation(format!("Theme '{}' not found", name)))?;
 
-        if let Some(theme_def) = available_themes.get(theme_name) {
-            self.theme = Theme::from_config(theme_def)?;
-            self.current_theme_name = theme_name.to_string();
-            self.save().await?;
-            log::info!("Theme gewechselt zu: {}", theme_name);
-            Ok(())
-        } else {
-            Err(AppError::Validation(format!(
-                "Theme '{}' nicht gefunden",
-                theme_name
-            )))
-        }
+        self.theme = Theme::from_config(def)?;
+        self.current_theme_name = name.into();
+        self.save().await
     }
 
-    async fn load_themes_from_config() -> Result<HashMap<String, ThemeDefinitionConfig>> {
+    async fn load_existing_themes() -> Result<HashMap<String, ThemeDefinitionConfig>> {
         for path in crate::setup::setup_toml::get_config_paths() {
             if path.exists() {
                 let content = tokio::fs::read_to_string(&path)
                     .await
                     .map_err(AppError::Io)?;
-                let config_file: ConfigFile = toml::from_str(&content)
-                    .map_err(|e| AppError::Validation(format!("TOML Error: {}", e)))?;
+                let file: ConfigFile = toml::from_str(&content)
+                    .map_err(|e| AppError::Validation(format!("TOML: {}", e)))?;
 
-                if let Some(themes) = config_file.theme {
+                if let Some(themes) = file.theme {
                     return Ok(themes);
                 }
             }
@@ -313,36 +258,47 @@ impl Config {
         Ok(HashMap::new())
     }
 
+    // ✅ PERFORMANCE INFO (komprimiert)
     pub fn get_performance_info(&self) -> String {
         let fps = 1000.0 / self.poll_rate.as_millis() as f64;
-        let typewriter_chars_per_sec = if self.typewriter_delay.as_millis() > 0 {
+        let typewriter = if self.typewriter_delay.as_millis() > 0 {
             1000.0 / self.typewriter_delay.as_millis() as f64
         } else {
             f64::INFINITY
         };
-
         format!(
             "Performance: {:.1} FPS, Typewriter: {:.1} chars/sec",
-            fps, typewriter_chars_per_sec
+            fps, typewriter
         )
+    }
+
+    // ✅ HELPER METHODS (komprimiert)
+    async fn apply_language(config: &Config) {
+        let _ = crate::commands::lang::LanguageService::new()
+            .load_and_apply_from_config(config)
+            .await;
+    }
+
+    fn log_startup(config: &Config) {
+        if config.poll_rate.as_millis() < 16 {
+            log::warn!("⚡ PERFORMANCE: poll_rate sehr niedrig!");
+        }
+        log::info!("Rush Sync Server v{}", crate::core::constants::VERSION);
     }
 }
 
 impl Theme {
-    // ✅ KOMPLETT BEREINIGTE Theme-Konvertierung OHNE Legacy-Fallbacks
-    fn from_config(theme_def: &ThemeDefinitionConfig) -> Result<Self> {
+    fn from_config(def: &ThemeDefinitionConfig) -> Result<Self> {
         Ok(Self {
-            input_text: AppColor::from_string(&theme_def.input_text)?,
-            input_bg: AppColor::from_string(&theme_def.input_bg)?,
-            output_text: AppColor::from_string(&theme_def.output_text)?,
-            output_bg: AppColor::from_string(&theme_def.output_bg)?,
-
-            // ✅ DIREKTE 1:1 ZUORDNUNG (keine Legacy-Behandlung!)
-            input_cursor_prefix: theme_def.input_cursor_prefix.clone(),
-            input_cursor_color: AppColor::from_string(&theme_def.input_cursor_color)?,
-            input_cursor: theme_def.input_cursor.clone(),
-            output_cursor: theme_def.output_cursor.clone(),
-            output_cursor_color: AppColor::from_string(&theme_def.output_cursor_color)?,
+            input_text: AppColor::from_string(&def.input_text)?,
+            input_bg: AppColor::from_string(&def.input_bg)?,
+            output_text: AppColor::from_string(&def.output_text)?,
+            output_bg: AppColor::from_string(&def.output_bg)?,
+            input_cursor_prefix: def.input_cursor_prefix.clone(),
+            input_cursor_color: AppColor::from_string(&def.input_cursor_color)?,
+            input_cursor: def.input_cursor.clone(),
+            output_cursor: def.output_cursor.clone(),
+            output_cursor_color: AppColor::from_string(&def.output_cursor_color)?,
         })
     }
 }
@@ -356,10 +312,10 @@ impl Default for Config {
             input_max_length: DEFAULT_BUFFER_SIZE,
             max_history: 30,
             poll_rate: Duration::from_millis(DEFAULT_POLL_RATE),
-            log_level: "info".to_string(),
+            log_level: "info".into(),
             theme: Theme::default(),
-            current_theme_name: "dark".to_string(),
-            language: crate::i18n::DEFAULT_LANGUAGE.to_string(),
+            current_theme_name: "dark".into(),
+            language: crate::i18n::DEFAULT_LANGUAGE.into(),
             debug_info: None,
         }
     }

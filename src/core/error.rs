@@ -18,10 +18,26 @@ impl From<io::Error> for AppError {
 impl std::fmt::Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AppError::Io(err) => write!(f, "IO Error: {}", err),
-            AppError::Validation(msg) => write!(f, "Validation Error: {}", msg),
-            AppError::Terminal(msg) => write!(f, "Terminal Error: {}", msg),
-            AppError::Translation(err) => write!(f, "Translation Error: {}", err),
+            AppError::Io(err) => write!(
+                f,
+                "{}",
+                get_translation("system.error.io_error", &[&err.to_string()])
+            ),
+            AppError::Validation(msg) => write!(
+                f,
+                "{}",
+                get_translation("system.error.validation_error", &[msg])
+            ),
+            AppError::Terminal(msg) => write!(
+                f,
+                "{}",
+                get_translation("system.error.terminal_error", &[msg])
+            ),
+            AppError::Translation(err) => write!(
+                f,
+                "{}",
+                get_translation("system.error.translation_error", &[&err.to_string()])
+            ),
         }
     }
 }
