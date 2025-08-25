@@ -1,4 +1,4 @@
-// ## FILE: src/i18n/mod.rs - KOMPRIMIERTE VERSION
+// ## FILE: src/i18n/mod.rs - SUPER VEREINFACHT!
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
 use rust_embed::RustEmbed;
@@ -11,7 +11,6 @@ pub const DEFAULT_LANGUAGE: &str = "en";
 pub enum TranslationError {
     InvalidLanguage(String),
     LoadError(String),
-    KeyNotFound(String),
 }
 
 impl std::fmt::Display for TranslationError {
@@ -19,7 +18,6 @@ impl std::fmt::Display for TranslationError {
         match self {
             Self::InvalidLanguage(lang) => write!(f, "Invalid language: {}", lang),
             Self::LoadError(msg) => write!(f, "Load error: {}", msg),
-            Self::KeyNotFound(key) => write!(f, "Translation key not found: {}", key),
         }
     }
 }
@@ -48,18 +46,13 @@ impl Entry {
                 text
             })
     }
-
-    fn color(&self) -> AppColor {
-        AppColor::from_any(&self.category)
-    }
 }
 
 struct I18nService {
     language: String,
     entries: HashMap<String, Entry>,
     fallback: HashMap<String, Entry>,
-    cache: HashMap<String, (String, AppColor)>,
-    display_map: HashMap<String, String>,
+    cache: HashMap<String, String>,
 }
 
 impl I18nService {
@@ -69,7 +62,6 @@ impl I18nService {
             entries: HashMap::new(),
             fallback: HashMap::new(),
             cache: HashMap::new(),
-            display_map: HashMap::new(),
         }
     }
 
@@ -86,23 +78,22 @@ impl I18nService {
 
         // Load entries
         self.entries = Self::load_entries(lang)?;
-        if lang != DEFAULT_LANGUAGE {
-            self.fallback = Self::load_entries(DEFAULT_LANGUAGE).unwrap_or_default();
+
+        // Load fallback (andere Sprachen)
+        self.fallback.clear();
+        for available_lang in Self::available_languages() {
+            if available_lang.to_lowercase() != lang.to_lowercase() {
+                if let Ok(other_entries) = Self::load_entries(&available_lang.to_lowercase()) {
+                    for (key, entry) in other_entries {
+                        self.fallback.entry(key).or_insert(entry);
+                    }
+                }
+            }
         }
 
-        self.build_display_map();
         self.cache.clear();
         self.language = lang.into();
         Ok(())
-    }
-
-    fn build_display_map(&mut self) {
-        self.display_map.clear();
-        for entry in self.entries.values().chain(self.fallback.values()) {
-            self.display_map
-                .entry(entry.display.to_lowercase())
-                .or_insert_with(|| entry.category.clone());
-        }
     }
 
     fn load_entries(lang: &str) -> Result<HashMap<String, Entry>> {
@@ -146,31 +137,30 @@ impl I18nService {
             .collect())
     }
 
-    fn get_translation(&mut self, key: &str, params: &[&str]) -> (String, AppColor) {
-        // Cache key
+    fn get_translation(&mut self, key: &str, params: &[&str]) -> String {
+        // Cache check
         let cache_key = if params.is_empty() {
             key.into()
         } else {
             format!("{}:{}", key, params.join(":"))
         };
 
-        // Check cache
         if let Some(cached) = self.cache.get(&cache_key) {
             return cached.clone();
         }
 
         // Get entry
-        let (text, color) = match self.entries.get(key).or_else(|| self.fallback.get(key)) {
-            Some(entry) => (entry.format(params), entry.color()),
-            None => (format!("Missing: {}", key), AppColor::from_any("warning")),
+        let text = match self.entries.get(key).or_else(|| self.fallback.get(key)) {
+            Some(entry) => entry.format(params),
+            None => format!("Missing: {}", key),
         };
 
         // Cache with size limit
         if self.cache.len() >= 1000 {
             self.cache.clear();
         }
-        self.cache.insert(cache_key, (text.clone(), color));
-        (text, color)
+        self.cache.insert(cache_key, text.clone());
+        text
     }
 
     fn get_command_translation(&mut self, key: &str, params: &[&str]) -> String {
@@ -180,11 +170,21 @@ impl I18nService {
         }
     }
 
-    fn get_category_for_display(&self, display: &str) -> String {
-        self.display_map
-            .get(&display.to_lowercase())
-            .cloned()
-            .unwrap_or_else(|| "info".into())
+    // fn get_display_color(&self, display_text: &str) -> AppColor {
+    //     AppColor::from_display_text(display_text) // ← NUR EINE ZEILE!
+    // }
+
+    fn get_display_color(&self, display_text: &str) -> AppColor {
+        // Suche Entry mit matching display_text
+        for entry in self.entries.values() {
+            if entry.display.to_uppercase() == display_text.to_uppercase() {
+                // ✅ VERWENDE category für Farbe!
+                return AppColor::from_category(&entry.category);
+            }
+        }
+
+        // Fallback...
+        AppColor::from_any("info")
     }
 
     fn available_languages() -> Vec<String> {
@@ -197,11 +197,11 @@ impl I18nService {
     }
 }
 
-// ✅ KOMPRIMIERTE SINGLETON
+// ✅ SINGLETON (unverändert)
 static SERVICE: std::sync::LazyLock<Arc<RwLock<I18nService>>> =
     std::sync::LazyLock::new(|| Arc::new(RwLock::new(I18nService::new())));
 
-// ✅ KOMPRIMIERTE PUBLIC API
+// ✅ PUBLIC API - VEREINFACHT!
 pub async fn init() -> Result<()> {
     set_language(DEFAULT_LANGUAGE)
 }
@@ -211,7 +211,7 @@ pub fn set_language(lang: &str) -> Result<()> {
 }
 
 pub fn get_translation(key: &str, params: &[&str]) -> String {
-    SERVICE.write().unwrap().get_translation(key, params).0
+    SERVICE.write().unwrap().get_translation(key, params)
 }
 
 pub fn get_command_translation(key: &str, params: &[&str]) -> String {
@@ -221,8 +221,19 @@ pub fn get_command_translation(key: &str, params: &[&str]) -> String {
         .get_command_translation(key, params)
 }
 
+// ✅ NEUE VEREINFACHTE FUNKTION: Direkte Farb-Zuordnung!
+pub fn get_color_for_display_text(display_text: &str) -> AppColor {
+    SERVICE.read().unwrap().get_display_color(display_text)
+}
+
+// ✅ LEGACY SUPPORT (um bestehenden Code nicht zu brechen)
 pub fn get_color_category_for_display(display: &str) -> String {
-    SERVICE.read().unwrap().get_category_for_display(display)
+    // Gib einfach die Display-Text als Kategorie zurück für AppColor::from_any()
+    match display.to_lowercase().as_str() {
+        "theme" => "theme".to_string(),
+        "lang" | "sprache" => "lang".to_string(),
+        _ => "info".to_string(),
+    }
 }
 
 pub fn get_current_language() -> String {
@@ -240,37 +251,6 @@ pub fn has_translation(key: &str) -> bool {
 
 pub fn clear_translation_cache() {
     SERVICE.write().unwrap().cache.clear();
-}
-
-// ✅ KOMPRIMIERTE STATS & DEBUG
-pub fn get_all_translation_keys() -> Vec<String> {
-    let service = SERVICE.read().unwrap();
-    let mut keys: Vec<String> = service
-        .entries
-        .keys()
-        .chain(service.fallback.keys())
-        .cloned()
-        .collect();
-    keys.sort_unstable();
-    keys.dedup();
-    keys
-}
-
-pub fn get_translation_stats() -> HashMap<String, usize> {
-    let service = SERVICE.read().unwrap();
-    [
-        ("total_keys", service.entries.len()),
-        ("fallback_keys", service.fallback.len()),
-        ("cached_entries", service.cache.len()),
-        ("display_mappings", service.display_map.len()),
-    ]
-    .into_iter()
-    .map(|(k, v)| (k.into(), v))
-    .collect()
-}
-
-pub fn get_missing_keys_report() -> Vec<String> {
-    Vec::new()
 }
 
 // ✅ MACROS (unverändert)

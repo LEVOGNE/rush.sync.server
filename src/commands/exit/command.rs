@@ -24,7 +24,7 @@ impl Command for ExitCommand {
 
     fn execute_sync(&self, _args: &[&str]) -> Result<String> {
         let msg = get_command_translation("system.input.confirm_exit", &[]);
-        Ok(format!("__CONFIRM_EXIT__{}", msg))
+        Ok(format!("__CONFIRM:__EXIT__{}", msg))
     }
 
     fn priority(&self) -> u8 {

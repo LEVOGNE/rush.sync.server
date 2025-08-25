@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: src/commands/history/command.rs - I18N VERSION
-// =====================================================
-
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 
@@ -23,10 +19,19 @@ impl Command for HistoryCommand {
 
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
         match args.first() {
-            Some(&"-c" | &"--clear") => Ok("__CLEAR_HISTORY__".to_string()),
+            // ✅ NEU: Bestätigungssystem für -c/--clear
+            Some(&"-c" | &"--clear") => {
+                let msg = get_command_translation("system.commands.history.confirm_clear", &[]);
+                Ok(format!("__CONFIRM:__CLEAR_HISTORY__{}", msg))
+            }
+
+            // ✅ NEU: --force für direktes Löschen ohne Bestätigung
+            Some(&"--force-clear" | &"-fc") => Ok("__CLEAR_HISTORY__".to_string()),
+
             Some(&"-h" | &"--help") => {
                 Ok(get_command_translation("system.commands.history.help", &[]))
             }
+
             _ => Ok(get_command_translation(
                 "system.commands.history.usage",
                 &[],

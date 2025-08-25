@@ -345,11 +345,15 @@
 
   "screen.theme.switched_success.text": "✅ Theme gewechselt zu: {0}",
   "screen.theme.switched_success.display_text": "THEME",
-  "screen.theme.switched_success.category": "info",
+  "screen.theme.switched_success.category": "theme",
 
   "system.cleanup.i18n_cleared.text": "i18n-Cache geleert",
   "system.cleanup.i18n_cleared.display_text": "DEBUG",
   "system.cleanup.i18n_cleared.category": "debug",
+
+  "system.commands.history.confirm_clear.text": "Möchten Sie wirklich die gesamte Befehlshistorie löschen? (j/n)",
+  "system.commands.history.confirm_clear.display_text": "BESTÄTIGEN",
+  "system.commands.history.confirm_clear.category": "warning",
 
   "system.commands.history.help.text": "📂 Historie-Befehle:\n  history        Zeige diese Hilfe\n  history -c     Lösche Historie\n  ↑ ↓           Navigiere durch Historie\n\n  Datei: ~/.rss/rush.history",
   "system.commands.history.help.display_text": "HISTORIE",
@@ -437,7 +441,7 @@
 
   "system.commands.theme.changed_success.text": "🎨 Theme gewechselt zu: {0} ✨",
   "system.commands.theme.changed_success.display_text": "THEME",
-  "system.commands.theme.changed_success.category": "info",
+  "system.commands.theme.changed_success.category": "theme",
 
   "system.commands.theme.current_status.text": "Aktuelles Theme: {0} (aus TOML)\nVerfügbar: {1}",
   "system.commands.theme.current_status.display_text": "THEME",

@@ -347,6 +347,10 @@
   "system.cleanup.i18n_cleared.display_text": "DEBUG",
   "system.cleanup.i18n_cleared.category": "debug",
 
+  "system.commands.history.confirm_clear.text": "Do you really want to clear the entire command history? (y/n)",
+  "system.commands.history.confirm_clear.display_text": "CONFIRM",
+  "system.commands.history.confirm_clear.category": "warning",
+
   "system.commands.history.help.text": "📂 History Commands:\n  history        Show this help\n  history -c     Clear history\n  ↑ ↓           Navigate history\n\n  File: ~/.rss/rush.history",
   "system.commands.history.help.display_text": "HISTORY",
   "system.commands.history.help.category": "info",
@@ -433,7 +437,7 @@
 
   "system.commands.theme.changed_success.text": "🎨 Theme changed to: {0} ✨",
   "system.commands.theme.changed_success.display_text": "THEME",
-  "system.commands.theme.changed_success.category": "info",
+  "system.commands.theme.changed_success.category": "theme",
 
   "system.commands.theme.current_status.text": "Current theme: {0} (from TOML)\nAvailable: {1}",
   "system.commands.theme.current_status.display_text": "THEME",
@@ -517,7 +521,7 @@
 
   "system.commands.theme.preview_details.text": "🎨 Theme '{0}' Preview:\nInput: {1} on {2}\nOutput: {3} on {4}\nCursor Prefix: '{5}' in {6}\nInput Cursor: {7}\nOutput Cursor: {8} in {9}\n\n📂 Source: [theme.{10}] in rush.toml",
   "system.commands.theme.preview_details.display_text": "THEME",
-  "system.commands.theme.preview_details.category": "info",
+  "system.commands.theme.preview_details.category": "theme",
 
   "system.commands.theme.preview_missing_name.text": "⚫ Theme name missing. Usage: theme preview <name>",
   "system.commands.theme.preview_missing_name.display_text": "THEME",

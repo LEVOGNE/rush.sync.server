@@ -30,7 +30,7 @@ impl Command for RestartCommand {
             Some(&"--force" | &"-f") => Ok("__RESTART_FORCE__".to_string()),
             None => {
                 let msg = get_command_translation("system.commands.restart.confirm", &[]);
-                Ok(format!("__CONFIRM_RESTART__{}", msg))
+                Ok(format!("__CONFIRM:__RESTART__{}", msg))
             }
             _ => Ok(get_command_translation(
                 "system.commands.restart.unknown",

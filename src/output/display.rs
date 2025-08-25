@@ -557,17 +557,8 @@ fn parse_message_parts(message: &str) -> Vec<(String, bool)> {
 }
 
 fn get_marker_color(marker: &str) -> AppColor {
-    let display_category = marker
-        .trim_start_matches('[')
-        .trim_end_matches(']')
-        .trim_start_matches("cat:")
-        .to_lowercase();
-    if AppColor::from_any(&display_category).to_name() != "gray" {
-        return AppColor::from_any(&display_category);
-    }
-    AppColor::from_any(crate::i18n::get_color_category_for_display(
-        &display_category,
-    ))
+    let display_text = marker.trim_start_matches('[').trim_end_matches(']');
+    AppColor::from_display_text(display_text) // ← NUR EINE ZEILE!
 }
 
 pub fn create_output_widget<'a>(

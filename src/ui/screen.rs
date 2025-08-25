@@ -49,7 +49,7 @@ impl ScreenManager {
         let terminal = Terminal::new(backend)?;
         let size = terminal.size()?;
 
-        Ok(Self {
+        let mut screen_manager = Self {
             terminal,
             terminal_mgr,
             message_display: MessageDisplay::new(config, size.width, size.height),
@@ -58,7 +58,16 @@ impl ScreenManager {
             events: EventHandler::new(config.poll_rate),
             keyboard_manager: KeyboardManager::new(),
             waiting_for_restart_confirmation: false,
-        })
+        };
+
+        let version = crate::core::constants::VERSION;
+        let startup_msg = get_command_translation("system.startup.version", &[version]);
+        screen_manager
+            .message_display
+            .add_message_instant(startup_msg);
+
+        // ✅ FERTIG!
+        Ok(screen_manager)
     }
 
     pub async fn run(&mut self) -> Result<()> {
@@ -127,12 +136,29 @@ impl ScreenManager {
             return Ok(false);
         };
 
-        // Process special messages
+        // 🎯 KRITISCHER FIX: SYSTEM-COMMANDS ZUERST PRÜFEN UND AUSFÜHREN!
+        //    (BEVOR wir sie als Text ausgeben!)
+
+        if input == "__CLEAR__" {
+            self.message_display.clear_messages();
+            return Ok(false);
+        }
+
+        if input == "__EXIT__" {
+            return Ok(true); // ✅ BEENDE PROGRAMM SOFORT!
+        }
+
+        if input.starts_with("__RESTART") {
+            self.handle_restart(&input).await;
+            return Ok(false);
+        }
+
+        // ✅ Process special messages (Theme, Language updates)
         if self.process_special_input(&input).await {
             return Ok(false);
         }
 
-        // Add message
+        // ✅ Add message to display (NUR wenn es KEIN System-Command war)
         let cmd = input.trim().to_lowercase();
         if input.starts_with("__")
             || ["theme", "help", "lang"]
@@ -142,21 +168,6 @@ impl ScreenManager {
             self.message_display.add_message_instant(input.clone());
         } else {
             self.message_display.add_message(input.clone());
-        }
-
-        // Performance commands auto-scroll
-        if ["perf", "performance", "stats"].contains(&cmd.as_str()) {
-            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-            self.message_display.viewport_mut().force_auto_scroll();
-        }
-
-        // System commands
-        if input.starts_with("__CLEAR__") {
-            self.message_display.clear_messages();
-        } else if input.starts_with("__EXIT__") {
-            return Ok(true);
-        } else if input.starts_with("__RESTART") {
-            self.handle_restart(&input).await;
         }
 
         Ok(false)

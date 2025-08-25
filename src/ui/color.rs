@@ -1,3 +1,7 @@
+// =====================================================
+// ANTI-FLICKER COLOR SYSTEM: src/ui/color.rs
+// =====================================================
+
 use crate::core::prelude::*;
 use log::Level;
 use once_cell::sync::Lazy;
@@ -6,6 +10,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AppColor(Color);
 
+// ✅ BESTEHENDE COLOR_MAP (unverändert für Kategorien)
 static COLOR_MAP: Lazy<HashMap<&'static str, Color>> = Lazy::new(|| {
     let mut map = HashMap::new();
 
@@ -37,6 +42,52 @@ static COLOR_MAP: Lazy<HashMap<&'static str, Color>> = Lazy::new(|| {
     map.insert("lang", Color::Cyan);
     map.insert("version", Color::LightBlue);
     map.insert("startup", Color::Magenta);
+    map.insert("theme", Color::LightMagenta);
+
+    map
+});
+
+// ✅ NEUER ANTI-FLICKER: PRE-COMPILED DISPLAY -> COLOR MAP
+static DISPLAY_COLOR_MAP: Lazy<HashMap<&'static str, Color>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+
+    // ✅ ALLE DISPLAY-TEXTE DIREKT ZU FARBEN (ZERO DELAY!)
+
+    // Bestätigungen → GELB
+    map.insert("CONFIRM", Color::Yellow);
+    map.insert("BESTÄTIGEN", Color::Yellow);
+
+    // Fehler → ROT
+    map.insert("ERROR", Color::Red);
+    map.insert("FEHLER", Color::Red);
+    map.insert("RENDER", Color::Red);
+
+    // Warnungen → GELB
+    map.insert("WARN", Color::Yellow);
+    map.insert("WARNING", Color::Yellow);
+    map.insert("TERMINAL", Color::Yellow);
+
+    // Info → GRÜN
+    map.insert("INFO", Color::Green);
+    map.insert("CLIPBOARD", Color::Green);
+    map.insert("HISTORY", Color::Green);
+    map.insert("HISTORIE", Color::Green);
+    map.insert("LOG_LEVEL", Color::Green);
+    map.insert("SYSTEM", Color::Green);
+
+    // Debug → BLAU
+    map.insert("DEBUG", Color::Blue);
+
+    // Trace → WEIß
+    map.insert("TRACE", Color::White);
+
+    // Spezielle → SPEZIALFARBEN
+    map.insert("THEME", Color::LightMagenta); // PINK!
+    map.insert("LANG", Color::Cyan); // CYAN
+    map.insert("SPRACHE", Color::Cyan); // CYAN
+    map.insert("VERSION", Color::LightBlue); // LIGHT_BLUE
+    map.insert("READY", Color::Magenta); // MAGENTA
+    map.insert("BEREIT", Color::Magenta); // MAGENTA
 
     map
 });
@@ -46,46 +97,67 @@ impl AppColor {
         Self(color)
     }
 
-    // pub fn from_any<T: Into<String>>(source: T) -> Self {
-    //     let key = source.into().to_lowercase();
-    //     Self(*COLOR_MAP.get(key.as_str()).unwrap_or(&Color::Gray))
-    // }
+    // ✅ ANTI-FLICKER: ZERO-DELAY DISPLAY TEXT LOOKUP
+    pub fn from_display_text(display_text: &str) -> Self {
+        let normalized = display_text.trim().to_uppercase();
 
+        // 🚀 DIREKT HIT: O(1) lookup, KEIN calculation, KEIN fallback!
+        let color = DISPLAY_COLOR_MAP
+            .get(normalized.as_str())
+            .copied()
+            .unwrap_or(Color::Green); // info fallback
+
+        Self(color)
+    }
+
+    // ✅ PERFORMANCE-OPTIMIERT: Category lookup
+    pub fn from_category(category: &str) -> Self {
+        let normalized = category.trim().to_lowercase();
+        let color = COLOR_MAP
+            .get(normalized.as_str())
+            .copied()
+            .unwrap_or(Color::Green);
+        Self(color)
+    }
+
+    // ✅ LEGACY SUPPORT: Vereinfacht für andere Stellen
     pub fn from_any<T: Into<String>>(source: T) -> Self {
         let key = source.into().to_lowercase();
-
-        // ✅ DIRECT LOOKUP FIRST (für echte Farbnamen)
-        if let Some(&color) = COLOR_MAP.get(key.as_str()) {
-            return Self(color);
-        }
-
-        // ❌ FALLBACK: i18n category mapping (nur für Display-Kategorien)
-        let mapped_category = crate::i18n::get_color_category_for_display(&key);
-        let fallback_color = COLOR_MAP
-            .get(mapped_category.as_str())
-            .unwrap_or(&Color::Gray);
-
-        Self(*fallback_color)
+        let color = COLOR_MAP.get(key.as_str()).copied().unwrap_or(Color::Green);
+        Self(color)
     }
 
     pub fn from_log_level(level: Level) -> Self {
-        Self::from_any(level.to_string())
+        Self::from_category(&level.to_string())
     }
 
     pub fn from_string(color_str: &str) -> crate::core::error::Result<Self> {
         let normalized = color_str.trim().to_lowercase();
-
-        // ✅ DIRECT LOOKUP: Gehe DIREKT zu COLOR_MAP, nicht über i18n!
-        let color = COLOR_MAP.get(normalized.as_str()).copied().ok_or_else(|| {
-            log::error!("❌ Color '{}' not found in COLOR_MAP", normalized);
-            AppError::Validation(format!("Invalid color: {}", color_str))
-        })?;
-
-        let app_color = Self(color);
-
-        Ok(app_color)
+        let color = COLOR_MAP
+            .get(normalized.as_str())
+            .copied()
+            .ok_or_else(|| AppError::Validation(format!("Invalid color: {}", color_str)))?;
+        Ok(Self(color))
     }
 
+    // ✅ DEBUG: Performance monitoring
+    pub fn from_display_text_with_timing(display_text: &str) -> (Self, std::time::Duration) {
+        let start = std::time::Instant::now();
+        let color = Self::from_display_text(display_text);
+        let duration = start.elapsed();
+        (color, duration)
+    }
+
+    // ✅ UTILITIES
+    pub fn available_display_texts() -> Vec<&'static str> {
+        DISPLAY_COLOR_MAP.keys().copied().collect()
+    }
+
+    pub fn available_categories() -> Vec<&'static str> {
+        COLOR_MAP.keys().copied().collect()
+    }
+
+    // Bestehende Methoden...
     pub fn format_message(&self, level: &str, message: &str) -> String {
         if level.is_empty() {
             format!("\x1B[{}m{}\x1B[0m", self.to_ansi_code(), message)
@@ -130,6 +202,7 @@ impl AppColor {
     }
 }
 
+// Traits unverändert...
 impl From<AppColor> for Color {
     fn from(app_color: AppColor) -> Self {
         app_color.0
