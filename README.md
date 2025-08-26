@@ -5,84 +5,93 @@
 ![License](https://img.shields.io/badge/license-Dual--License-blue)
 ![Crates.io](https://img.shields.io/crates/v/rush-sync-server)
 
-> 🛠 **NOTE**: Version `0.2.2` on crates.io has a critical bug in language file loading (`*.json` not embedded correctly).
-> Please use **version `0.3.1+`** for a stable release!
+> **NOTE**: Version `0.2.2` on crates.io has a critical bug in language file loading (`*.json` not embedded correctly).
+> Please use **version `0.3.2+`** for a stable release!
 
-**Rush Sync Server** is an ambitious project to create a **professional web server orchestration platform** written in Rust. Currently in Phase 0 (Foundation), the project features a robust terminal UI with internationalization, theming, and command system - laying the groundwork for the upcoming server management capabilities.
+**Rush Sync Server** is a professional web server orchestration platform written in Rust. The project features a robust terminal UI with internationalization, theming, command system, and **NEW in v0.3.2**: Full web server management with Actix-Web integration.
 
 ---
 
-## 🎯 Project Vision
+## Project Vision
 
-Rush Sync Server is being developed in phases:
+Rush Sync Server development phases:
 
-- **Phase 0** (Current): Terminal UI foundation with command system ✅
-- **Phase 1**: Dynamic Actix-Web server management
+- **Phase 0** ✅: Terminal UI foundation with command system
+- **Phase 1** ✅ **NEW**: Dynamic Actix-Web server management
 - **Phase 2**: Dev/Prod modes with hot-reloading
 - **Phase 3**: Redis integration & secure communication
 - **Phase 4**: Centralized logging & automation
 
 ---
 
-## 🆕 What's New in v0.3.1
+## What's New in v0.3.2
 
-### **🏗️ Central System Command Architecture**
+### **🌐 Complete Web Server Management System**
 
-The new version features a **completely centralized command processing system**:
+The new version introduces **professional Actix-Web server orchestration**:
 
-- **🎯 Central Confirmation System** - All confirmations (`exit`, `restart`, `history -c`) now use a unified, type-safe confirmation processor
-- **⚡ One-Line Command Execution** - System commands reduced from 5-7 code paths to a single, elegant processing pipeline
-- **🛡️ Type-Safe Operations** - Eliminated string-based matching with robust enum-based system actions
-- **🧹 Code Simplification** - Major reduction in command processing complexity and potential race conditions
+- **🚀 Dynamic Server Creation** - Create unlimited web servers with custom names and ports
+- **⚡ Instant Start/Stop Control** - Full lifecycle management of running servers
+- **🎯 Smart Port Management** - Automatic port allocation from 8080+ range
+- **📊 Real-time Server Status** - Track running/stopped/failed server states
+- **🧹 Intelligent Cleanup** - Remove stopped or failed servers from registry
+- **🔍 Comprehensive Server Listing** - Chronological overview with status indicators
 
-### **🎨 Centralized Color System**
+### **🛠 New Server Management Commands**
 
-- **🌈 Anti-Flicker Color Engine** - Pre-compiled display text to color mappings for zero-delay rendering
-- **🎯 Direct Color Resolution** - O(1) lookup performance for all UI color assignments
-- **🔧 Error-Free Color Handling** - Eliminated color mapping inconsistencies and fallback issues
-- **⚡ Performance Optimized** - 60-80% faster color processing with zero computational overhead
+```bash
+create                    # Create server with auto-generated name and port
+create myserver           # Create server with custom name
+create 8090              # Create server on specific port
+create myserver 8090     # Create server with custom name and port
 
-### **🎬 Enhanced Startup Experience**
+list                     # Show all servers with status
+start <server>           # Start server by name, ID, or index number
+stop <server>            # Stop running server gracefully
+cleanup                  # Remove stopped servers from registry
+cleanup failed           # Remove only failed servers
+cleanup all              # Remove both stopped and failed servers
+```
 
-- **📺 Professional Startup Message** - Restored localized welcome message with color-coded categories
-- **🌍 Multi-Language Support** - Startup messages adapt to current language settings (EN/DE)
-- **🎨 Color-Coded Display** - Startup information with appropriate semantic coloring
+### **🎯 Advanced Server Features**
 
-### **🔧 Core System Improvements**
+- **Professional Web Interface** - Each server provides HTML status page with server info
+- **REST API Endpoints** - `/status`, `/api/info`, `/api/metrics`, `/health` for monitoring
+- **Graceful Shutdown** - 5-second timeout with force-stop fallback
+- **Server Identification** - Unique UUID-based IDs with short display format
+- **Chronological Indexing** - Access servers by creation order (1, 2, 3...)
+- **Concurrent Operation** - Multiple servers running simultaneously
+- **Memory Efficient** - Single worker per server, optimized for embedded use
 
-- **📁 Centralized State Management** - Complete overhaul of `state.rs` with unified system command processing
-- **🎨 Optimized Screen Rendering** - Enhanced `screen.rs` with simplified command flow and better error handling
-- **🎯 Streamlined Command Architecture** - Multiple `command.rs` files optimized for better maintainability
-- **⚙️ Robust Configuration** - Improved config handling with better validation and error recovery
+### **🔧 Enhanced Core System (from v0.3.1)**
 
-### **🛡️ Enhanced Reliability**
-
-- **🔒 Type-Safe Confirmations** - No more string-based confirmation states - everything is enum-based and compiler-verified
-- **⚡ Race-Condition Elimination** - Central command processor prevents multiple execution paths and timing issues
-- **🧪 Error-Proof Design** - Comprehensive error handling with graceful fallbacks for all edge cases
-- **🎯 Consistent User Experience** - Unified confirmation prompts across all system operations
+- **Central System Command Architecture** - All confirmations use unified, type-safe processing
+- **Anti-Flicker Color Engine** - Pre-compiled display text to color mappings for zero-delay rendering
+- **Enhanced Startup Experience** - Professional startup message with color-coded categories
+- **Streamlined Command Architecture** - Multiple command files optimized for maintainability
+- **Type-Safe Confirmations** - No more string-based confirmation states
 
 ---
 
 ## 🚀 Installation & Usage
 
-### 📦 **As Binary - Version 0.3.1+**
+### 📦 **As Binary - Version 0.3.2+**
 
 ```bash
 # Install from crates.io
 cargo install rush-sync-server
 
-# Run the terminal UI (current functionality)
+# Run the application (terminal UI + server management)
 rush-sync
 ```
 
-### 📚 **As Library - Version 0.3.1+**
+### 📚 **As Library - Version 0.3.2+**
 
 Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rush-sync-server = "0.3.1"
+rush-sync-server = "0.3.2"
 tokio = { version = "1.36", features = ["full"] }
 ```
 
@@ -93,7 +102,7 @@ use rush_sync_server::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Run with default configuration
+    // Run with default configuration (includes server management)
     run().await?;
     Ok(())
 }
@@ -104,12 +113,12 @@ use rush_sync_server::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Custom configuration
+    // Custom configuration with optimized performance
     let mut config = load_config().await?;
     config.poll_rate = std::time::Duration::from_millis(8); // 125 FPS
     config.typewriter_delay = std::time::Duration::from_millis(1); // Ultra-fast
 
-    // Run with custom settings
+    // Run with enhanced server management
     run_with_config(config).await?;
     Ok(())
 }
@@ -126,12 +135,23 @@ cargo run --release
 
 ---
 
-## ✅ Current Features (Phase 0 - Foundation Complete)
+## ✅ Current Features (Phase 1 Complete)
 
-### **🗗️ Core Foundation**
+### **🌐 Web Server Management (NEW in v0.3.2)**
+
+- **Dynamic Actix-Web Server Creation** - Unlimited servers with UUID-based identification
+- **Smart Port Allocation** - Automatic port finding from 8080-8180 range
+- **Custom Server Configuration** - Name and port customization support
+- **Professional Web Interface** - HTML status pages with server information and API endpoints
+- **Real-time Server Monitoring** - Status tracking (Running/Stopped/Failed)
+- **Graceful Lifecycle Management** - Clean startup and shutdown processes
+- **Concurrent Server Operation** - Multiple servers running simultaneously
+- **Registry-based Management** - Persistent server information storage
+
+### **🏗️ Core Foundation (Phase 0 Complete)**
 
 - **Interactive Terminal UI** with asynchronous event loop (Tokio)
-- **🆕 Centralized System Commands** with type-safe confirmation processing
+- **Central System Commands** with type-safe confirmation processing
 - **Advanced Error Handling** with graceful recovery
 - **Zero Warnings Codebase** (cargo clippy clean)
 - **Memory-Safe Operations** with proper resource management
@@ -149,7 +169,7 @@ cargo run --release
 - **🖱️ Intelligent Dual-Cursor System** - Text rendering + real terminal cursor
 - **🎯 Multi-Platform Terminal Detection** (macOS Terminal, iTerm2, VSCode, tmux)
 - **🌈 Dynamic Terminal Cursor Colors** with real-time color changes
-- **🆕 Anti-Flicker Color System** - Zero-delay color processing with pre-compiled mappings
+- **Anti-Flicker Color System** - Zero-delay color processing with pre-compiled mappings
 - **Live Theme Switching** without restart (TOML-based)
 - **Typewriter Effect** with configurable speed and cursor
 - **Unicode Support** (grapheme-based text handling)
@@ -164,23 +184,14 @@ cargo run --release
 - **📋 Enhanced Copy/Paste Integration** with text cleaning and validation
 - **🛡️ Smart Input Validation** with length limits and sanitization
 - **💾 State Backup/Restore** - Complete input state preservation
-- **🆕 Central Confirmation System** - Unified, type-safe confirmation processing
-
-### **📺 Screen & Viewport Management**
-
-- **📐 Robust Layout Calculation** with emergency fallbacks
-- **📜 Advanced Scroll System** with auto-scroll detection
-- **🎯 Precise Content Tracking** with intelligent cache management
-- **🔄 Unified Event System** for viewport changes
-- **🚨 Error Recovery** for layout failures and edge cases
-- **📊 Performance-Optimized Rendering** with 2-layer architecture
+- **Central Confirmation System** - Unified, type-safe confirmation processing
 
 ### **🌍 Internationalization**
 
 - **Runtime Language Switching** (German/English)
-- **🆕 Centralized Color Categories** with consistent i18n support
+- **Centralized Color Categories** with consistent i18n support
 - **Localized Error Messages** and help texts
-- **🆕 Professional Startup Messages** with language adaptation
+- **Professional Startup Messages** with language adaptation
 - **Extensible Translation System** for future languages
 
 ### **⚙️ Configuration & Themes**
@@ -189,11 +200,23 @@ cargo run --release
 - **TOML-based Theme System** with live updates
 - **Internal Restart** without process termination
 - **Persistent Settings** with automatic backup
-- **🆕 Enhanced Error Recovery** with comprehensive fallback handling
+- **Enhanced Error Recovery** with comprehensive fallback handling
 
 ---
 
 ## 💻 Available Commands
+
+### **🌐 Server Management Commands (NEW)**
+
+| Command   | Description             | Examples                                    |
+| --------- | ----------------------- | ------------------------------------------- |
+| `create`  | Create new web server   | `create`, `create myserver`, `create 8090`  |
+| `list`    | Show all servers        | `list`                                      |
+| `start`   | Start server            | `start 1`, `start myserver`, `start abc123` |
+| `stop`    | Stop server             | `stop 1`, `stop myserver`, `stop abc123`    |
+| `cleanup` | Remove inactive servers | `cleanup`, `cleanup failed`, `cleanup all`  |
+
+### **📋 Core System Commands**
 
 | Command             | Description              | Examples                     |
 | ------------------- | ------------------------ | ---------------------------- |
@@ -206,13 +229,86 @@ cargo run --release
 | `history -c`        | Clear input history      | `history -c`                 |
 | `log-level`         | Change log level         | `log-level debug`            |
 
-### **🆕 Enhanced Confirmation System**
+### **🌐 Server Management Examples**
 
-All system commands now use the centralized confirmation processor:
+#### **Creating Servers**
+
+```bash
+# Auto-generated name and port
+create
+# Result: Server created: 'rush-sync-server-001' (ID: abc12345) on Port 8080
+
+# Custom name with auto port
+create myapi
+# Result: Server created: 'myapi' (ID: def67890) on Port 8081
+
+# Custom port with auto name
+create 9000
+# Result: Server created: 'rush-sync-server-002' (ID: ghi13579) on Port 9000
+
+# Custom name and port
+create myapi 9000
+# Result: Custom Server created: 'myapi' (ID: jkl24680) on Port 9000
+```
+
+#### **Server Control**
+
+```bash
+# Start by index (chronological order)
+start 1
+# Result: Server 'myapi' successfully started on http://127.0.0.1:9000
+
+# Start by name
+start myapi
+# Result: Server 'myapi' successfully started on http://127.0.0.1:9000
+
+# Start by ID prefix
+start abc123
+# Result: Server 'rush-sync-server-001' successfully started on http://127.0.0.1:8080
+
+# List all servers
+list
+# Result:
+# Server List:
+#   1. myapi - def67890 (Port: 9000) [Running]
+#   2. rush-sync-server-001 - abc12345 (Port: 8080) [Stopped]
+#   3. testserver - ghi13579 (Port: 8082) [Failed]
+
+# Stop server
+stop myapi
+# Result: Server 'myapi' stopped
+
+# Cleanup inactive servers
+cleanup
+# Result: 1 stopped server removed
+
+cleanup failed
+# Result: 1 failed server removed
+
+cleanup all
+# Result: 2 stopped servers removed
+# 1 failed server removed
+```
+
+#### **Web Interface Access**
+
+Each created server provides a professional web interface:
+
+```
+http://127.0.0.1:8080/          # Welcome page with server info
+http://127.0.0.1:8080/status    # JSON status information
+http://127.0.0.1:8080/api/info  # Complete API information
+http://127.0.0.1:8080/api/metrics # Server metrics
+http://127.0.0.1:8080/health    # Health check endpoint
+```
+
+### **Enhanced Confirmation System**
+
+All system commands use the centralized confirmation processor:
 
 ```bash
 exit                    # Shows: [CONFIRM] Do you really want to exit? (y/n)
-y                       # ✅ Exits immediately - no more "__EXIT__" display bugs
+y                       # ✅ Exits immediately - no display bugs
 n                       # ✅ Shows: "Operation cancelled"
 
 restart                 # Shows: [CONFIRM] Really restart? (y/n)
@@ -220,40 +316,6 @@ y                       # ✅ Restarts immediately and cleanly
 
 history -c              # Shows: [CONFIRM] Clear command history? (y/n)
 y                       # ✅ History cleared with proper confirmation
-```
-
-**Key Improvements:**
-
-- **🛡️ Type-Safe Processing** - No more string-based states
-- **⚡ Immediate Execution** - Commands execute instantly after confirmation
-- **🎯 Consistent UX** - All confirmations follow the same pattern
-- **🚫 Zero Race Conditions** - Centralized processing eliminates timing issues
-
-### 🎨 Theme Commands
-
-```bash
-theme                # Show available themes from TOML
-theme dark           # Switch to dark theme (live update)
-theme preview <name> # Preview theme without switching
-theme debug <name>   # Show detailed theme configuration including cursor settings
-theme -h             # Show comprehensive help with cursor options
-```
-
-### 📊 Log-Level Commands
-
-```bash
-log-level           # Show current level and help
-log-level 3         # Set to INFO (1=ERROR, 2=WARN, 3=INFO, 4=DEBUG, 5=TRACE)
-log-level DEBUG     # Set by name (case-insensitive)
-log-level -h        # Show detailed help
-```
-
-### 📚 History Commands
-
-```bash
-history             # Show help and current status
-history -c          # Clear command history (with confirmation)
-↑ / ↓               # Navigate through history
 ```
 
 ---
@@ -269,7 +331,7 @@ history -c          # Clear command history (with confirmation)
 | `Cmd/Ctrl + A` | Jump to start       |
 | `Cmd/Ctrl + E` | Jump to end         |
 
-### **📝 Text Editing**
+### **✏️ Text Editing**
 
 | Key            | Function             |
 | -------------- | -------------------- |
@@ -287,13 +349,6 @@ history -c          # Clear command history (with confirmation)
 | `↑ / ↓`          | Navigate input history |
 | `Shift + ↑ / ↓`  | Scroll messages        |
 | `Page Up / Down` | Page scroll            |
-
-### **🎛️ Application Control**
-
-| Key        | Function         |
-| ---------- | ---------------- |
-| `Enter`    | Submit command   |
-| `ESC` (2x) | Exit application |
 
 ---
 
@@ -320,6 +375,13 @@ current_theme = "dark"      # Active theme name
 [language]
 current = "en"              # Language (en/de)
 
+# Server Management Configuration (NEW)
+[server]
+port_range_start = 8080     # Starting port for auto-allocation
+port_range_end = 8180       # Maximum port for auto-allocation
+max_concurrent = 10         # Maximum simultaneous servers
+shutdown_timeout = 5        # Graceful shutdown timeout (seconds)
+
 # Built-in themes with advanced cursor configuration
 [theme.dark]
 output_bg = "Black"
@@ -343,76 +405,30 @@ input_cursor_prefix = "/// "
 input_cursor = "PIPE"
 input_cursor_color = "White"
 
-[theme.green]
-output_bg = "Black"
-output_text = "Green"
-output_cursor = "BLOCK"
-output_cursor_color = "Green"
-input_bg = "LightGreen"
-input_text = "Black"
-input_cursor_prefix = "$ "
-input_cursor = "BLOCK"
-input_cursor_color = "Black"
-
-[theme.blue]
-output_bg = "White"
-output_text = "LightBlue"
-output_cursor = "UNDERSCORE"
-output_cursor_color = "Blue"
-input_bg = "Blue"
-input_text = "White"
-input_cursor_prefix = "> "
-input_cursor = "UNDERSCORE"
-input_cursor_color = "White"
-
-# 🆕 Advanced theme with yellow cursor
-[theme.yellow]
-output_bg = "Black"
-output_text = "Yellow"
-output_cursor = "PIPE"
-output_cursor_color = "Yellow"
-input_bg = "DarkGray"
-input_text = "Yellow"
-input_cursor_prefix = "⚡ "
-input_cursor = "PIPE"
-input_cursor_color = "Yellow"     # Real terminal cursor will be yellow!
+# Additional themes: green, blue, yellow available
 ```
-
-### **🎨 Supported Colors**
-
-**Standard Colors:**
-`Black`, `White`, `Gray`, `DarkGray`, `Red`, `Green`, `Blue`, `Yellow`, `Magenta`, `Cyan`
-
-**Light Variants:**
-`LightRed`, `LightGreen`, `LightBlue`, `LightYellow`, `LightMagenta`, `LightCyan`
-
-### **🖱️ Cursor Types**
-
-- **PIPE** (`|`) - Vertical line cursor
-- **BLOCK** (`█`) - Block cursor (inverts character)
-- **UNDERSCORE** (`_`) - Underscore cursor
-
-### **🌈 Terminal Cursor Colors**
-
-**Enhanced in v0.3.1:** Real terminal cursor color changes with centralized color system!
-
-- **macOS Terminal.app** - Standard OSC sequences with error-free color mapping
-- **iTerm2** - Native color support with optimized fallback sequences
-- **VSCode Terminal** - Standard compatibility mode with enhanced reliability
-- **tmux** - Proper tmux-wrapped sequences with improved detection
-- **Generic Terminals** - Universal fallback sequences with robust error handling
 
 ---
 
 ## 🔧 Advanced Features
 
+### **🌐 Server Architecture Details**
+
+- **Actix-Web Integration** - Professional-grade web server framework
+- **Single Worker Design** - Optimized for embedded server management
+- **UUID-based Identification** - Unique server IDs with collision avoidance
+- **Graceful Shutdown Protocol** - 5-second timeout with force-stop fallback
+- **Memory Efficient Operation** - Minimal resource footprint per server
+- **Concurrent Server Support** - Run multiple servers simultaneously
+- **Professional Web Interface** - HTML status pages with comprehensive server information
+
 ### **🛡️ Terminal Compatibility**
 
-- **🍎 macOS Terminal.app** - Optimized sequences with RGB color support
-- **⚡ iTerm2** - Native color support with multiple sequence types
-- **💻 VSCode Terminal** - Standard compatibility with fallback handling
-- **🔄 tmux Sessions** - Proper tmux-wrapped escape sequence handling
-- **🌍 Generic Terminals** - Universal fallback support with error recovery
+- **macOS Terminal.app** - Optimized sequences with RGB color support
+- **iTerm2** - Native color support with multiple sequence types
+- **VSCode Terminal** - Standard compatibility with fallback handling
+- **tmux Sessions** - Proper tmux-wrapped escape sequence handling
+- **Generic Terminals** - Universal fallback support with error recovery
 
 ### **🖱️ Advanced Cursor System**
 
@@ -426,160 +442,64 @@ theme green   # Terminal cursor becomes green
 theme debug dark    # Shows detailed cursor configuration
 ```
 
-### **📺 Viewport Management**
-
-- **📐 Panic-Safe Layout Calculation** - Emergency fallbacks for edge cases
-- **📜 Smart Auto-Scroll Detection** - Preserves manual scroll position
-- **🎯 Precise Content Tracking** - Optimized message rendering
-- **🔄 Event-Driven Updates** - Unified system for all viewport changes
-- **📊 Performance-Optimized Rendering** - 2-layer architecture (text + cursor)
-
-### **🆕 Central Command Processing**
+### **Central Command Processing**
 
 ```rust
-// Example: How the new system works internally
+// Example: Type-safe, compiler-verified, zero race conditions
 enum SystemAction {
     Exit,
     Restart,
     ClearHistory,
 }
 
-// Type-safe, compiler-verified, zero race conditions
 match confirmed_action {
-    SystemAction::Exit => exit_application(),      // ⚡ Immediate
-    SystemAction::Restart => restart_system(),    // ⚡ Clean
-    SystemAction::ClearHistory => clear_data(),   // ⚡ Instant
+    SystemAction::Exit => exit_application(),      # ⚡ Immediate
+    SystemAction::Restart => restart_system(),    # ⚡ Clean
+    SystemAction::ClearHistory => clear_data(),   # ⚡ Instant
 }
 ```
-
-### **📊 Intelligent Logging**
-
-```bash
-# Enhanced message logs with centralized processing
-[2024-01-15 14:30:25] [BEREIT] Willkommen zu Rush Sync Version 0.3.1
-[2024-01-15 14:30:26] Theme changed to: DARK
-[2024-01-15 14:30:30] Language switched to: DE
-[2024-01-15 14:30:35] Terminal cursor color changed to: Yellow
-[2024-01-15 14:30:40] System command processed: Exit confirmed
-[2024-01-15 14:30:41] ✅ Terminal reset correctly
-
-# Automatic log rotation and size management with improved categorization
-```
-
-### **🔄 Error Recovery**
-
-- **Graceful Panic Handling** with complete terminal cleanup
-- **🆕 Central Error Processing** - All system errors flow through unified handler
-- **Config Validation** with automatic correction
-- **File System Error Handling** with fallbacks
-- **Layout Failure Recovery** with emergency layouts
-- **🆕 Terminal State Recovery** - Enhanced cursor and color reset on exit
-- **🆕 Type-Safe Operations** - Compiler-verified state transitions
 
 ---
 
 ## 🗺 Development Roadmap
 
-### **Phase 1: Server Management (Next)**
-
-- [ ] CLI commands: `create`, `start`, `stop`, `delete`, `status`, `logs`
-- [ ] Dynamic Actix-Web server spawning
-- [ ] Hash-based server isolation
-- [ ] Ghost mode (background execution)
-- [ ] JSON/SQLite server registry
-
 ### **Phase 2: Dev/Prod & Versioning**
 
-- [ ] Dev mode with hot-reloading
-- [ ] Prod mode with TLS
-- [ ] Automatic versioning (v1, v2, ...)
-- [ ] File watcher with `notify`
-- [ ] SCSS compilation
+- [ ] Dev mode with hot-reloading for server content
+- [ ] Production mode with TLS/HTTPS support
+- [ ] Automatic versioning (v1, v2, ...) for server instances
+- [ ] File watcher integration with `notify` crate
+- [ ] SCSS compilation for web assets
 
 ### **Phase 3: Communication & Security**
 
-- [ ] Redis Pub/Sub integration
-- [ ] TLS/HTTPS with `rustls`
-- [ ] Session caching
-- [ ] Inter-server communication
+- [ ] Redis Pub/Sub integration for inter-server communication
+- [ ] TLS/HTTPS with `rustls` for secure connections
+- [ ] Session caching and management
+- [ ] Advanced authentication and authorization
+- [ ] Server-to-server communication protocols
 
 ### **Phase 4: Logging & Automation**
 
-- [ ] Centralized logging dashboard
-- [ ] Automated setup scripts
-- [ ] WebSocket support
-- [ ] Integration tests
+- [ ] Centralized logging dashboard for all servers
+- [ ] Automated deployment and setup scripts
+- [ ] WebSocket support for real-time communication
+- [ ] Comprehensive integration test suite
+- [ ] Performance monitoring and metrics collection
 
 ### **Future Considerations**
 
-- [ ] Load balancing
-- [ ] Docker integration
-- [ ] Kubernetes support
-- [ ] Web-based monitoring dashboard
-
----
-
-## 🗂 Project Structure
-
-### **Current Structure (v0.3.1)**
-
-```bash
-src/
-├── core/           # Core logic & configuration
-│   ├── config.rs   # TOML config with enhanced theme system
-│   ├── error.rs    # Comprehensive error handling
-│   ├── constants.rs # Application constants
-│   └── prelude.rs  # Common imports with enhanced traits
-├── ui/             # Advanced terminal UI
-│   ├── screen.rs   # 🆕 Centralized command processing with simplified flow
-│   ├── terminal.rs # Enhanced terminal initialization
-│   ├── cursor.rs   # 🆕 Unified cursor system (input/output)
-│   ├── viewport.rs # 🆕 Advanced scroll & layout management
-│   ├── widget.rs   # Enhanced UI widget traits
-│   └── color.rs    # 🆕 Anti-flicker color system with O(1) lookup
-├── input/          # Enhanced input handling system
-│   ├── keyboard.rs # 🆕 Improved keyboard with better filtering
-│   ├── state.rs    # 🆕 Central system command processor with type-safe confirmations
-│   └── mod.rs      # Optimized event loop
-├── output/         # Enhanced display & logging
-│   └── display.rs  # 🆕 Advanced message display with viewport integration
-├── commands/       # Streamlined command system
-│   ├── clear/      # Clear command
-│   ├── exit/       # 🆕 Enhanced exit with central confirmation
-│   ├── history/    # 🆕 Enhanced history management with central confirmation
-│   ├── lang/       # Language switching
-│   ├── log_level/  # Log level control
-│   ├── restart/    # 🆕 Enhanced restart with central confirmation
-│   ├── theme/      # 🆕 Enhanced live theme system
-│   ├── version/    # Version display
-│   ├── command.rs  # Command trait
-│   ├── handler.rs  # 🆕 Enhanced command processing
-│   └── registry.rs # Command registry
-├── setup/          # Auto-configuration
-│   └── setup_toml.rs # 🆕 Enhanced config with sorted themes
-└── i18n/           # Enhanced internationalization
-    ├── mod.rs      # 🆕 Centralized translation engine with improved caching
-    └── langs/      # Language files
-        ├── en.json # 🆕 Extended English translations
-        └── de.json # 🆕 Extended German translations
-```
-
-### **Planned Structure (Phase 1+)**
-
-```bash
-src/
-├── cli/            # Server management CLI
-├── server/         # Actix-Web management
-├── db/             # Redis & PostgreSQL
-├── versioning/     # Version control
-└── websocket/      # Real-time communication
-```
+- [ ] Load balancing between multiple server instances
+- [ ] Docker containerization support
+- [ ] Kubernetes deployment configurations
+- [ ] Web-based management dashboard
+- [ ] Plugin system for server extensions
 
 ---
 
 ## 🧪 Testing & Quality Assurance
 
-### **📐 Code Quality Checks**
+### **✅ Code Quality Checks**
 
 ```bash
 # Zero warnings guarantee
@@ -587,15 +507,10 @@ cargo clippy --all-targets --all-features
 cargo check --all-targets
 cargo test --all-features
 
-# Specific component tests
-cargo test central_command_system
-cargo test color_system_tests
-cargo test config_validation
-cargo test theme_system
-cargo test i18n_system
-cargo test input_handling
-cargo test viewport_management
-cargo test cursor_system
+# Server management tests
+cargo test server_lifecycle
+cargo test port_allocation
+cargo test concurrent_servers
 ```
 
 ### **🛡️ Security Testing**
@@ -603,120 +518,62 @@ cargo test cursor_system
 ```bash
 # Input sanitization tests
 cargo test escape_sequence_filtering
-cargo test input_validation
-cargo test file_operations
+cargo test server_name_validation
+cargo test port_validation
 
-# Error recovery tests
-cargo test panic_recovery
-cargo test mutex_poisoning
-cargo test config_corruption
-cargo test layout_failure_recovery
-cargo test central_command_processor
-```
-
-### **🎨 UI System Tests**
-
-```bash
-# Enhanced system tests
-cargo test viewport_calculations
-cargo test scroll_management
-cargo test cursor_positioning
-cargo test theme_switching
-cargo test terminal_compatibility
-cargo test color_system_performance
-cargo test confirmation_system
-cargo test startup_sequence
+# Server security tests
+cargo test graceful_shutdown
+cargo test resource_cleanup
+cargo test concurrent_access
 ```
 
 ---
 
 ## 📊 Version History
 
-### **v0.3.1 (Current) - Central Command Architecture**
+### **v0.3.2 (Current) - Complete Server Management**
 
-**🏗️ Major Architectural Improvements:**
+**🌐 Major Server Management Features:**
 
-- **🎯 Central Confirmation System** - Complete overhaul with type-safe confirmation processing
-- **⚡ One-Line System Commands** - Reduced from 5-7 code paths to single execution pipeline
-- **🌈 Anti-Flicker Color System** - Pre-compiled color mappings with O(1) lookup performance
-- **🎬 Professional Startup Experience** - Restored and enhanced startup messages with color coding
-- **🛡️ Type-Safe Operations** - Eliminated string-based states with robust enum architecture
+- **Complete Actix-Web Integration** - Professional web server creation and management
+- **Dynamic Server Lifecycle** - Create, start, stop, and cleanup web servers
+- **Smart Port Management** - Automatic port allocation with conflict avoidance
+- **Professional Web Interface** - HTML status pages with comprehensive server information
+- **REST API Endpoints** - `/status`, `/api/info`, `/api/metrics`, `/health` for monitoring
+- **Concurrent Server Support** - Run multiple servers simultaneously with efficient resource usage
 
-**🔧 Core System Refinements:**
+**🛠 New Server Commands:**
 
-- **📁 Complete state.rs Overhaul** - Central system command processor with unified confirmation handling
-- **🎨 Enhanced color.rs** - Anti-flicker engine with pre-compiled display-to-color mappings
-- **🖥️ Optimized screen.rs** - Simplified command flow with better error handling and immediate execution
-- **⚙️ Multiple command.rs Improvements** - Enhanced exit, restart, and history commands with central processing
-- **🌍 Improved Startup Sequence** - Professional welcome messages with language adaptation
+- **create** - Server creation with custom names and ports
+- **list** - Comprehensive server listing with status indicators
+- **start/stop** - Full server lifecycle control
+- **cleanup** - Intelligent removal of inactive servers
 
-**📈 Performance & Reliability:**
+**🔧 Enhanced Architecture:**
 
-- **⚡ 60-80% Faster Color Processing** - Zero computational overhead for UI color assignments
-- **🚫 Race Condition Elimination** - Central processor prevents timing issues and multiple execution paths
-- **🎯 Immediate Command Execution** - No more "**EXIT**" or "**RESTART**" display bugs
-- **🛡️ Comprehensive Error Handling** - Type-safe operations with compiler-verified state transitions
+- **Server Registry System** - Persistent server information storage
+- **UUID-based Identification** - Unique server IDs with short display format
+- **Chronological Indexing** - Access servers by creation order
+- **Graceful Shutdown Protocol** - Clean server termination with timeout handling
+
+### **v0.3.1 - Central Command Architecture**
+
+- **Central Confirmation System** - Type-safe confirmation processing
+- **Anti-Flicker Color System** - Pre-compiled color mappings with O(1) lookup performance
+- **Professional Startup Experience** - Enhanced startup messages with color coding
+- **Type-Safe Operations** - Eliminated string-based states with robust enum architecture
 
 ### **v0.3.0 - Code Optimization & Performance**
 
-**🔧 Major Code Architecture Improvements:**
-
-- **📦 17.6% Code Reduction** - From 289,700 to 238,817 characters
-- **🧹 Complete Code Cleanup** - Removed redundant structures and debug code
-- **⚡ Performance Optimizations** - Streamlined rendering and input processing
-- **🎯 Focused Module Structure** - Consolidated and simplified APIs
-- **🔄 Enhanced Widget System** - Improved trait implementations
-
-### **v0.2.9 - Screen & Cursor System Complete**
-
-**🎉 Major Features:**
-
-- 🖥️ Complete screen management overhaul with robust viewport handling
-- 📜 Advanced scroll system with smooth navigation and auto-scroll detection
-- 🎨 Terminal cursor integration - Real terminal cursor synchronized with text
-- 🔄 Enhanced live theme updates with complete UI state preservation
-- 🛡️ Bulletproof input state management with backup/restore functionality
-
-### **v0.2.8 - Foundation Complete**
-
-**🎉 Major Features:**
-
-- 📝 Persistent message logging to `.rss/rush.logs`
-- 📚 Persistent command history in `.rss/rush.history`
-- 🛡️ Advanced terminal compatibility with escape sequence detection
-- 🔧 Enhanced error handling throughout codebase
-- 🧹 Code architecture cleanup (removed performance module)
-
-### **v0.2.7 - Input System Complete**
-
-- ✅ Full keyboard input support (Shift + symbols, umlauts)
-- ✅ Platform-specific shortcuts (Cmd/Ctrl)
-- ✅ Terminal reset improvements
-- ✅ Copy/paste integration
-
-### **v0.2.6 - UI Polish**
-
-- ✅ Fixed PIPE cursor rendering issues
-- ✅ Zero warnings codebase achievement
-- ✅ Enhanced viewport management
-
-### **v0.2.5 - Theme System**
-
-- ✅ Live theme switching without restart
-- ✅ Advanced cursor system with TOML configuration
-- ✅ Multi-cursor type support (PIPE, BLOCK, UNDERSCORE)
-
-### **v0.2.3 - Public Release**
-
-- ✅ Binary & library distribution
-- ✅ Public API for developers
-- ✅ Comprehensive documentation
+- **17.6% Code Reduction** - From 289,700 to 238,817 characters
+- **Complete Code Cleanup** - Removed redundant structures and debug code
+- **Performance Optimizations** - Streamlined rendering and input processing
 
 ---
 
 ## 🏆 Code Quality Metrics
 
-**Rush Sync Server v0.3.1** maintains exceptional standards:
+**Rush Sync Server v0.3.2** maintains exceptional standards:
 
 - ✅ **Zero Clippy Warnings** (all lints passing)
 - ✅ **Zero Cargo Check Errors** (clean compilation)
@@ -726,9 +583,10 @@ cargo test startup_sequence
 - ✅ **Clean Architecture** (modular design patterns)
 - ✅ **Extensive Testing** (unit + integration tests)
 - ✅ **Documentation Coverage** (all public APIs documented)
-- ✅ **🆕 Central Command Architecture** (type-safe system operations)
-- ✅ **🆕 Anti-Flicker Performance** (O(1) color processing)
-- ✅ **🆕 Race-Condition Free** (centralized state management)
+- ✅ **Central Command Architecture** (type-safe system operations)
+- ✅ **Anti-Flicker Performance** (O(1) color processing)
+- ✅ **Race-Condition Free** (centralized state management)
+- ✅ **Professional Server Management** (Actix-Web integration)
 - ✅ **Cross-Platform Compatibility** (tested on macOS, Linux, Windows)
 
 ---
@@ -749,20 +607,26 @@ cargo test startup_sequence
 
 ### **🎯 Areas Looking for Contributors:**
 
-**Phase 1 Development:**
+**Phase 2 Development:**
 
-- Web server management with Actix-Web
-- Redis integration and caching
-- Database design (SQLite/PostgreSQL)
-- DevOps automation tools
+- Hot-reloading system for development mode
+- TLS/HTTPS integration with rustls
+- File watcher integration with notify
+- SCSS compilation for web assets
+
+**Server Management Enhancements:**
+
+- Load balancing between server instances
+- Advanced monitoring and metrics collection
+- WebSocket support for real-time communication
+- Docker integration and containerization
 
 **Core Improvements:**
 
-- Additional language translations
-- Theme design and UX improvements
-- Performance optimizations
-- Cross-platform testing
-- Terminal compatibility testing
+- Additional language translations (Spanish, French, Japanese)
+- Advanced theme design and UX improvements
+- Performance optimizations and benchmarking
+- Cross-platform testing and compatibility
 
 ### **📋 Development Guidelines:**
 
@@ -774,26 +638,18 @@ cargo test startup_sequence
    - Include panic-safe error handling
    - Follow the central command architecture pattern
 
-2. **Internationalization:**
+2. **Server Management:**
 
+   - Test all server lifecycle operations
+   - Ensure proper resource cleanup
+   - Validate port allocation logic
+   - Test concurrent server scenarios
+
+3. **Internationalization:**
    - Add i18n support for all new user-facing text
    - Update both `en.json` and `de.json` files
    - Test language switching functionality
    - Use centralized color categories for consistent theming
-
-3. **Configuration:**
-
-   - Update config validation for new parameters
-   - Provide sensible defaults and auto-correction
-   - Test all theme configurations including cursor settings
-   - Follow type-safe patterns for system operations
-
-4. **Documentation:**
-   - Update README.md for new features
-   - Add inline documentation for public APIs
-   - Include usage examples
-   - Document terminal compatibility notes
-   - Explain central command architecture decisions
 
 ---
 
@@ -806,4 +662,4 @@ cargo test startup_sequence
 
 ---
 
-\_Rush Sync Server v0.3.1 - Central command architecture with type-safe confirmations. Anti-flicker color system, professional startup
+_Rush Sync Server v0.3.2 - Professional web server orchestration with Actix-Web integration, dynamic server management, and comprehensive terminal UI._

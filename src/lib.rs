@@ -26,6 +26,7 @@ pub mod core;
 pub mod i18n;
 pub mod input;
 pub mod output;
+pub mod server;
 pub mod setup;
 pub mod ui;
 
@@ -36,9 +37,10 @@ pub use core::error::{AppError, Result};
 
 pub fn create_default_registry() -> CommandRegistry {
     use commands::{
-        clear::ClearCommand, exit::ExitCommand, history::HistoryCommand, lang::LanguageCommand,
-        log_level::LogLevelCommand, restart::RestartCommand, theme::ThemeCommand,
-        version::VersionCommand,
+        cleanup::CleanupCommand, clear::ClearCommand, create::CreateCommand, exit::ExitCommand,
+        history::HistoryCommand, lang::LanguageCommand, list::ListCommand,
+        log_level::LogLevelCommand, restart::RestartCommand, start::StartCommand,
+        stop::StopCommand, theme::ThemeCommand, version::VersionCommand,
     };
 
     let mut registry = CommandRegistry::new();
@@ -56,6 +58,13 @@ pub fn create_default_registry() -> CommandRegistry {
 
     // Utility Commands
     registry.register(HistoryCommand);
+
+    // Server
+    registry.register(CleanupCommand::new());
+    registry.register(CreateCommand::new());
+    registry.register(ListCommand::new());
+    registry.register(StartCommand::new());
+    registry.register(StopCommand::new());
 
     registry.initialize();
     registry

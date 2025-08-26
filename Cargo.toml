@@ -1,6 +1,6 @@
 [package]
 name = "rush-sync-server"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 description = "Modern asynchronous TUI application with i18n and modular command system"
 license = "GPL-3.0 OR LicenseRef-Commercial"
@@ -39,6 +39,13 @@ rust-embed = "6.8"
 strip-ansi-escapes = "0.1.1"
 regex = "1"
 walkdir = "2"
+
+# Server
+actix-web = "4.4"
+actix-rt = "2.10"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+tokio-util = "0.7"
+futures = "0.3"
 
 # =====================================================
 # OPTIONAL FEATURES (für später)
