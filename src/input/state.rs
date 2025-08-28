@@ -18,7 +18,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
 // ✅ ZENTRALER SYSTEM COMMAND PROCESSOR
-#[derive(Debug)]
+#[derive(Default)]
 pub struct SystemCommandProcessor {
     pending_confirmation: Option<PendingConfirmation>,
 }
@@ -36,12 +36,6 @@ enum SystemAction {
 }
 
 impl SystemCommandProcessor {
-    pub fn new() -> Self {
-        Self {
-            pending_confirmation: None,
-        }
-    }
-
     /// ✅ HAUPTFUNKTION: Verarbeite ALLE System-Commands zentral
     pub fn process_command(&mut self, input: &str) -> SystemCommandResult {
         // 1️⃣ Prüfe auf System-Commands
@@ -193,7 +187,7 @@ impl InputState {
             config: config.clone(),
             command_handler: CommandHandler::new(),
             keyboard_manager: KeyboardManager::new(),
-            system_processor: SystemCommandProcessor::new(), // ✅ NEU
+            system_processor: SystemCommandProcessor::default(),
         }
     }
 

@@ -1,12 +1,9 @@
-// =====================================================
-// FILE: src/setup/setup_toml.rs - SORTIERTE THEMES
-// =====================================================
-
+// Enhanced src/setup/setup_toml.rs
 use crate::core::prelude::*;
 use std::path::PathBuf;
 use tokio::fs;
 
-// ✅ PERFEKT SORTIERTE TOML-CONFIG: output first, dann input
+// Enhanced DEFAULT_CONFIG with server and logging sections
 const DEFAULT_CONFIG: &str = r#"[general]
 max_messages = 1000
 typewriter_delay = 5
@@ -19,6 +16,31 @@ current_theme = "dark"
 [language]
 current = "en"
 
+# =====================================================
+# SERVER MANAGEMENT CONFIGURATION
+# =====================================================
+[server]
+port_range_start = 8080      # Starting port for auto-allocation
+port_range_end = 8180        # Maximum port for auto-allocation
+max_concurrent = 10          # Maximum simultaneous servers
+shutdown_timeout = 5         # Graceful shutdown timeout (seconds)
+startup_delay_ms = 500       # Delay after server creation (milliseconds)
+workers = 1                  # Actix workers per server
+
+# =====================================================
+# LOGGING CONFIGURATION
+# =====================================================
+[logging]
+max_file_size_mb = 100       # Log rotation size (100MB per file)
+max_archive_files = 9        # Archive generations (9 backups)
+compress_archives = true     # GZIP compression for archives
+log_requests = true          # Enable request logging
+log_security_alerts = true  # Enable security monitoring
+log_performance = true       # Enable performance metrics
+
+# =====================================================
+# THEME DEFINITIONS
+# =====================================================
 [theme.dark]
 output_bg = "Black"
 output_text = "White"

@@ -1,5 +1,6 @@
+// Fixed src/server/utils/port.rs
+use crate::core::config::Config;
 use crate::core::prelude::*;
-use crate::server::types::ServerContext;
 use std::net::TcpListener;
 use std::time::Duration;
 
@@ -14,13 +15,41 @@ pub fn is_port_available(port: u16) -> bool {
     }
 }
 
-pub fn find_next_available_port(ctx: &ServerContext) -> Result<u16> {
+// Updated to use Config instead of ServerContext
+pub fn find_next_available_port(config: &Config) -> Result<u16> {
+    let ctx = crate::server::shared::get_shared_context();
     let servers = ctx.servers.read().unwrap();
-
     let mut used_ports: Vec<u16> = servers.values().map(|s| s.port).collect();
     used_ports.sort();
 
-    let mut candidate_port = ctx.port_range_start;
+    let mut candidate_port = config.server.port_range_start;
+    let max_port = config.server.port_range_end;
+
+    loop {
+        if candidate_port > max_port {
+            return Err(AppError::Validation(format!(
+                "No available ports in range {}-{}",
+                config.server.port_range_start, config.server.port_range_end
+            )));
+        }
+
+        if !used_ports.contains(&candidate_port) && is_port_available(candidate_port) {
+            return Ok(candidate_port);
+        }
+
+        candidate_port += 1;
+    }
+}
+
+// Legacy function for backward compatibility - REMOVED ServerContext dependency
+pub fn find_next_available_port_legacy() -> Result<u16> {
+    // This function is deprecated and only provides basic functionality
+    let ctx = crate::server::shared::get_shared_context();
+    let servers = ctx.servers.read().unwrap();
+    let mut used_ports: Vec<u16> = servers.values().map(|s| s.port).collect();
+    used_ports.sort();
+
+    let mut candidate_port = 8080; // Fallback default
 
     loop {
         if !used_ports.contains(&candidate_port) && is_port_available(candidate_port) {
@@ -28,10 +57,9 @@ pub fn find_next_available_port(ctx: &ServerContext) -> Result<u16> {
         }
 
         candidate_port += 1;
-
-        if candidate_port > ctx.port_range_start + 100 {
+        if candidate_port > 8180 {
             return Err(AppError::Validation(
-                "Keine verfügbaren Ports gefunden".to_string(),
+                "No available ports found in default range 8080-8180".to_string(),
             ));
         }
     }

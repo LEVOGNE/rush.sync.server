@@ -1,4 +1,3 @@
-// ListCommand - src/commands/list/command.rs
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 use crate::server::types::{ServerContext, ServerStatus};
@@ -19,7 +18,7 @@ impl Command for ListCommand {
         "list"
     }
     fn description(&self) -> &'static str {
-        "List all web servers"
+        "List all web servers (persistent)"
     }
     fn matches(&self, command: &str) -> bool {
         let cmd = command.trim().to_lowercase();
@@ -48,15 +47,19 @@ impl Command for ListCommand {
 
 impl ListCommand {
     fn list_servers(&self, ctx: &ServerContext) -> String {
+        let registry = crate::server::shared::get_persistent_registry();
         let servers = ctx.servers.read().unwrap();
 
         if servers.is_empty() {
-            return "Keine Server erstellt. Verwende 'create'".to_string();
+            return format!(
+                "Keine Server erstellt. Verwende 'create'\nRegistry: {}",
+                registry.get_file_path().display() // FIX: get_file_path() verwenden
+            );
         }
 
-        let mut result = String::from("Server Liste:\n");
+        let mut result = String::from("Server Liste (Persistent):\n");
         let mut server_list: Vec<_> = servers.values().collect();
-        server_list.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        server_list.sort_by(|a, b| a.created_timestamp.cmp(&b.created_timestamp));
 
         for (i, server) in server_list.iter().enumerate() {
             let status_icon = match server.status {
@@ -74,6 +77,12 @@ impl ListCommand {
                 status_icon
             ));
         }
+
+        result.push_str(&format!(
+            "\nRegistry: {}",
+            registry.get_file_path().display() // FIX: get_file_path() verwenden
+        ));
+
         result
     }
 }

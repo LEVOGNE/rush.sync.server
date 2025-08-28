@@ -1,4 +1,4 @@
-// ## FILE: src/core/config.rs - KOMPRIMIERTE VERSION
+// Enhanced src/core/config.rs - COMPLETE IMPLEMENTATION
 use crate::core::constants::{DEFAULT_BUFFER_SIZE, DEFAULT_POLL_RATE};
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
@@ -6,9 +6,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
+// TOML Deserializer Structures
 #[derive(Debug, Serialize, Deserialize)]
 struct ConfigFile {
     general: GeneralConfig,
+    #[serde(default)]
+    server: Option<ServerConfigToml>,
+    #[serde(default)]
+    logging: Option<LoggingConfigToml>,
     #[serde(default)]
     theme: Option<HashMap<String, ThemeDefinitionConfig>>,
     language: LanguageConfig,
@@ -31,6 +36,40 @@ struct LanguageConfig {
     current: String,
 }
 
+// NEW: Server Configuration TOML Structure
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct ServerConfigToml {
+    #[serde(default = "default_port_start")]
+    port_range_start: u16,
+    #[serde(default = "default_port_end")]
+    port_range_end: u16,
+    #[serde(default = "default_max_concurrent")]
+    max_concurrent: usize,
+    #[serde(default = "default_shutdown_timeout")]
+    shutdown_timeout: u64,
+    #[serde(default = "default_startup_delay")]
+    startup_delay_ms: u64,
+    #[serde(default = "default_workers")]
+    workers: usize,
+}
+
+// NEW: Logging Configuration TOML Structure
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct LoggingConfigToml {
+    #[serde(default = "default_max_file_size")]
+    max_file_size_mb: u64,
+    #[serde(default = "default_max_archive_files")]
+    max_archive_files: u8,
+    #[serde(default = "default_compress_archives")]
+    compress_archives: bool,
+    #[serde(default = "default_log_requests")]
+    log_requests: bool,
+    #[serde(default = "default_log_security")]
+    log_security_alerts: bool,
+    #[serde(default = "default_log_performance")]
+    log_performance: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct ThemeDefinitionConfig {
     input_text: String,
@@ -49,7 +88,7 @@ struct ThemeDefinitionConfig {
     output_cursor_color: String,
 }
 
-// ✅ KOMPRIMIERTE DEFAULTS
+// Default functions for TOML deserialization
 fn default_theme() -> String {
     "dark".into()
 }
@@ -66,6 +105,47 @@ fn default_cursor() -> String {
     "PIPE".into()
 }
 
+// Server defaults
+fn default_port_start() -> u16 {
+    8080
+}
+fn default_port_end() -> u16 {
+    8180
+}
+fn default_max_concurrent() -> usize {
+    10
+}
+fn default_shutdown_timeout() -> u64 {
+    5
+}
+fn default_startup_delay() -> u64 {
+    500
+}
+fn default_workers() -> usize {
+    1
+}
+
+// Logging defaults
+fn default_max_file_size() -> u64 {
+    100
+}
+fn default_max_archive_files() -> u8 {
+    9
+}
+fn default_compress_archives() -> bool {
+    true
+}
+fn default_log_requests() -> bool {
+    true
+}
+fn default_log_security() -> bool {
+    true
+}
+fn default_log_performance() -> bool {
+    true
+}
+
+// Main Configuration Structures
 #[derive(Clone)]
 pub struct Config {
     config_path: Option<String>,
@@ -79,6 +159,29 @@ pub struct Config {
     pub current_theme_name: String,
     pub language: String,
     pub debug_info: Option<String>,
+    // NEW: Server and Logging configs
+    pub server: ServerConfig,
+    pub logging: LoggingConfig,
+}
+
+#[derive(Clone)]
+pub struct ServerConfig {
+    pub port_range_start: u16,
+    pub port_range_end: u16,
+    pub max_concurrent: usize,
+    pub shutdown_timeout: u64,
+    pub startup_delay_ms: u64,
+    pub workers: usize,
+}
+
+#[derive(Clone)]
+pub struct LoggingConfig {
+    pub max_file_size_mb: u64,
+    pub max_archive_files: u8,
+    pub compress_archives: bool,
+    pub log_requests: bool,
+    pub log_security_alerts: bool,
+    pub log_performance: bool,
 }
 
 #[derive(Clone)]
@@ -106,6 +209,32 @@ impl Default for Theme {
             input_cursor: "PIPE".into(),
             output_cursor: "PIPE".into(),
             output_cursor_color: AppColor::new(Color::White),
+        }
+    }
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            port_range_start: 8080,
+            port_range_end: 8180,
+            max_concurrent: 10,
+            shutdown_timeout: 5,
+            startup_delay_ms: 500,
+            workers: 1,
+        }
+    }
+}
+
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            max_file_size_mb: 100,
+            max_archive_files: 9,
+            compress_archives: true,
+            log_requests: true,
+            log_security_alerts: true,
+            log_performance: true,
         }
     }
 }
@@ -153,6 +282,30 @@ impl Config {
         let typewriter = Self::clamp(file.general.typewriter_delay, 0, 2000, 50);
         let theme = Self::load_theme(&file).unwrap_or_default();
 
+        // Load server config with defaults
+        let server = file
+            .server
+            .map_or_else(ServerConfig::default, |s| ServerConfig {
+                port_range_start: s.port_range_start,
+                port_range_end: s.port_range_end,
+                max_concurrent: s.max_concurrent,
+                shutdown_timeout: s.shutdown_timeout,
+                startup_delay_ms: s.startup_delay_ms,
+                workers: s.workers,
+            });
+
+        // Load logging config with defaults
+        let logging = file
+            .logging
+            .map_or_else(LoggingConfig::default, |l| LoggingConfig {
+                max_file_size_mb: l.max_file_size_mb,
+                max_archive_files: l.max_archive_files,
+                compress_archives: l.compress_archives,
+                log_requests: l.log_requests,
+                log_security_alerts: l.log_security_alerts,
+                log_performance: l.log_performance,
+            });
+
         let config = Self {
             config_path: Some(path.as_ref().to_string_lossy().into_owned()),
             max_messages: file.general.max_messages,
@@ -165,6 +318,8 @@ impl Config {
             current_theme_name: file.general.current_theme,
             language: file.language.current,
             debug_info: None,
+            server,
+            logging,
         };
 
         // Auto-save corrected values
@@ -189,7 +344,7 @@ impl Config {
         Theme::from_config(def).ok()
     }
 
-    // ✅ KOMPRIMIERTES SAVE
+    // Enhanced save with server and logging configs
     pub async fn save(&self) -> Result<()> {
         let Some(path) = &self.config_path else {
             return Ok(());
@@ -206,6 +361,22 @@ impl Config {
                 log_level: self.log_level.clone(),
                 current_theme: self.current_theme_name.clone(),
             },
+            server: Some(ServerConfigToml {
+                port_range_start: self.server.port_range_start,
+                port_range_end: self.server.port_range_end,
+                max_concurrent: self.server.max_concurrent,
+                shutdown_timeout: self.server.shutdown_timeout,
+                startup_delay_ms: self.server.startup_delay_ms,
+                workers: self.server.workers,
+            }),
+            logging: Some(LoggingConfigToml {
+                max_file_size_mb: self.logging.max_file_size_mb,
+                max_archive_files: self.logging.max_archive_files,
+                compress_archives: self.logging.compress_archives,
+                log_requests: self.logging.log_requests,
+                log_security_alerts: self.logging.log_security_alerts,
+                log_performance: self.logging.log_performance,
+            }),
             theme: if themes.is_empty() {
                 None
             } else {
@@ -229,7 +400,7 @@ impl Config {
         tokio::fs::write(path, content).await.map_err(AppError::Io)
     }
 
-    // ✅ KOMPRIMIERTES THEME SWITCHING
+    // Rest of existing methods...
     pub async fn change_theme(&mut self, name: &str) -> Result<()> {
         let themes = Self::load_existing_themes().await?;
         let def = themes
@@ -258,7 +429,6 @@ impl Config {
         Ok(HashMap::new())
     }
 
-    // ✅ PERFORMANCE INFO (komprimiert)
     pub fn get_performance_info(&self) -> String {
         let fps = 1000.0 / self.poll_rate.as_millis() as f64;
         let typewriter = if self.typewriter_delay.as_millis() > 0 {
@@ -267,12 +437,11 @@ impl Config {
             f64::INFINITY
         };
         format!(
-            "Performance: {:.1} FPS, Typewriter: {:.1} chars/sec",
-            fps, typewriter
+            "Performance: {:.1} FPS, Typewriter: {:.1} chars/sec, Max Servers: {}",
+            fps, typewriter, self.server.max_concurrent
         )
     }
 
-    // ✅ HELPER METHODS (komprimiert)
     async fn apply_language(config: &Config) {
         let _ = crate::commands::lang::LanguageService::new()
             .load_and_apply_from_config(config)
@@ -281,9 +450,15 @@ impl Config {
 
     fn log_startup(config: &Config) {
         if config.poll_rate.as_millis() < 16 {
-            log::warn!("⚡ PERFORMANCE: poll_rate sehr niedrig!");
+            log::warn!("Performance: poll_rate sehr niedrig!");
         }
         log::info!("Rush Sync Server v{}", crate::core::constants::VERSION);
+        log::info!(
+            "Server Config: Ports {}-{}, Max: {}",
+            config.server.port_range_start,
+            config.server.port_range_end,
+            config.server.max_concurrent
+        );
     }
 }
 
@@ -317,6 +492,8 @@ impl Default for Config {
             current_theme_name: "dark".into(),
             language: crate::i18n::DEFAULT_LANGUAGE.into(),
             debug_info: None,
+            server: ServerConfig::default(),
+            logging: LoggingConfig::default(),
         }
     }
 }

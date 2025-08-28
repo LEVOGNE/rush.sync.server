@@ -1,4 +1,4 @@
-// src/server/types.rs - CLEANED VERSION
+// Updated src/server/types.rs
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -10,18 +10,28 @@ pub struct ServerInfo {
     pub port: u16,
     pub status: ServerStatus,
     pub created_at: String,
-    #[serde(default = "default_timestamp")]
     pub created_timestamp: u64,
 }
 
-fn default_timestamp() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
+impl Default for ServerInfo {
+    fn default() -> Self {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        Self {
+            id: String::new(),
+            name: String::new(),
+            port: 0,
+            status: ServerStatus::Stopped,
+            created_at: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+            created_timestamp: now,
+        }
+    }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum ServerStatus {
     Stopped,
     Running,
@@ -45,24 +55,22 @@ pub struct ServerData {
     pub name: String,
 }
 
-/// Shared state between all modules
 pub type ServerMap = Arc<RwLock<HashMap<String, ServerInfo>>>;
 pub type ServerHandles = Arc<RwLock<HashMap<String, actix_web::dev::ServerHandle>>>;
 
-/// Context for all server operations - CLEANED
+// Updated ServerContext - removed hardcoded port_range_start
 #[derive(Debug, Clone)]
 pub struct ServerContext {
     pub servers: ServerMap,
     pub handles: ServerHandles,
-    pub port_range_start: u16,
+    // Removed port_range_start - now comes from Config
 }
 
-impl ServerContext {
-    pub fn new() -> Self {
+impl Default for ServerContext {
+    fn default() -> Self {
         Self {
             servers: Arc::new(RwLock::new(HashMap::new())),
             handles: Arc::new(RwLock::new(HashMap::new())),
-            port_range_start: 8080,
         }
     }
 }

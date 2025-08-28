@@ -1,24 +1,41 @@
-// src/main.rs - MINIMAL DEBUG VERSION
 use rush_sync_server::core::config::Config;
 use rush_sync_server::ui::screen::ScreenManager;
 use rush_sync_server::{i18n, Result};
-//use std::fs::OpenOptions;
 use std::io::Write;
-
-//const VERSION: &str = env!("CARGO_PKG_VERSION");
+use std::path::PathBuf;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // ✅ SCHRITT 1: DIREKT IN DATEI SCHREIBEN (ohne Logger)
-    test_direct_file_write();
+    // Setup
+    setup_panic_handler();
+    setup_logger();
 
-    // ✅ SCHRITT 2: Einfachster Logger
-    init_simple_logger();
+    // Initialize systems
+    i18n::init()
+        .await
+        .map_err(|e| log::error!("i18n failed: {}", e))
+        .ok();
 
-    // ✅ SCHRITT 3: In Datei schauen
-    check_log_file();
+    log::info!("Initializing server system...");
+    rush_sync_server::server::shared::initialize_server_system().await?;
 
-    // Panic handler
+    // Run application
+    let config = Config::load_with_messages(false).await?;
+    let mut screen = ScreenManager::new(&config).await?;
+
+    log::info!("Starting application...");
+    let result = screen.run().await;
+
+    // Cleanup
+    log::info!("Shutting down...");
+    if let Err(e) = rush_sync_server::server::shared::shutdown_all_servers_on_exit().await {
+        log::error!("Cleanup error: {}", e);
+    }
+
+    result
+}
+
+fn setup_panic_handler() {
     std::panic::set_hook(Box::new(|panic_info| {
         let _ = crossterm::terminal::disable_raw_mode();
         let _ = crossterm::execute!(
@@ -27,106 +44,51 @@ async fn main() -> Result<()> {
             crossterm::cursor::Show
         );
 
-        // ✅ DIRECT FILE WRITE bei Panic
-        write_to_file("❌ PANIC OCCURRED!", &format!("{}", panic_info));
+        write_debug_log("PANIC", &format!("{}", panic_info));
+
+        tokio::spawn(async {
+            let _ = rush_sync_server::server::shared::shutdown_all_servers_on_exit().await;
+        });
     }));
-
-    // Sprache initialisieren (SILENT)
-    match i18n::init().await {
-        Ok(_) => {
-            log::info!("✅ i18n initialized successfully");
-        }
-        Err(e) => {
-            log::error!("❌ i18n initialization failed: {}", e);
-        }
-    }
-
-    // Config laden
-    let config = Config::load_with_messages(false).await?;
-    log::info!("✅ Config loaded successfully");
-
-    // Screen Manager starten
-    log::info!("🖥️ Starting ScreenManager...");
-    let mut screen = ScreenManager::new(&config).await?;
-
-    log::info!("🎯 Entering main loop...");
-    screen.run().await
 }
 
-fn test_direct_file_write() {
-    write_to_file(
-        "🧪 DIRECT TEST",
-        "Dies sollte definitiv in der Datei stehen!",
-    );
-}
+fn setup_logger() {
+    struct DebugLogger;
 
-fn write_to_file(prefix: &str, message: &str) {
-    let log_path = get_log_file_path();
-    let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
-    let log_line = format!("[{}] {} {}\n", timestamp, prefix, message);
-
-    let result = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_path)
-        .and_then(|mut file| file.write_all(log_line.as_bytes()));
-
-    if result.is_err() {
-        eprintln!("❌ FAILED TO WRITE TO LOG FILE: {:?}", log_path);
-    }
-}
-
-fn init_simple_logger() {
-    use log::{Level, LevelFilter, Metadata, Record};
-
-    struct SimpleLogger;
-
-    impl log::Log for SimpleLogger {
-        fn enabled(&self, metadata: &Metadata) -> bool {
-            metadata.level() <= Level::Debug
+    impl log::Log for DebugLogger {
+        fn enabled(&self, metadata: &log::Metadata) -> bool {
+            metadata.level() <= log::Level::Debug
         }
 
-        fn log(&self, record: &Record) {
+        fn log(&self, record: &log::Record) {
             if self.enabled(record.metadata()) {
-                let message = format!("🔍 LOG: [{}] {}", record.level(), record.args());
-                write_to_file("📋", &message);
+                write_debug_log(&record.level().to_string(), &record.args().to_string());
             }
         }
 
         fn flush(&self) {}
     }
 
-    // ✅ Logger registrieren
-    if log::set_boxed_logger(Box::new(SimpleLogger)).is_ok() {
-        log::set_max_level(LevelFilter::Debug);
-        write_to_file("✅", "Logger initialized successfully");
-    } else {
-        write_to_file("❌", "Failed to initialize logger");
+    if log::set_boxed_logger(Box::new(DebugLogger)).is_ok() {
+        log::set_max_level(log::LevelFilter::Debug);
     }
 }
 
-fn check_log_file() {
-    let log_path = get_log_file_path();
+fn write_debug_log(level: &str, message: &str) {
+    let log_path = get_debug_log_path();
+    let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
+    let log_line = format!("[{}] [{}] {}\n", timestamp, level, message);
 
-    if log_path.exists() {
-        if let Ok(content) = std::fs::read_to_string(&log_path) {
-            let line_count = content.lines().count();
-            write_to_file("📊", &format!("Log file has {} lines", line_count));
-        } else {
-            write_to_file("❌", "Failed to read log file");
-        }
-    } else {
-        write_to_file("❌", "Log file does not exist!");
-    }
+    let _ = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)
+        .and_then(|mut file| file.write_all(log_line.as_bytes()));
 }
 
-fn get_log_file_path() -> std::path::PathBuf {
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(base_dir) = exe_path.parent() {
-            let log_dir = base_dir.join(".rss");
-            let _ = std::fs::create_dir_all(&log_dir);
-            return log_dir.join("rush.debug");
-        }
-    }
-    std::path::PathBuf::from("rush.debug")
+fn get_debug_log_path() -> PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|p| p.join(".rss").join("rush.debug")))
+        .unwrap_or_else(|| PathBuf::from("rush.debug"))
 }

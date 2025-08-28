@@ -1,22 +1,25 @@
-pub struct ServerConfig {
-    pub port_range_start: u16,
-    pub port_range_end: u16,
-    pub shutdown_timeout_secs: u64,
-    pub startup_delay_ms: u64,
-    pub workers: usize,
+// Updated src/server/config.rs - Use Config from main config
+use crate::core::config::Config;
+
+// Remove old ServerConfig - use the one from core::config
+pub fn get_server_version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
 }
 
-impl Default for ServerConfig {
-    fn default() -> Self {
-        Self {
-            port_range_start: 8080,
-            port_range_end: 8180,
-            shutdown_timeout_secs: 5,
-            startup_delay_ms: 500,
-            workers: 1,
-        }
-    }
+pub fn get_server_name() -> &'static str {
+    env!("CARGO_PKG_NAME")
 }
 
-pub const SERVER_VERSION: &str = "1.0.0";
-pub const SERVER_NAME: &str = "Rush Sync Server";
+// Legacy constants for backward compatibility
+pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const SERVER_NAME: &str = env!("CARGO_PKG_NAME");
+
+// Helper to get server config from main config
+pub fn get_server_config_from_main(config: &Config) -> &crate::core::config::ServerConfig {
+    &config.server
+}
+
+// Helper to get logging config from main config
+pub fn get_logging_config_from_main(config: &Config) -> &crate::core::config::LoggingConfig {
+    &config.logging
+}

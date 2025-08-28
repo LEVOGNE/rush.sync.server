@@ -1,10 +1,16 @@
 pub mod config;
 pub mod handlers;
+pub mod logging;
 pub mod manager;
+pub mod middleware;
+pub mod persistence;
 pub mod shared;
 pub mod types;
 pub mod utils;
 
-// Re-exports für einfache Verwendung
+// Re-exports
+pub use logging::ServerLogger;
 pub use manager::ServerManager;
+pub use middleware::LoggingMiddleware;
+pub use persistence::{CleanupType, PersistentServerInfo, ServerRegistry};
 pub use types::{ServerInfo, ServerStatus};
