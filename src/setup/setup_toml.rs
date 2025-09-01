@@ -26,6 +26,7 @@ max_concurrent = 10          # Maximum simultaneous servers
 shutdown_timeout = 5         # Graceful shutdown timeout (seconds)
 startup_delay_ms = 500       # Delay after server creation (milliseconds)
 workers = 1                  # Actix workers per server
+auto_open_browser = true     # Autostart Browser
 
 # =====================================================
 # LOGGING CONFIGURATION

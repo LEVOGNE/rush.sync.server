@@ -7,8 +7,8 @@ pub mod persistence;
 pub mod shared;
 pub mod types;
 pub mod utils;
+pub mod watchdog;
 
-// Re-exports
 pub use logging::ServerLogger;
 pub use manager::ServerManager;
 pub use middleware::LoggingMiddleware;

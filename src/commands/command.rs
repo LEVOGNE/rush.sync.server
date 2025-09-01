@@ -1,23 +1,23 @@
 use crate::core::prelude::*;
-use std::future::Future;
-use std::pin::Pin;
 
+#[async_trait::async_trait]
 pub trait Command: Send + Sync + std::fmt::Debug + 'static {
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;
     fn matches(&self, command: &str) -> bool;
-    fn execute_sync(&self, args: &[&str]) -> Result<String>;
 
-    fn execute_async<'a>(
-        &'a self,
-        args: &'a [&'a str],
-    ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
-        Box::pin(async move { self.execute_sync(args) })
+    // Hauptausführung - immer implementieren
+    async fn execute(&self, args: &[&str]) -> Result<String> {
+        // Einfach & robust: vorhandene Sync-Logik nutzen
+        self.execute_sync(args)
     }
 
-    fn supports_async(&self) -> bool {
-        false
+    // Optional: Sync-Fallback für Commands die es brauchen
+    fn execute_sync(&self, args: &[&str]) -> Result<String> {
+        // Default: Blockiert auf async execute
+        futures::executor::block_on(self.execute(args))
     }
+
     fn priority(&self) -> u8 {
         50
     }

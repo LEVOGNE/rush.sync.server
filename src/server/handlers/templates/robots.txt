@@ -1,0 +1,140 @@
+# Rush Sync Server - Advanced SEO & Security Configuration
+# High-performance robots.txt with comprehensive directives
+
+User-agent: *
+
+# === STATIC CONTENT ACCESS ===
+# Allow access to main application files
+Allow: /
+Allow: /index.html
+Allow: /style.css
+Allow: /app.js
+Allow: /favicon.svg
+Allow: /robots.txt
+
+# === API SECURITY ===
+# Block all API endpoints from search engines
+Disallow: /api/
+Disallow: /api/*
+
+# Block common attack vectors
+Disallow: /.env
+Disallow: /.git/
+Disallow: /admin/
+Disallow: /config/
+Disallow: /logs/
+Disallow: /.well-known/
+
+# === SECURITY HARDENING ===
+# Block common vulnerability scanners
+User-agent: sqlmap
+Disallow: /
+
+User-agent: nikto
+Disallow: /
+
+User-agent: w3af
+Disallow: /
+
+User-agent: acunetix
+Disallow: /
+
+User-agent: netsparker
+Disallow: /
+
+User-agent: appscan
+Disallow: /
+
+# Block aggressive crawlers
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+# === PERFORMANCE OPTIMIZATION ===
+# Crawl delay for respectful bots (1 second)
+Crawl-delay: 1
+
+# Request rate limiting
+Request-rate: 1/10s
+
+# Visit time restrictions (9 AM to 6 PM UTC)
+Visit-time: 0900-1800
+
+# === SITEMAP & DISCOVERY ===
+# Sitemap location (uncomment when available)
+# Sitemap: http://127.0.0.1:{{PORT}}/sitemap.xml
+
+# === CACHE DIRECTIVES ===
+# Cache static resources longer
+Cache-directive: max-age=3600
+
+# === ADDITIONAL SECURITY HEADERS ===
+# Prevent directory traversal attempts
+Disallow: /../
+Disallow: /./
+Disallow: /%2e%2e/
+Disallow: /%2e/
+
+# Block common file extensions that shouldn't be crawled
+Disallow: /*.log$
+Disallow: /*.bak$
+Disallow: /*.tmp$
+Disallow: /*.old$
+Disallow: /*.backup$
+
+# Block sensitive directories
+Disallow: /private/
+Disallow: /internal/
+Disallow: /test/
+Disallow: /staging/
+Disallow: /debug/
+
+# === DEVELOPMENT ENVIRONMENT PROTECTION ===
+# Block development tools and configurations
+Disallow: /.vscode/
+Disallow: /.idea/
+Disallow: /node_modules/
+Disallow: /target/
+Disallow: /dist/
+Disallow: /build/
+
+# Block configuration files
+Disallow: /*.toml$
+Disallow: /*.yaml$
+Disallow: /*.yml$
+Disallow: /*.json$
+Disallow: /*.ini$
+Disallow: /*.conf$
+
+# === PERFORMANCE MONITORING ===
+# Allow performance monitoring bots (selective)
+User-agent: GoogleBot
+Allow: /
+Crawl-delay: 2
+
+User-agent: BingBot
+Allow: /
+Crawl-delay: 2
+
+# === CONTACT INFORMATION ===
+# Contact for crawler issues (optional)
+# Contact: admin@localhost
+
+# === COMPLIANCE ===
+# This robots.txt complies with:
+# - RFC 9309 (Robots Exclusion Protocol)
+# - Google Search Central guidelines
+# - Bing Webmaster guidelines
+# - OWASP security recommendations
+
+# Last updated: {{CREATION_TIME}}
+# Server: Rush Sync Server {{VERSION}}
+# Environment: Development/Local

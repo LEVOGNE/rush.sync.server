@@ -34,7 +34,10 @@ impl LogLevelManager {
     }
 
     // ✅ SET LEVEL mit i18n - FIXED RETURN TYPE
-    pub fn set_level_persistent(level_input: &str) -> std::result::Result<String, String> {
+    // src/commands/log_level/manager.rs
+    pub fn set_level_persistent(level_input: &str) -> Result<String> {
+        use log::LevelFilter;
+
         let level_filter = match level_input {
             "1" => LevelFilter::Error,
             "2" => LevelFilter::Warn,
@@ -47,31 +50,17 @@ impl LogLevelManager {
             "debug" | "DEBUG" => LevelFilter::Debug,
             "trace" | "TRACE" => LevelFilter::Trace,
             _ => {
-                return Err(get_command_translation(
+                return Err(AppError::Validation(get_command_translation(
                     "system.commands.log_level.invalid_level",
                     &[level_input],
-                ));
+                )));
             }
         };
 
-        Self::set_level_runtime(level_filter);
-
-        // Async save with i18n error handling - FIXED ERROR HANDLING
-        tokio::spawn(async move {
-            if let Err(e) = Self::save_to_config(level_filter).await {
-                log::warn!(
-                    "{}",
-                    get_translation("language.service.save_failed", &[&e.to_string()])
-                );
-            }
-        });
-
-        let level_name = Self::level_to_name(level_filter);
-        let level_number = Self::level_to_number(level_filter);
-
+        Self::init_with_level(level_filter);
         Ok(get_command_translation(
-            "system.commands.log_level.changed_success",
-            &[&level_name, &level_number],
+            "system.commands.log_level.changed",
+            &[level_input],
         ))
     }
 
@@ -102,17 +91,6 @@ impl LogLevelManager {
         }
     }
 
-    // ✅ FIXED SAVE TO CONFIG - Uses proper AppError
-    async fn save_to_config(level_filter: LevelFilter) -> Result<()> {
-        match crate::core::config::Config::load_with_messages(false).await {
-            Ok(mut config) => {
-                config.log_level = Self::level_filter_to_string(level_filter);
-                config.save().await
-            }
-            Err(e) => Err(e),
-        }
-    }
-
     // ✅ Unchanged helper methods
     pub fn get_current_level() -> LevelFilter {
         if let Ok(current) = CURRENT_LOG_LEVEL.lock() {
@@ -139,17 +117,6 @@ impl LogLevelManager {
             "trace" | "5" => Ok(LevelFilter::Trace),
             "off" | "0" => Ok(LevelFilter::Off),
             _ => Err(()),
-        }
-    }
-
-    fn level_filter_to_string(level: LevelFilter) -> String {
-        match level {
-            LevelFilter::Error => "error".to_string(),
-            LevelFilter::Warn => "warn".to_string(),
-            LevelFilter::Info => "info".to_string(),
-            LevelFilter::Debug => "debug".to_string(),
-            LevelFilter::Trace => "trace".to_string(),
-            LevelFilter::Off => "off".to_string(),
         }
     }
 

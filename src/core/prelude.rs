@@ -1,6 +1,7 @@
 // ✅ CORE ESSENTIALS - überall gebraucht
 pub use crate::core::config::Config;
 pub use crate::core::error::{AppError, Result};
+pub use crate::core::helpers::get_config;
 
 // ✅ STANDARD LIBRARY ESSENTIALS
 pub use std::collections::HashMap;

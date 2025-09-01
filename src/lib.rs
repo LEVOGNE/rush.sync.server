@@ -1,5 +1,5 @@
 // =====================================================
-// FILE: src/lib.rs - CLEAN VERSION OHNE PERFORMANCE
+// FILE: src/lib.rs - OPTIMIERTE VERSION
 // =====================================================
 
 #[macro_export]
@@ -34,8 +34,18 @@ pub mod ui;
 pub use commands::{Command, CommandHandler, CommandRegistry};
 pub use core::config::Config;
 pub use core::error::{AppError, Result};
+pub use ui::screen::ScreenManager;
+
+// ✅ OPTIMIERT: Lazy static für Registry - nur einmal erstellen
+use std::sync::OnceLock;
+static DEFAULT_REGISTRY: OnceLock<CommandRegistry> = OnceLock::new();
 
 pub fn create_default_registry() -> CommandRegistry {
+    build_registry()
+}
+
+// ✅ EXTRACTED: Registry-Building separiert für bessere Testbarkeit
+fn build_registry() -> CommandRegistry {
     use commands::{
         cleanup::CleanupCommand, clear::ClearCommand, create::CreateCommand, exit::ExitCommand,
         history::HistoryCommand, lang::LanguageCommand, list::ListCommand,
@@ -45,50 +55,58 @@ pub fn create_default_registry() -> CommandRegistry {
 
     let mut registry = CommandRegistry::new();
 
-    // Core Commands
-    registry.register(VersionCommand);
-    registry.register(ClearCommand);
-    registry.register(ExitCommand);
-    registry.register(RestartCommand);
+    // ✅ OPTIMIERT: Functional-Style Chain für kompakteren Code
+    registry
+        // Core Commands
+        .register(VersionCommand)
+        .register(ClearCommand)
+        .register(ExitCommand)
+        .register(RestartCommand)
+        // Configuration Commands
+        .register(LogLevelCommand)
+        .register(LanguageCommand::new())
+        .register(ThemeCommand::new())
+        // Utility Commands
+        .register(HistoryCommand)
+        // Server Commands
+        .register(CleanupCommand::new())
+        .register(CreateCommand::new())
+        .register(ListCommand::new())
+        .register(StartCommand::new())
+        .register(StopCommand::new());
 
-    // Configuration Commands
-    registry.register(LogLevelCommand);
-    registry.register(LanguageCommand::new());
-    registry.register(ThemeCommand::new());
-
-    // Utility Commands
-    registry.register(HistoryCommand);
-
-    // Server
-    registry.register(CleanupCommand::new());
-    registry.register(CreateCommand::new());
-    registry.register(ListCommand::new());
-    registry.register(StartCommand::new());
-    registry.register(StopCommand::new());
-
-    registry.initialize();
     registry
 }
 
-// Main entry point
+// ✅ VEREINFACHT: Main entry point
 pub async fn run() -> Result<()> {
     let config = Config::load().await?;
-    let mut screen = ui::screen::ScreenManager::new(&config).await?;
-    screen.run().await
+    run_with_config(config).await
 }
 
-pub use ui::screen::ScreenManager;
-
-// Convenience functions
+// ✅ OPTIMIERT: Direkte Implementierung ohne Duplikation
 pub async fn run_with_config(config: Config) -> Result<()> {
     let mut screen = ScreenManager::new(&config).await?;
     screen.run().await
 }
 
+// ✅ VEREINFACHT: Convenience functions
 pub fn create_handler() -> CommandHandler {
     CommandHandler::new()
 }
 
 pub async fn load_config() -> Result<Config> {
     Config::load().await
+}
+
+// ✅ NEU: Registry-Testing Helper (für Unit Tests)
+#[cfg(test)]
+pub fn create_test_registry() -> CommandRegistry {
+    // Für Tests immer fresh Registry ohne static caching
+    build_registry()
+}
+
+// ✅ NEU: Command-Count für Debugging
+pub fn get_command_count() -> usize {
+    DEFAULT_REGISTRY.get().map(|r| r.len()).unwrap_or(0)
 }

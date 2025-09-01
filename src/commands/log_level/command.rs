@@ -26,10 +26,7 @@ impl Command for LogLevelCommand {
         match args.first() {
             None => Ok(LogLevelManager::show_status()),
             Some(&"--help" | &"-h" | &"help") => Ok(LogLevelManager::show_help_i18n()),
-            Some(&level) => match LogLevelManager::set_level_persistent(level) {
-                Ok(success_msg) => Ok(success_msg),
-                Err(error_msg) => Ok(error_msg), // Convert String error to String success
-            },
+            Some(&level) => LogLevelManager::set_level_persistent(level), // Direkt weiterleiten
         }
     }
 

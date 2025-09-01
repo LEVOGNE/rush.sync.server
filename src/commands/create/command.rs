@@ -3,8 +3,6 @@ use crate::commands::command::Command;
 use crate::core::prelude::*;
 use crate::server::types::{ServerContext, ServerInfo, ServerStatus};
 use crate::server::utils::validation::validate_server_name;
-use std::future::Future;
-use std::pin::Pin;
 use uuid::Uuid;
 
 #[derive(Debug, Default)]
@@ -28,66 +26,27 @@ impl Command for CreateCommand {
     }
 
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
-        // DON'T use block_on - instead use spawn_blocking for config loading
-        let config_result = std::thread::spawn(|| {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(Config::load())
-        })
-        .join()
-        .map_err(|_| AppError::Validation("Failed to load config".to_string()))??;
+        let config = get_config()?;
 
         let ctx = crate::server::shared::get_shared_context();
 
         match args.len() {
-            0 => self.create_server(&config_result, ctx, None, None),
+            0 => self.create_server(&config, ctx, None, None),
             1 => {
                 if let Ok(port) = args[0].parse::<u16>() {
-                    self.create_server(&config_result, ctx, None, Some(port))
+                    self.create_server(&config, ctx, None, Some(port))
                 } else {
-                    self.create_server(&config_result, ctx, Some(args[0].to_string()), None)
+                    self.create_server(&config, ctx, Some(args[0].to_string()), None)
                 }
             }
             2 => match args[1].parse::<u16>() {
-                Ok(port) => {
-                    self.create_server(&config_result, ctx, Some(args[0].to_string()), Some(port))
-                }
+                Ok(port) => self.create_server(&config, ctx, Some(args[0].to_string()), Some(port)),
                 Err(_) => Err(AppError::Validation("Invalid port".to_string())),
             },
             _ => Err(AppError::Validation("Too many parameters".to_string())),
         }
     }
 
-    fn execute_async<'a>(
-        &'a self,
-        args: &'a [&'a str],
-    ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
-        Box::pin(async move {
-            let config = Config::load().await?;
-            let ctx = crate::server::shared::get_shared_context();
-
-            match args.len() {
-                0 => self.create_server(&config, ctx, None, None),
-                1 => {
-                    if let Ok(port) = args[0].parse::<u16>() {
-                        self.create_server(&config, ctx, None, Some(port))
-                    } else {
-                        self.create_server(&config, ctx, Some(args[0].to_string()), None)
-                    }
-                }
-                2 => match args[1].parse::<u16>() {
-                    Ok(port) => {
-                        self.create_server(&config, ctx, Some(args[0].to_string()), Some(port))
-                    }
-                    Err(_) => Err(AppError::Validation("Invalid port".to_string())),
-                },
-                _ => Err(AppError::Validation("Too many parameters".to_string())),
-            }
-        })
-    }
-
-    fn supports_async(&self) -> bool {
-        true
-    }
     fn priority(&self) -> u8 {
         65
     }
@@ -117,7 +76,7 @@ impl CreateCommand {
             custom_name
         } else {
             let server_number = self.find_next_server_number(ctx);
-            format!("rush-sync-server-{:03}", server_number)
+            format!("rss-{:03}", server_number)
         };
 
         let port = if let Some(custom_port) = custom_port {
@@ -145,12 +104,13 @@ impl CreateCommand {
                     custom_port
                 )));
             }
-            if !self.is_port_available(custom_port) {
+            if !crate::server::utils::port::is_port_available(custom_port) {
                 return Err(AppError::Validation(format!(
                     "Port {} bereits belegt!",
                     custom_port
                 )));
             }
+
             custom_port
         } else {
             self.find_next_available_port(config)?
@@ -178,6 +138,15 @@ impl CreateCommand {
             created_at: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
             created_timestamp: timestamp,
         };
+
+        // Verzeichnis sofort bei CREATE erstellen
+        if let Err(e) = crate::server::handlers::web::create_server_directory_and_files(&name, port)
+        {
+            return Err(AppError::Validation(format!(
+                "Failed to create server directory: {}",
+                e
+            )));
+        }
 
         // Add to runtime context
         ctx.servers
@@ -225,41 +194,46 @@ impl CreateCommand {
     // Updated to use config instead of context
     fn find_next_available_port(&self, config: &Config) -> Result<u16> {
         let ctx = crate::server::shared::get_shared_context();
-        let servers = ctx.servers.read().unwrap();
-        let mut used_ports: Vec<u16> = servers.values().map(|s| s.port).collect();
-        used_ports.sort();
+        let used_ports: std::collections::HashSet<u16> = {
+            let servers = ctx
+                .servers
+                .read()
+                .map_err(|_| AppError::Validation("Server-Context lock poisoned".to_string()))?;
+            servers.values().map(|s| s.port).collect()
+        };
 
-        let mut candidate_port = config.server.port_range_start;
-        let max_port = config.server.port_range_end;
+        let start_port = config.server.port_range_start;
+        let end_port = config.server.port_range_end;
 
-        loop {
-            if candidate_port > max_port {
-                return Err(AppError::Validation(format!(
-                    "No available ports in configured range {}-{}",
-                    config.server.port_range_start, config.server.port_range_end
-                )));
+        // Sicherheitscheck für Port-Range
+        if start_port >= end_port {
+            return Err(AppError::Validation(format!(
+                "Invalid port range: {} >= {}. Check config.",
+                start_port, end_port
+            )));
+        }
+
+        // Effizienter: Nicht mehr als 1000 Ports testen
+        let max_attempts = ((end_port - start_port + 1) as usize).min(1000);
+
+        for i in 0..max_attempts {
+            let candidate_port = start_port + (i as u16);
+
+            if candidate_port > end_port {
+                break;
             }
 
-            if !used_ports.contains(&candidate_port) && self.is_port_available(candidate_port) {
+            if !used_ports.contains(&candidate_port)
+                && crate::server::utils::port::is_port_available(candidate_port)
+            {
                 return Ok(candidate_port);
             }
-
-            candidate_port += 1;
         }
-    }
 
-    fn is_port_available(&self, port: u16) -> bool {
-        use std::net::TcpListener;
-        use std::time::Duration;
-
-        match TcpListener::bind(("127.0.0.1", port)) {
-            Ok(listener) => {
-                drop(listener);
-                std::thread::sleep(Duration::from_millis(10));
-                TcpListener::bind(("127.0.0.1", port)).is_ok()
-            }
-            Err(_) => false,
-        }
+        Err(AppError::Validation(format!(
+            "No available ports in range {}-{} after {} attempts",
+            start_port, end_port, max_attempts
+        )))
     }
 
     fn find_next_server_number(&self, ctx: &ServerContext) -> u32 {
@@ -267,7 +241,7 @@ impl CreateCommand {
         let mut existing_numbers = Vec::new();
 
         for server in servers.values() {
-            if let Some(number_str) = server.name.strip_prefix("rush-sync-server-") {
+            if let Some(number_str) = server.name.strip_prefix("rss-") {
                 if let Ok(number) = number_str.parse::<u32>() {
                     existing_numbers.push(number);
                 }

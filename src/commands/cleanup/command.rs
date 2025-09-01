@@ -1,8 +1,6 @@
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 use crate::server::types::{ServerContext, ServerStatus};
-use std::future::Future;
-use std::pin::Pin;
 use std::time::Duration;
 use tokio::time::timeout;
 
@@ -33,7 +31,6 @@ impl Command for CleanupCommand {
             Some(&"failed") => Ok(self.cleanup_failed_servers(ctx)),
             Some(&"stopped") | None => Ok(self.cleanup_stopped_servers(ctx)),
             Some(&"logs") => {
-                // Jetzt ohne self - statischer Aufruf
                 tokio::spawn(async move {
                     match Self::cleanup_all_server_logs().await {
                         Ok(msg) => log::info!("Log cleanup result: {}", msg),
@@ -64,16 +61,6 @@ impl Command for CleanupCommand {
         }
     }
 
-    fn execute_async<'a>(
-        &'a self,
-        args: &'a [&'a str],
-    ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
-        Box::pin(async move { self.execute_sync(args) })
-    }
-
-    fn supports_async(&self) -> bool {
-        true
-    }
     fn priority(&self) -> u8 {
         50
     }

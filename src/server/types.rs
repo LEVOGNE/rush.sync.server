@@ -1,4 +1,3 @@
-// Updated src/server/types.rs
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -58,12 +57,10 @@ pub struct ServerData {
 pub type ServerMap = Arc<RwLock<HashMap<String, ServerInfo>>>;
 pub type ServerHandles = Arc<RwLock<HashMap<String, actix_web::dev::ServerHandle>>>;
 
-// Updated ServerContext - removed hardcoded port_range_start
 #[derive(Debug, Clone)]
 pub struct ServerContext {
     pub servers: ServerMap,
     pub handles: ServerHandles,
-    // Removed port_range_start - now comes from Config
 }
 
 impl Default for ServerContext {
@@ -73,4 +70,28 @@ impl Default for ServerContext {
             handles: Arc::new(RwLock::new(HashMap::new())),
         }
     }
+}
+// ## END ##
+
+// ## FILE: src/server/config.rs
+// ## BEGIN ##
+use crate::core::config::Config;
+
+pub fn get_server_version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
+
+pub fn get_server_name() -> &'static str {
+    env!("CARGO_PKG_NAME")
+}
+
+pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const SERVER_NAME: &str = env!("CARGO_PKG_NAME");
+
+pub fn get_server_config_from_main(config: &Config) -> &crate::core::config::ServerConfig {
+    &config.server
+}
+
+pub fn get_logging_config_from_main(config: &Config) -> &crate::core::config::LoggingConfig {
+    &config.logging
 }

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rush Sync Server - {{SERVER_NAME}}</title>
+    <link rel="stylesheet" href="/.rss/style.css" />
+    <link rel="icon" href="/.rss/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <div class="dashboard">
+      <!-- Header mit Status -->
+      <header class="dashboard-header">
+        <div class="server-info">
+          <h1>Rush Sync Server</h1>
+          <span class="server-name">{{SERVER_NAME}}</span>
+          <div class="status-badge">
+            <span class="status-dot" data-status="checking"></span>
+            <span class="status-text">Checking...</span>
+          </div>
+          <!-- Hot Reload Status -->
+          <div class="hotreload-badge">
+            <span class="hotreload-icon">∞</span>
+            <span id="hotreload-status" class="hotreload-status checking">Connecting...</span>
+          </div>
+        </div>
+
+        <div class="quick-stats">
+          <div class="stat">
+            <span class="stat-label">Port</span>
+            <span class="stat-value">{{PORT}}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Uptime</span>
+            <span class="stat-value" id="uptime">Starting...</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Requests</span>
+            <span class="stat-value" id="request-count">0</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Errors</span>
+            <span class="stat-value" id="error-count">0</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <main class="dashboard-content">
+        <!-- Tab Navigation -->
+        <nav class="tab-nav">
+          <button class="tab-btn active" data-tab="overview">Overview</button>
+          <button class="tab-btn" data-tab="endpoints">API</button>
+          <button class="tab-btn" data-tab="logs">Live Logs</button>
+          <button class="tab-btn" data-tab="metrics">Metrics</button>
+          <button class="tab-btn" data-tab="hotreload">Hot Reload</button>
+        </nav>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+          <!-- Overview Tab -->
+          <div class="tab-panel active" id="tab-overview">
+            <div class="overview-grid">
+              <!-- Server Config -->
+              <div class="card compact">
+                <h3>Configuration</h3>
+                <div class="config-items">
+                  <div class="config-item">
+                    <span>Directory</span>
+                    <code>www/{{SERVER_NAME}}-[{{PORT}}]/</code>
+                  </div>
+                  <div class="config-item">
+                    <span>Version</span>
+                    <span>{{VERSION}}</span>
+                  </div>
+                  <div class="config-item">
+                    <span>URL</span>
+                    <a href="http://127.0.0.1:{{PORT}}" target="_blank">127.0.0.1:{{PORT}}</a>
+                  </div>
+                  <div class="config-item">
+                    <span>WebSocket</span>
+                    <code>ws://127.0.0.1:{{PORT}}/ws/hot-reload</code>
+                  </div>
+                  <div class="config-item">
+                    <span>Created</span>
+                    <span id="creation-time">{{CREATION_TIME}}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Features -->
+              <div class="card compact">
+                <h3>Features</h3>
+                <div class="feature-list">
+                  <div class="feature-item">
+                    <span class="feature-icon">🔄</span>
+                    <span>Hot Reload</span>
+                  </div>
+                  <div class="feature-item">
+                    <span class="feature-icon">📊</span>
+                    <span>Live Metrics</span>
+                  </div>
+                  <div class="feature-item">
+                    <span class="feature-icon">🛡️</span>
+                    <span>Security Monitoring</span>
+                  </div>
+                  <div class="feature-item">
+                    <span class="feature-icon">⚡</span>
+                    <span>High Performance</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Actions - KORRIGIERT: Entfernung der onclick Handler -->
+              <div class="card compact">
+                <h3>Quick Actions</h3>
+                <div class="action-buttons">
+                  <button class="btn btn-primary">View Site</button>
+                  <button class="btn btn-secondary">Test APIs</button>
+                  <button class="btn btn-secondary">Refresh Stats</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Endpoints Tab -->
+          <div class="tab-panel" id="tab-endpoints">
+            <div class="endpoint-groups">
+              <div class="endpoint-group">
+                <h4>Static Files</h4>
+                <div class="endpoint-list compact">
+                  <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <code>/</code>
+                    <span class="desc">Main app</span>
+                    <button class="test-btn" data-url="/">Test</button>
+                  </div>
+                  <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <code>/style.css</code>
+                    <span class="desc">Stylesheet</span>
+                    <button class="test-btn" data-url="/style.css">Test</button>
+                  </div>
+                  <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <code>/app.js</code>
+                    <span class="desc">JavaScript</span>
+                    <button class="test-btn" data-url="/app.js">Test</button>
+                  </div>
+                  <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <code>/robots.txt</code>
+                    <span class="desc">SEO config</span>
+                    <button class="test-btn" data-url="/robots.txt">Test</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="endpoint-group">
+                <h4>Server API & WebSocket</h4>
+                <div class="endpoint-list compact">
+                  <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <code>/api/status</code>
+                    <span class="desc">Server status</span>
+                    <button class="test-btn" data-url="/api/status">Test</button>
+                  </div>
+                  <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <code>/api/health</code>
+                    <span class="desc">Health check</span>
+                    <button class="test-btn" data-url="/api/health">Test</button>
+                  </div>
+                  <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <code>/api/metrics</code>
+                    <span class="desc">Performance</span>
+                    <button class="test-btn" data-url="/api/metrics">Test</button>
+                  </div>
+                  <div class="endpoint">
+                    <span class="method ws">WS</span>
+                    <code>/ws/hot-reload</code>
+                    <span class="desc">Hot Reload</span>
+                    <button class="test-btn disabled">WebSocket</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Logs Tab - KORRIGIERT: Entfernung der onclick Handler -->
+          <div class="tab-panel" id="tab-logs">
+            <div class="terminal-container">
+              <div class="terminal-header">
+                <div class="terminal-controls">
+                  <span class="control-dot red"></span>
+                  <span class="control-dot yellow"></span>
+                  <span class="control-dot green"></span>
+                </div>
+                <div class="terminal-title">rush-sync-server-{{SERVER_NAME}}-[{{PORT}}].log</div>
+                <div class="terminal-actions">
+                  <button class="terminal-btn">Clear</button>
+                  <button class="terminal-btn">
+                    <span id="autoscroll-text">Auto-scroll ON</span>
+                  </button>
+                </div>
+              </div>
+              <div class="terminal-body" id="log-output">
+                <div class="log-line system">
+                  <span class="log-time">{{CREATION_TIME}}</span>
+                  <span class="log-level INFO">INFO</span>
+                  <span class="log-message">Server directory: www/{{SERVER_NAME}}-[{{PORT}}]/</span>
+                </div>
+                <div class="log-line system">
+                  <span class="log-time">{{CREATION_TIME}}</span>
+                  <span class="log-level INFO">INFO</span>
+                  <span class="log-message">Hot Reload WebSocket enabled on /ws/hot-reload</span>
+                </div>
+                <div class="log-line system">
+                  <span class="log-time">{{CREATION_TIME}}</span>
+                  <span class="log-level INFO">INFO</span>
+                  <span class="log-message">Listening on http://127.0.0.1:{{PORT}}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Metrics Tab -->
+          <div class="tab-panel" id="tab-metrics">
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-header">
+                  <h4>Response Times</h4>
+                  <span class="metric-trend up" id="response-trend">→</span>
+                </div>
+                <div class="metric-value" id="avg-response">0ms</div>
+                <div class="metric-detail">avg</div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-header">
+                  <h4>Traffic</h4>
+                  <span class="metric-trend neutral" id="traffic-trend">→</span>
+                </div>
+                <div class="metric-value" id="total-requests">0</div>
+                <div class="metric-detail">requests</div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-header">
+                  <h4>Data Sent</h4>
+                  <span class="metric-trend up" id="data-trend">→</span>
+                </div>
+                <div class="metric-value" id="bytes-sent">0 KB</div>
+                <div class="metric-detail">total</div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-header">
+                  <h4>Unique IPs</h4>
+                  <span class="metric-trend neutral" id="ip-trend">→</span>
+                </div>
+                <div class="metric-value" id="unique-ips">0</div>
+                <div class="metric-detail">visitors</div>
+              </div>
+            </div>
+
+            <div class="metrics-details">
+              <div class="card">
+                <h4>Recent Activity</h4>
+                <div id="recent-activity">
+                  <div class="activity-item">
+                    <span class="activity-time">Just now</span>
+                    <span class="activity-desc">Server started</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hot Reload Tab - KORRIGIERT -->
+          <div class="tab-panel" id="tab-hotreload">
+            <div class="hotreload-grid">
+              <!-- WebSocket Status -->
+              <div class="card">
+                <h3>WebSocket Connection</h3>
+                <div class="websocket-status">
+                  <div class="status-item">
+                    <span class="status-label">Connection</span>
+                    <span id="ws-connection-status" class="status-value checking"
+                      >Connecting...</span
+                    >
+                  </div>
+                  <div class="status-item">
+                    <span class="status-label">Endpoint</span>
+                    <code class="status-value">ws://127.0.0.1:{{PORT}}/ws/hot-reload</code>
+                  </div>
+                  <div class="status-item">
+                    <span class="status-label">Reconnect Attempts</span>
+                    <span id="reconnect-attempts" class="status-value">0</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- File Watching -->
+              <div class="card">
+                <h3>File Watcher</h3>
+                <div class="watcher-info">
+                  <div class="info-item">
+                    <span class="info-label">Watching</span>
+                    <code class="info-value">www/{{SERVER_NAME}}-[{{PORT}}]/</code>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Supported Files</span>
+                    <span class="info-value">html, css, js, json, svg, png, jpg, ico</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Auto Reload</span>
+                    <span class="info-value success">Enabled</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Recent Changes -->
+              <div class="card full-width">
+                <h3>Recent File Changes</h3>
+                <div id="file-changes-log" class="changes-log">
+                  <div class="change-item">
+                    <span class="change-time">Just now</span>
+                    <span class="change-type created">CREATED</span>
+                    <span class="change-file">index.html</span>
+                    <span class="change-desc">Initial server setup</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Test Hot Reload - KORRIGIERT: Entfernung des onclick Handler -->
+            <div class="card">
+              <h3>Test Hot Reload</h3>
+              <p class="test-instructions">
+                To test Hot Reload, edit any file in the
+                <code>www/{{SERVER_NAME}}-[{{PORT}}]/</code> directory. The page will automatically
+                reload when you save changes.
+              </p>
+              <div class="test-actions">
+                <button class="btn btn-secondary">Simulate File Change</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

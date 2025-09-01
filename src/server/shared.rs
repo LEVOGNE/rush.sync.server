@@ -1,4 +1,3 @@
-// Updated src/server/shared.rs
 use crate::core::config::Config;
 use crate::server::persistence::ServerRegistry;
 use crate::server::types::{ServerContext, ServerStatus};
@@ -17,7 +16,6 @@ pub fn get_persistent_registry() -> &'static ServerRegistry {
         .get_or_init(|| ServerRegistry::new().expect("Failed to initialize server registry"))
 }
 
-// Updated to use Config
 pub async fn initialize_server_system() -> crate::core::error::Result<()> {
     let config = Config::load().await?;
     let registry = get_persistent_registry();
@@ -64,7 +62,6 @@ pub async fn initialize_server_system() -> crate::core::error::Result<()> {
         }
     }
 
-    // Enhanced logging with config info
     log::info!(
         "Server system initialized with {} persistent servers",
         persistent_servers.len()
@@ -91,7 +88,6 @@ pub async fn initialize_server_system() -> crate::core::error::Result<()> {
             auto_start_servers.len()
         );
 
-        // Check if auto-start would exceed max_concurrent
         if auto_start_servers.len() > config.server.max_concurrent {
             log::warn!(
                 "Auto-start servers ({}) exceed max_concurrent ({}), some will be skipped",
@@ -116,7 +112,6 @@ pub async fn persist_server_update(server_id: &str, status: crate::server::types
     }
 }
 
-// Enhanced shutdown with config awareness
 pub async fn shutdown_all_servers_on_exit() -> crate::core::error::Result<()> {
     let config = Config::load().await.unwrap_or_default();
     let registry = get_persistent_registry();
@@ -129,14 +124,15 @@ pub async fn shutdown_all_servers_on_exit() -> crate::core::error::Result<()> {
 
     log::info!("Shutting down {} active servers...", server_handles.len());
 
-    // Use configurable shutdown timeout
     let shutdown_timeout = std::time::Duration::from_secs(config.server.shutdown_timeout);
 
     for (server_id, handle) in server_handles {
         log::info!("Stopping server {}", server_id);
 
-        // Use configured timeout
-        if let Err(_) = tokio::time::timeout(shutdown_timeout, handle.stop(true)).await {
+        if tokio::time::timeout(shutdown_timeout, handle.stop(true))
+            .await
+            .is_err()
+        {
             log::warn!("Server {} shutdown timeout, forcing stop", server_id);
             handle.stop(false).await;
         }
@@ -167,7 +163,6 @@ pub async fn shutdown_all_servers_on_exit() -> crate::core::error::Result<()> {
     Ok(())
 }
 
-// NEW: Validation functions using config
 pub async fn validate_server_creation(
     name: &str,
     port: Option<u16>,
@@ -176,7 +171,6 @@ pub async fn validate_server_creation(
     let context = get_shared_context();
     let servers = context.servers.read().unwrap();
 
-    // Check server limit
     if servers.len() >= config.server.max_concurrent {
         return Err(crate::core::error::AppError::Validation(format!(
             "Server limit reached: {}/{}. Use 'cleanup' command to remove stopped servers.",
@@ -185,7 +179,6 @@ pub async fn validate_server_creation(
         )));
     }
 
-    // Check port range if specified
     if let Some(port) = port {
         if port < config.server.port_range_start || port > config.server.port_range_end {
             return Err(crate::core::error::AppError::Validation(format!(
@@ -195,7 +188,6 @@ pub async fn validate_server_creation(
         }
     }
 
-    // Check name uniqueness
     if servers.values().any(|s| s.name == name) {
         return Err(crate::core::error::AppError::Validation(format!(
             "Server name '{}' already exists",
@@ -206,7 +198,6 @@ pub async fn validate_server_creation(
     Ok(())
 }
 
-// NEW: Get server statistics with config context
 pub async fn get_server_system_stats() -> serde_json::Value {
     let config = Config::load().await.unwrap_or_default();
     let context = get_shared_context();
@@ -250,7 +241,6 @@ pub async fn get_server_system_stats() -> serde_json::Value {
     })
 }
 
-// NEW: Auto-start servers with config limits
 pub async fn auto_start_servers() -> crate::core::error::Result<Vec<String>> {
     let config = Config::load().await?;
     let registry = get_persistent_registry();
@@ -267,7 +257,6 @@ pub async fn auto_start_servers() -> crate::core::error::Result<Vec<String>> {
     let mut started_servers = Vec::new();
 
     for server in auto_start_servers.iter().take(max_to_start) {
-        // Use the start command logic here or call it directly
         log::info!(
             "Auto-starting server: {} on port {}",
             server.name,

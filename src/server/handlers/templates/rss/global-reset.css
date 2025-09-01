@@ -1,0 +1,442 @@
+/* Rush Sync Server - Global CSS Reset mit Quicksand Fonts */
+/* Wird automatisch in alle HTML-Seiten injiziert als Basis-Styling */
+
+/* ===== QUICKSAND FONT DEFINITIONS ===== */
+
+@font-face {
+  font-family: 'Kenyan Coffee';
+  src: url('/.rss/fonts/Kenyan_Coffee_Rg.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kenyan Coffee';
+  src: url('/.rss/fonts/Kenyan_Coffee_Rg_It.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kenyan Coffee';
+  src: url('/.rss/fonts/Kenyan_Coffee_Bd.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kenyan Coffee';
+  src: url('/.rss/fonts/Kenyan_Coffee_Bd_It.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* ===== GLOBAL RESET ===== */
+/* Modern CSS Reset basierend auf Josh Comeau's CSS Reset */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeSpeed;
+}
+
+/* ===== QUICKSAND ALS GLOBAL STANDARD ===== */
+/* Ersetzt Times New Roman als Browser-Standard */
+
+html {
+  font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', sans-serif;
+  font-size: 17px;
+  font-weight: 300;
+}
+
+body {
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 300;
+  line-height: 1.6;
+  color: #333333;
+  background-color: #ffffff;
+}
+
+/* Alle Text-Elemente erben Quicksand */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+span,
+div,
+article,
+section,
+button,
+input,
+textarea,
+select,
+a,
+label,
+legend,
+fieldset,
+table,
+th,
+td,
+caption,
+dl,
+dt,
+dd,
+ul,
+ol,
+li,
+blockquote,
+cite,
+q,
+address,
+time,
+mark,
+small,
+sub,
+sup,
+strong,
+em,
+b,
+i,
+u,
+code,
+kbd,
+samp,
+var,
+pre,
+details,
+summary {
+  font-family: inherit;
+}
+
+/* ===== TYPOGRAPHY IMPROVEMENTS ===== */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.5em;
+}
+
+h1 {
+  font-size: 2.5rem;
+}
+h2 {
+  font-size: 2rem;
+}
+h3 {
+  font-size: 1.75rem;
+}
+h4 {
+  font-size: 1.5rem;
+}
+h5 {
+  font-size: 1.25rem;
+}
+h6 {
+  font-size: 1rem;
+}
+
+p {
+  margin-bottom: 1rem;
+}
+
+strong,
+b {
+  font-weight: 700;
+}
+
+em,
+i {
+  font-style: italic;
+}
+
+/* ===== FORM ELEMENTS ===== */
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input,
+textarea,
+select {
+  border: 1px solid #ccc;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+/* ===== MEDIA ELEMENTS ===== */
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* ===== LIST IMPROVEMENTS ===== */
+ol,
+ul {
+  list-style: none;
+}
+
+/* Nur wenn gewünscht, Listen-Stil wiederherstellen */
+.styled-list ol {
+  list-style: decimal;
+  margin-left: 2rem;
+}
+
+.styled-list ul {
+  list-style: disc;
+  margin-left: 2rem;
+}
+
+/* ===== TABLE IMPROVEMENTS ===== */
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  width: 100%;
+}
+
+th,
+td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+th {
+  font-weight: 700;
+  background-color: #f5f5f5;
+}
+
+/* ===== ACCESSIBILITY IMPROVEMENTS ===== */
+
+/* Focus-Indikatoren */
+*:focus {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===== SELECTION STYLES ===== */
+::selection {
+  background-color: #0066cc;
+  color: white;
+}
+
+::-moz-selection {
+  background-color: #0066cc;
+  color: white;
+}
+
+/* ===== SCROLLBAR STYLING (WebKit) ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* ===== DEVELOPER OVERRIDE SYSTEM ===== */
+/* Entwickler können diese Klasse verwenden um Quicksand zu überschreiben */
+
+.custom-font,
+.custom-font * {
+  font-family: inherit !important;
+}
+
+.system-font,
+.system-font * {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
+}
+
+.monospace-font,
+.monospace-font * {
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace !important;
+}
+
+/* ===== QUICKSAND FONT VARIATIONS ===== */
+
+.font-light {
+  font-weight: 300;
+}
+
+.font-normal {
+  font-weight: 400;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.font-dash {
+  font-family: 'Quicksand Dash', 'Quicksand', sans-serif;
+}
+
+/* ===== PRINT STYLES ===== */
+@media print {
+  * {
+    color: black !important;
+    background: white !important;
+  }
+
+  body {
+    font-size: 12pt;
+    line-height: 1.4;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    page-break-after: avoid;
+  }
+}
+
+/* ===== RESPONSIVE TYPOGRAPHY ===== */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+  h2 {
+    font-size: 1.75rem;
+  }
+  h3 {
+    font-size: 1.5rem;
+  }
+  h4 {
+    font-size: 1.25rem;
+  }
+  h5 {
+    font-size: 1.125rem;
+  }
+  h6 {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* ===== DEBUG HELPERS (nur für Development) ===== */
+
+.debug-font {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  z-index: 9999;
+}
+
+.debug-font::after {
+  content: 'Font: Quicksand loaded ✓';
+}

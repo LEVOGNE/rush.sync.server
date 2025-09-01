@@ -4,8 +4,7 @@ use crate::core::prelude::*;
 use crate::server::types::{ServerContext, ServerStatus};
 use crate::server::utils::port::is_port_available;
 use crate::server::utils::validation::find_server;
-use std::future::Future;
-use std::pin::Pin;
+use opener;
 
 #[derive(Debug, Default)]
 pub struct StartCommand;
@@ -34,40 +33,16 @@ impl Command for StartCommand {
             ));
         }
 
-        // DON'T use block_on - instead use spawn_blocking for config loading
-        let config_result = std::thread::spawn(|| {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(Config::load())
-        })
-        .join()
-        .map_err(|_| AppError::Validation("Failed to load config".to_string()))??;
+        let _server_id = args[0];
+        let _browser_override = StartCommand::parse_browser_override(&args[1..]);
 
+        let config = get_config()?;
         let ctx = crate::server::shared::get_shared_context();
 
-        self.start_server_sync(&config_result, ctx, args[0])
+        // FIX: config statt config_result verwenden
+        self.start_server_sync(&config, ctx, args[0])
     }
 
-    fn execute_async<'a>(
-        &'a self,
-        args: &'a [&'a str],
-    ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
-        Box::pin(async move {
-            if args.is_empty() {
-                return Err(AppError::Validation(
-                    "Server-ID/Name fehlt! Verwende 'start <ID>'".to_string(),
-                ));
-            }
-
-            let config = Config::load().await?;
-            let ctx = crate::server::shared::get_shared_context();
-
-            self.start_server_async(&config, ctx, args[0]).await
-        })
-    }
-
-    fn supports_async(&self) -> bool {
-        true
-    }
     fn priority(&self) -> u8 {
         66
     }
@@ -75,20 +50,6 @@ impl Command for StartCommand {
 
 impl StartCommand {
     fn start_server_sync(
-        &self,
-        config: &Config,
-        ctx: &ServerContext,
-        identifier: &str,
-    ) -> Result<String> {
-        let server_info = {
-            let servers = ctx.servers.read().unwrap();
-            find_server(&servers, identifier)?.clone()
-        };
-
-        self.validate_and_start_server(config, ctx, server_info)
-    }
-
-    async fn start_server_async(
         &self,
         config: &Config,
         ctx: &ServerContext,
@@ -143,8 +104,25 @@ impl StartCommand {
         }
 
         // Check port availability
-        if !is_port_available(server_info.port) {
-            return Ok(format!("Port {} already occupied!", server_info.port));
+        // Robuste Port-Validierung
+        match crate::server::utils::port::check_port_status(server_info.port) {
+            crate::server::utils::port::PortStatus::Available => {
+                // Port ist frei - weiter
+            }
+            crate::server::utils::port::PortStatus::OccupiedByUs => {
+                // Port wird bereits von unserem Server verwendet
+                return Ok(format!(
+                    "Port {} wird bereits von Server '{}' verwendet!",
+                    server_info.port, server_info.name
+                ));
+            }
+            crate::server::utils::port::PortStatus::OccupiedByOther => {
+                // Port wird von anderem Prozess verwendet
+                return Ok(format!(
+                    "Port {} ist von anderem Prozess belegt! Verwende anderen Port.",
+                    server_info.port
+                ));
+            }
         }
 
         // Check server limits
@@ -192,12 +170,43 @@ impl StartCommand {
                         .await;
                 });
 
+                let server_url = format!("http://127.0.0.1:{}", server_info.port);
+                if config.server.auto_open_browser {
+                    let url_clone = server_url.clone();
+                    let server_name_clone = server_info.name.clone();
+                    tokio::spawn(async move {
+                        tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
+                        match opener::open(&url_clone) {
+                            Ok(_) => {
+                                log::info!(
+                                    "Browser opened for '{}': {}",
+                                    server_name_clone,
+                                    url_clone
+                                );
+                            }
+                            Err(e) => {
+                                log::warn!(
+                                    "Failed to open browser for '{}': {} (URL: {})",
+                                    server_name_clone,
+                                    e,
+                                    url_clone
+                                );
+                            }
+                        }
+                    });
+                }
+
                 Ok(format!(
-                    "Server '{}' successfully started on http://127.0.0.1:{} [PERSISTENT] ({}/{} running)",
+                    "Server '{}' successfully started on {} [PERSISTENT] ({}/{} running){}",
                     server_info.name,
-                    server_info.port,
+                    server_url, // URL statt nur Port
                     running_servers + 1,
-                    config.server.max_concurrent
+                    config.server.max_concurrent,
+                    if config.server.auto_open_browser {
+                        " - Browser opening..."
+                    } else {
+                        ""
+                    }
                 ))
             }
             Err(e) => {
@@ -232,5 +241,17 @@ impl StartCommand {
                 server.status = status;
             }
         }
+    }
+
+    // Helper für Browser-Override Parsing
+    fn parse_browser_override(args: &[&str]) -> Option<bool> {
+        for arg in args {
+            match *arg {
+                "--no-browser" => return Some(false),
+                "--browser" => return Some(true),
+                _ => continue,
+            }
+        }
+        None
     }
 }

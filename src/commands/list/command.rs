@@ -1,8 +1,6 @@
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 use crate::server::types::{ServerContext, ServerStatus};
-use std::future::Future;
-use std::pin::Pin;
 
 #[derive(Debug, Default)]
 pub struct ListCommand;
@@ -30,16 +28,6 @@ impl Command for ListCommand {
         Ok(self.list_servers(ctx))
     }
 
-    fn execute_async<'a>(
-        &'a self,
-        _args: &'a [&'a str],
-    ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
-        Box::pin(async move { self.execute_sync(_args) })
-    }
-
-    fn supports_async(&self) -> bool {
-        true
-    }
     fn priority(&self) -> u8 {
         60
     }

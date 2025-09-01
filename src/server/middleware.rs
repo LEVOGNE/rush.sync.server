@@ -60,7 +60,6 @@ where
         let start_time = Instant::now();
         let server_logger = self.server_logger.clone();
 
-        // Request-Info extrahieren (vollständig wie original)
         let ip = {
             let connection_info = req.connection_info();
             connection_info
@@ -77,7 +76,6 @@ where
         let method = req.method().to_string();
         let query_string = req.query_string().to_string();
 
-        // Security check
         let suspicious = path.contains("..")
             || path.contains("<script")
             || path.contains("sql")
@@ -98,7 +96,6 @@ where
             });
         }
 
-        // Vollständige Header-Extraktion wie original
         let headers: std::collections::HashMap<String, String> = req
             .headers()
             .iter()
@@ -152,7 +149,7 @@ where
                     Some(query_string)
                 },
                 headers,
-                session_id: None, // Vereinfacht entfernt wegen Extension-Komplexität
+                session_id: None,
             };
 
             if let Err(e) = server_logger.write_log_entry(entry).await {

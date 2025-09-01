@@ -5,8 +5,6 @@
 use super::ThemeSystem;
 use crate::commands::command::Command;
 use crate::core::prelude::*;
-use std::future::Future;
-use std::pin::Pin;
 
 #[derive(Debug)]
 pub struct ThemeCommand {
@@ -102,17 +100,6 @@ impl Command for ThemeCommand {
                 theme_system.change_theme_i18n(theme_name)
             }
         }
-    }
-
-    fn execute_async<'a>(
-        &'a self,
-        args: &'a [&'a str],
-    ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
-        Box::pin(async move { self.execute_sync(args) })
-    }
-
-    fn supports_async(&self) -> bool {
-        true
     }
 
     fn priority(&self) -> u8 {

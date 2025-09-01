@@ -1,8 +1,6 @@
 use super::LanguageService;
 use crate::commands::command::Command;
 use crate::core::prelude::*;
-use std::future::Future;
-use std::pin::Pin;
 
 #[derive(Debug)]
 pub struct LanguageCommand {
@@ -55,24 +53,6 @@ impl Command for LanguageCommand {
                 )),
             },
         }
-    }
-
-    fn execute_async<'a>(
-        &'a self,
-        args: &'a [&'a str],
-    ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
-        Box::pin(async move {
-            let mut service = LanguageService::new();
-
-            match args.first() {
-                None => Ok(service.show_status()),
-                Some(&lang) => service.change_language(lang).await,
-            }
-        })
-    }
-
-    fn supports_async(&self) -> bool {
-        true
     }
 
     fn priority(&self) -> u8 {

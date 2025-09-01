@@ -6,7 +6,6 @@ pub fn find_server<'a>(
     servers: &'a HashMap<String, ServerInfo>,
     identifier: &str,
 ) -> Result<&'a ServerInfo> {
-    // Index-Suche
     if let Ok(index) = identifier.parse::<usize>() {
         if index > 0 && index <= servers.len() {
             let mut server_list: Vec<_> = servers.values().collect();
@@ -18,7 +17,6 @@ pub fn find_server<'a>(
         }
     }
 
-    // Name oder ID-Präfix
     for server in servers.values() {
         if server.name == identifier || server.id.starts_with(identifier) {
             return Ok(server);

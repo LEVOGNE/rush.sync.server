@@ -36,7 +36,7 @@ struct LanguageConfig {
     current: String,
 }
 
-// NEW: Server Configuration TOML Structure
+// FIXED: Server Configuration TOML Structure with auto_open_browser
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct ServerConfigToml {
     #[serde(default = "default_port_start")]
@@ -51,6 +51,8 @@ struct ServerConfigToml {
     startup_delay_ms: u64,
     #[serde(default = "default_workers")]
     workers: usize,
+    #[serde(default = "default_auto_open_browser")]
+    auto_open_browser: bool,
 }
 
 // NEW: Logging Configuration TOML Structure
@@ -124,6 +126,9 @@ fn default_startup_delay() -> u64 {
 fn default_workers() -> usize {
     1
 }
+fn default_auto_open_browser() -> bool {
+    true
+}
 
 // Logging defaults
 fn default_max_file_size() -> u64 {
@@ -172,6 +177,7 @@ pub struct ServerConfig {
     pub shutdown_timeout: u64,
     pub startup_delay_ms: u64,
     pub workers: usize,
+    pub auto_open_browser: bool,
 }
 
 #[derive(Clone)]
@@ -222,6 +228,7 @@ impl Default for ServerConfig {
             shutdown_timeout: 5,
             startup_delay_ms: 500,
             workers: 1,
+            auto_open_browser: true,
         }
     }
 }
@@ -282,7 +289,7 @@ impl Config {
         let typewriter = Self::clamp(file.general.typewriter_delay, 0, 2000, 50);
         let theme = Self::load_theme(&file).unwrap_or_default();
 
-        // Load server config with defaults
+        // FIXED: Load server config with all fields including auto_open_browser
         let server = file
             .server
             .map_or_else(ServerConfig::default, |s| ServerConfig {
@@ -292,6 +299,7 @@ impl Config {
                 shutdown_timeout: s.shutdown_timeout,
                 startup_delay_ms: s.startup_delay_ms,
                 workers: s.workers,
+                auto_open_browser: s.auto_open_browser,
             });
 
         // Load logging config with defaults
@@ -344,7 +352,7 @@ impl Config {
         Theme::from_config(def).ok()
     }
 
-    // Enhanced save with server and logging configs
+    // FIXED: Enhanced save with server and logging configs including auto_open_browser
     pub async fn save(&self) -> Result<()> {
         let Some(path) = &self.config_path else {
             return Ok(());
@@ -368,6 +376,7 @@ impl Config {
                 shutdown_timeout: self.server.shutdown_timeout,
                 startup_delay_ms: self.server.startup_delay_ms,
                 workers: self.server.workers,
+                auto_open_browser: self.server.auto_open_browser,
             }),
             logging: Some(LoggingConfigToml {
                 max_file_size_mb: self.logging.max_file_size_mb,

@@ -1,21 +1,43 @@
-// Fixed src/server/utils/port.rs
 use crate::core::config::Config;
 use crate::core::prelude::*;
-use std::net::TcpListener;
-use std::time::Duration;
 
-pub fn is_port_available(port: u16) -> bool {
-    match TcpListener::bind(("127.0.0.1", port)) {
-        Ok(listener) => {
-            drop(listener);
-            std::thread::sleep(Duration::from_millis(10));
-            TcpListener::bind(("127.0.0.1", port)).is_ok()
-        }
-        Err(_) => false,
-    }
+pub enum PortStatus {
+    Available,
+    OccupiedByUs,
+    OccupiedByOther,
 }
 
-// Updated to use Config instead of ServerContext
+pub fn check_port_status(port: u16) -> PortStatus {
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener};
+
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
+
+    // frei?
+    if let Ok(listener) = TcpListener::bind(addr) {
+        drop(listener);
+        return PortStatus::Available;
+    }
+
+    // belegt – prüfen ob von uns
+    let ctx = crate::server::shared::get_shared_context();
+    if let Ok(servers) = ctx.servers.read() {
+        if servers.values().any(|s| s.port == port) {
+            return PortStatus::OccupiedByUs;
+        }
+    }
+
+    PortStatus::OccupiedByOther
+}
+
+pub fn is_port_available(port: u16) -> bool {
+    std::net::TcpListener::bind(("127.0.0.1", port))
+        .map(|l| {
+            drop(l);
+            true
+        })
+        .unwrap_or(false)
+}
+
 pub fn find_next_available_port(config: &Config) -> Result<u16> {
     let ctx = crate::server::shared::get_shared_context();
     let servers = ctx.servers.read().unwrap();
@@ -41,15 +63,13 @@ pub fn find_next_available_port(config: &Config) -> Result<u16> {
     }
 }
 
-// Legacy function for backward compatibility - REMOVED ServerContext dependency
 pub fn find_next_available_port_legacy() -> Result<u16> {
-    // This function is deprecated and only provides basic functionality
     let ctx = crate::server::shared::get_shared_context();
     let servers = ctx.servers.read().unwrap();
     let mut used_ports: Vec<u16> = servers.values().map(|s| s.port).collect();
     used_ports.sort();
 
-    let mut candidate_port = 8080; // Fallback default
+    let mut candidate_port = 8080;
 
     loop {
         if !used_ports.contains(&candidate_port) && is_port_available(candidate_port) {

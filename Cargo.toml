@@ -1,13 +1,13 @@
 [package]
 name = "rush-sync-server"
-version = "0.3.3"
+version = "0.3.4"
 edition = "2021"
 description = "Modern asynchronous TUI application with i18n and modular command system"
 license = "GPL-3.0 OR LicenseRef-Commercial"
 repository = "https://github.com/LEVOGNE/rush.sync.server"
 readme = "README.md"
-keywords = ["tui", "terminal", "i18n", "commands"]
-categories = ["command-line-utilities", "development-tools"]
+keywords = ["webserver", "actix-web", "server-management", "static-hosting"]
+categories = ["command-line-utilities", "network-programming"]
 
 # =====================================================
 # CORE DEPENDENCIES (NUR STABILE BASIS)
@@ -39,6 +39,7 @@ rust-embed = "6.8"
 strip-ansi-escapes = "0.1.1"
 regex = "1"
 walkdir = "2"
+async-trait = "0.1"
 
 # Server
 actix-web = "4.4"
@@ -48,7 +49,12 @@ tokio-util = "0.7"
 futures = "0.3"
 futures-util = "0.3"
 flate2 = "1.0"
-
+actix-files = "0.6"
+opener = "0.7"
+reqwest = { version = "0.11", features = ["json"] }
+notify = "6.0"
+actix-web-actors = "4.2"
+actix = "0.13"
 
 # =====================================================
 # OPTIONAL FEATURES (für später)

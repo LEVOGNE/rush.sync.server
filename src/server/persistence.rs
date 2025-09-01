@@ -192,6 +192,45 @@ impl ServerRegistry {
         }
         Ok(servers)
     }
+
+    pub async fn cleanup_server_directory(&self, server_name: &str, port: u16) -> Result<()> {
+        let exe_path = std::env::current_exe().map_err(AppError::Io)?;
+        let base_dir = exe_path.parent().ok_or_else(|| {
+            AppError::Validation("Cannot determine executable directory".to_string())
+        })?;
+
+        let server_dir = base_dir
+            .join("www")
+            .join(format!("{}-[{}]", server_name, port));
+
+        if server_dir.exists() {
+            std::fs::remove_dir_all(&server_dir).map_err(AppError::Io)?;
+            log::info!("Removed server directory: {:?}", server_dir);
+        }
+        Ok(())
+    }
+
+    pub fn list_www_directories(&self) -> Result<Vec<PathBuf>> {
+        let exe_path = std::env::current_exe().map_err(AppError::Io)?;
+        let base_dir = exe_path.parent().ok_or_else(|| {
+            AppError::Validation("Cannot determine executable directory".to_string())
+        })?;
+
+        let www_dir = base_dir.join("www");
+        if !www_dir.exists() {
+            return Ok(vec![]);
+        }
+
+        let mut directories = Vec::new();
+        for entry in std::fs::read_dir(&www_dir).map_err(AppError::Io)? {
+            let entry = entry.map_err(AppError::Io)?;
+            if entry.file_type().map_err(AppError::Io)?.is_dir() {
+                directories.push(entry.path());
+            }
+        }
+        directories.sort();
+        Ok(directories)
+    }
 }
 
 #[derive(Debug)]

@@ -1,12 +1,9 @@
-// Fixed src/commands/stop/command.rs
+// Fixed src/commands/stop/command.rs - MIT BROWSER CLOSE
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 use crate::server::types::{ServerContext, ServerStatus};
 use crate::server::utils::validation::find_server;
-use std::future::Future;
-use std::pin::Pin;
 use std::time::Duration;
-use tokio::time::timeout;
 
 #[derive(Debug, Default)]
 pub struct StopCommand;
@@ -37,39 +34,10 @@ impl Command for StopCommand {
             ));
         }
 
-        // DON'T use block_on - instead use spawn_blocking for config loading
-        let config_result = std::thread::spawn(|| {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(Config::load())
-        })
-        .join()
-        .map_err(|_| AppError::Validation("Failed to load config".to_string()))??;
+        let config = get_config()?;
 
         let ctx = crate::server::shared::get_shared_context();
-
-        self.stop_server(&config_result, ctx, args[0])
-    }
-
-    fn execute_async<'a>(
-        &'a self,
-        args: &'a [&'a str],
-    ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
-        Box::pin(async move {
-            if args.is_empty() {
-                return Err(AppError::Validation(
-                    "Server-ID/Name fehlt! Verwende 'stop <ID>'".to_string(),
-                ));
-            }
-
-            let config = Config::load().await?;
-            let ctx = crate::server::shared::get_shared_context();
-
-            self.stop_server_async(&config, ctx, args[0]).await
-        })
-    }
-
-    fn supports_async(&self) -> bool {
-        true
+        self.stop_server(&config, ctx, args[0])
     }
 
     fn priority(&self) -> u8 {
@@ -84,17 +52,32 @@ impl StopCommand {
         ctx: &ServerContext,
         identifier: &str,
     ) -> Result<String> {
-        let server_info = {
-            let servers = ctx.servers.read().unwrap();
-            find_server(&servers, identifier)?.clone()
-        };
+        // Atomare Operationen für Race-Condition-Schutz
+        let (server_info, handle) = {
+            let servers_guard = ctx
+                .servers
+                .read()
+                .map_err(|_| AppError::Validation("Server-Context lock poisoned".to_string()))?;
 
-        if server_info.status != ServerStatus::Running {
-            return Ok(format!(
-                "Server '{}' is not active (Status: {})",
-                server_info.name, server_info.status
-            ));
-        }
+            let server_info = find_server(&servers_guard, identifier)?.clone();
+
+            if server_info.status != ServerStatus::Running {
+                return Ok(format!(
+                    "Server '{}' is not active (Status: {})",
+                    server_info.name, server_info.status
+                ));
+            }
+
+            // Handle atomisch entfernen
+            let handle = {
+                let mut handles_guard = ctx.handles.write().map_err(|_| {
+                    AppError::Validation("Handle-Context lock poisoned".to_string())
+                })?;
+                handles_guard.remove(&server_info.id)
+            };
+
+            (server_info, handle)
+        };
 
         log::info!(
             "Stopping server {} on port {}",
@@ -102,27 +85,33 @@ impl StopCommand {
             server_info.port
         );
 
-        let handle_removed = {
-            let mut handles = ctx.handles.write().unwrap();
-            handles.remove(&server_info.id)
-        };
+        // Status sofort auf "Stopping" setzen um Race Conditions zu vermeiden
+        self.update_server_status(ctx, &server_info.id, ServerStatus::Stopped);
 
-        if let Some(handle) = handle_removed {
+        // Browser-Benachrichtigung
+        self.notify_browser_shutdown(&server_info);
+
+        if let Some(handle) = handle {
+            // Graceful shutdown
             self.shutdown_server_gracefully(handle, server_info.id.clone(), config);
-            self.update_server_status(ctx, &server_info.id, ServerStatus::Stopped);
 
-            // Persistence update
+            // Persistence update (nicht blockierend)
             let server_id = server_info.id.clone();
             tokio::spawn(async move {
                 crate::server::shared::persist_server_update(&server_id, ServerStatus::Stopped)
                     .await;
             });
 
-            // Use configurable startup delay for consistent timing
-            std::thread::sleep(Duration::from_millis(config.server.startup_delay_ms));
+            // Kurze Pause für konsistente Timing
+            std::thread::sleep(Duration::from_millis(
+                config.server.startup_delay_ms.min(500),
+            ));
 
             let running_count = {
-                let servers = ctx.servers.read().unwrap();
+                let servers = ctx.servers.read().unwrap_or_else(|e| {
+                    log::warn!("Server lock poisoned: {}", e);
+                    e.into_inner()
+                });
                 servers
                     .values()
                     .filter(|s| s.status == ServerStatus::Running)
@@ -134,9 +123,7 @@ impl StopCommand {
                 server_info.name, running_count, config.server.max_concurrent
             ))
         } else {
-            self.update_server_status(ctx, &server_info.id, ServerStatus::Stopped);
-
-            // Persistence update
+            // Handle war bereits weg - nur Status updaten
             let server_id = server_info.id.clone();
             tokio::spawn(async move {
                 crate::server::shared::persist_server_update(&server_id, ServerStatus::Stopped)
@@ -150,86 +137,33 @@ impl StopCommand {
         }
     }
 
-    async fn stop_server_async(
-        &self,
-        config: &Config,
-        ctx: &ServerContext,
-        identifier: &str,
-    ) -> Result<String> {
-        let server_info = {
-            let servers = ctx.servers.read().unwrap();
-            find_server(&servers, identifier)?.clone()
-        };
+    fn notify_browser_shutdown(&self, server_info: &crate::server::types::ServerInfo) {
+        let server_port = server_info.port;
+        let server_name = server_info.name.clone();
 
-        if server_info.status != ServerStatus::Running {
-            return Ok(format!(
-                "Server '{}' is not active (Status: {})",
-                server_info.name, server_info.status
-            ));
-        }
+        // Keine eigene Runtime: einfach task spawnen
+        tokio::spawn(async move {
+            let server_url = format!("http://127.0.0.1:{}", server_port);
+            log::info!(
+                "Notifying browser to close for server {} (async)",
+                server_name
+            );
 
-        log::info!(
-            "Stopping server {} on port {} (async)",
-            server_info.id,
-            server_info.port
-        );
-
-        let handle_removed = {
-            let mut handles = ctx.handles.write().unwrap();
-            handles.remove(&server_info.id)
-        };
-
-        if let Some(handle) = handle_removed {
-            // Use configured shutdown timeout
-            let shutdown_timeout_duration = Duration::from_secs(config.server.shutdown_timeout);
-
-            match timeout(shutdown_timeout_duration, handle.stop(true)).await {
-                Ok(_) => log::info!("Server {} stopped gracefully", server_info.id),
-                Err(_) => {
-                    log::warn!("Server {} shutdown timeout, forcing stop", server_info.id);
-                    handle.stop(false).await;
-                }
+            let client = reqwest::Client::new();
+            if let Err(e) = client
+                .get(format!("{}/api/close-browser", server_url)) // <- ohne &
+                .timeout(std::time::Duration::from_millis(300))
+                .send()
+                .await
+            {
+                log::warn!("Failed to notify browser: {}", e);
             }
 
-            self.update_server_status(ctx, &server_info.id, ServerStatus::Stopped);
-
-            // Persistence update
-            let server_id = server_info.id.clone();
-            tokio::spawn(async move {
-                crate::server::shared::persist_server_update(&server_id, ServerStatus::Stopped)
-                    .await;
-            });
-
-            let running_count = {
-                let servers = ctx.servers.read().unwrap();
-                servers
-                    .values()
-                    .filter(|s| s.status == ServerStatus::Running)
-                    .count()
-            };
-
-            Ok(format!(
-                "Server '{}' stopped [PERSISTENT] ({}/{} running)",
-                server_info.name, running_count, config.server.max_concurrent
-            ))
-        } else {
-            self.update_server_status(ctx, &server_info.id, ServerStatus::Stopped);
-
-            // Persistence update
-            let server_id = server_info.id.clone();
-            tokio::spawn(async move {
-                crate::server::shared::persist_server_update(&server_id, ServerStatus::Stopped)
-                    .await;
-            });
-
-            Ok(format!(
-                "Server '{}' was already stopped [PERSISTENT]",
-                server_info.name
-            ))
-        }
+            // Mini-Pause, damit Browser reagieren kann
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        });
     }
 
-    // Updated to use config for shutdown timeout
     fn shutdown_server_gracefully(
         &self,
         handle: actix_web::dev::ServerHandle,
@@ -238,21 +172,20 @@ impl StopCommand {
     ) {
         let shutdown_timeout = config.server.shutdown_timeout;
 
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async move {
-                match timeout(Duration::from_secs(shutdown_timeout), handle.stop(true)).await {
-                    Ok(_) => log::info!("Server {} stopped gracefully", server_id),
-                    Err(_) => {
-                        log::warn!(
-                            "Server {} shutdown timeout ({}s), forcing stop",
-                            server_id,
-                            shutdown_timeout
-                        );
-                        handle.stop(false).await;
-                    }
+        tokio::spawn(async move {
+            use tokio::time::{timeout, Duration};
+
+            match timeout(Duration::from_secs(shutdown_timeout), handle.stop(true)).await {
+                Ok(_) => log::info!("Server {} stopped gracefully", server_id),
+                Err(_) => {
+                    log::warn!(
+                        "Server {} shutdown timeout ({}s), forcing stop",
+                        server_id,
+                        shutdown_timeout
+                    );
+                    handle.stop(false).await;
                 }
-            });
+            }
         });
     }
 

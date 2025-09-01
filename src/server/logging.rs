@@ -1,8 +1,8 @@
-// Complete Updated src/server/logging.rs
 use crate::core::config::LoggingConfig;
 use crate::core::prelude::*;
 use actix_web::HttpMessage;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -20,7 +20,7 @@ pub struct ServerLogEntry {
     pub bytes_sent: Option<u64>,
     pub referer: Option<String>,
     pub query_string: Option<String>,
-    pub headers: std::collections::HashMap<String, String>,
+    pub headers: HashMap<String, String>,
     pub session_id: Option<String>,
 }
 
@@ -42,10 +42,9 @@ pub struct LogRotationConfig {
 }
 
 impl LogRotationConfig {
-    // NEW: Create from main LoggingConfig
     pub fn from_main_config(logging_config: &LoggingConfig) -> Self {
         Self {
-            max_file_size_bytes: logging_config.max_file_size_mb * 1024 * 1024, // Convert MB to bytes
+            max_file_size_bytes: logging_config.max_file_size_mb * 1024 * 1024,
             max_archive_files: logging_config.max_archive_files,
             compress_archives: logging_config.compress_archives,
         }
@@ -55,7 +54,7 @@ impl LogRotationConfig {
 impl Default for LogRotationConfig {
     fn default() -> Self {
         Self {
-            max_file_size_bytes: 100 * 1024 * 1024, // 100MB
+            max_file_size_bytes: 100 * 1024 * 1024,
             max_archive_files: 9,
             compress_archives: true,
         }
@@ -64,14 +63,13 @@ impl Default for LogRotationConfig {
 
 pub struct ServerLogger {
     log_file_path: PathBuf,
-    config: LogRotationConfig, // NEW: Store config instance
-    should_log_requests: bool, // NEW: Configurable logging flags
+    config: LogRotationConfig,
+    should_log_requests: bool,
     should_log_security: bool,
     should_log_performance: bool,
 }
 
 impl ServerLogger {
-    // NEW: Primary constructor with full config
     pub fn new_with_config(
         server_name: &str,
         port: u16,
@@ -102,7 +100,6 @@ impl ServerLogger {
         })
     }
 
-    // Legacy constructor for backward compatibility
     pub fn new(server_name: &str, port: u16) -> Result<Self> {
         let default_config = LoggingConfig::default();
         Self::new_with_config(server_name, port, &default_config)
@@ -137,12 +134,11 @@ impl ServerLogger {
             bytes_sent: None,
             referer: None,
             query_string: None,
-            headers: std::collections::HashMap::new(),
+            headers: HashMap::new(),
             session_id: None,
         }
     }
 
-    // UPDATED: Check if request logging is enabled
     pub async fn log_request(
         &self,
         req: &actix_web::HttpRequest,
@@ -151,7 +147,7 @@ impl ServerLogger {
         bytes_sent: u64,
     ) -> Result<()> {
         if !self.should_log_requests {
-            return Ok(()); // Skip if disabled in config
+            return Ok(());
         }
 
         let ip = {
@@ -166,7 +162,7 @@ impl ServerLogger {
                 .to_string()
         };
 
-        let headers: std::collections::HashMap<String, String> = req
+        let headers: HashMap<String, String> = req
             .headers()
             .iter()
             .filter_map(|(name, value)| {
@@ -219,13 +215,12 @@ impl ServerLogger {
         self.write_log_entry(entry).await
     }
 
-    // UPDATED: Check if security logging is enabled
     pub async fn log_security_alert(&self, ip: &str, reason: &str, details: &str) -> Result<()> {
         if !self.should_log_security {
-            return Ok(()); // Skip if disabled in config
+            return Ok(());
         }
 
-        let mut headers = std::collections::HashMap::new();
+        let mut headers = HashMap::new();
         headers.insert("alert_reason".to_string(), reason.to_string());
         headers.insert("alert_details".to_string(), details.to_string());
 
@@ -254,7 +249,6 @@ impl ServerLogger {
         self.write_log_entry(entry).await
     }
 
-    // NEW: Performance logging
     pub async fn log_performance_warning(
         &self,
         metric: &str,
@@ -262,10 +256,10 @@ impl ServerLogger {
         threshold: u64,
     ) -> Result<()> {
         if !self.should_log_performance {
-            return Ok(()); // Skip if disabled in config
+            return Ok(());
         }
 
-        let mut headers = std::collections::HashMap::new();
+        let mut headers = HashMap::new();
         headers.insert("metric".to_string(), metric.to_string());
         headers.insert("value".to_string(), value.to_string());
         headers.insert("threshold".to_string(), threshold.to_string());
@@ -318,7 +312,6 @@ impl ServerLogger {
         Ok(())
     }
 
-    // UPDATED: Use instance config instead of default
     async fn check_and_rotate_if_needed(&self) -> Result<()> {
         if !self.log_file_path.exists() {
             return Ok(());
@@ -334,13 +327,11 @@ impl ServerLogger {
         Ok(())
     }
 
-    // UPDATED: Use instance config
     async fn rotate_log_files(&self) -> Result<()> {
         let base_path = &self.log_file_path;
         let base_name = base_path.file_stem().unwrap().to_string_lossy();
         let parent_dir = base_path.parent().unwrap();
 
-        // Move existing archives backward
         for i in (1..self.config.max_archive_files).rev() {
             let old_gz_path = parent_dir.join(format!("{}.{}.log.gz", base_name, i));
             let old_log_path = parent_dir.join(format!("{}.{}.log", base_name, i));
@@ -358,18 +349,15 @@ impl ServerLogger {
             }
         }
 
-        // Move current file to .1
         let archive_path = parent_dir.join(format!("{}.1.log", base_name));
         tokio::fs::rename(base_path, &archive_path)
             .await
             .map_err(AppError::Io)?;
 
-        // Compression
         if self.config.compress_archives {
             self.compress_log_file(&archive_path).await?;
         }
 
-        // Cleanup
         let cleanup_num = self.config.max_archive_files + 1;
         let cleanup_log = parent_dir.join(format!("{}.{}.log", base_name, cleanup_num));
         let cleanup_gz = parent_dir.join(format!("{}.{}.log.gz", base_name, cleanup_num));
@@ -398,7 +386,13 @@ impl ServerLogger {
         encoder.write_all(&content).map_err(AppError::Io)?;
         let compressed = encoder.finish().map_err(AppError::Io)?;
 
-        let gz_path = file_path.with_extension("log.gz");
+        let gz_path = file_path.with_file_name(format!(
+            "{}.gz",
+            file_path
+                .file_name()
+                .ok_or_else(|| AppError::Validation("Invalid file path".to_string()))?
+                .to_string_lossy()
+        ));
         tokio::fs::write(&gz_path, compressed)
             .await
             .map_err(AppError::Io)?;
@@ -441,19 +435,27 @@ impl ServerLogger {
     }
 
     pub async fn get_request_stats(&self) -> Result<ServerStats> {
+        use tokio::io::{AsyncBufReadExt, BufReader};
+
         if !self.log_file_path.exists() {
             return Ok(ServerStats::default());
         }
 
-        let content = tokio::fs::read_to_string(&self.log_file_path)
+        let file = tokio::fs::File::open(&self.log_file_path)
             .await
             .map_err(AppError::Io)?;
+        let mut reader = BufReader::new(file).lines();
+
         let mut stats = ServerStats::default();
         let mut unique_ips = std::collections::HashSet::new();
-        let mut response_times = Vec::new();
 
-        for line in content.lines() {
-            if let Ok(entry) = serde_json::from_str::<ServerLogEntry>(line) {
+        // Ein-Pass-Statistik (ohne Sort)
+        let mut sum_rt: u64 = 0;
+        let mut cnt_rt: u64 = 0;
+        let mut max_rt: u64 = 0;
+
+        while let Some(line) = reader.next_line().await.map_err(AppError::Io)? {
+            if let Ok(entry) = serde_json::from_str::<ServerLogEntry>(&line) {
                 match entry.event_type {
                     LogEventType::Request => {
                         stats.total_requests += 1;
@@ -464,39 +466,33 @@ impl ServerLogger {
                                 stats.error_requests += 1;
                             }
                         }
-
-                        if let Some(response_time) = entry.response_time_ms {
-                            response_times.push(response_time);
+                        if let Some(rt) = entry.response_time_ms {
+                            sum_rt += rt;
+                            cnt_rt += 1;
+                            if rt > max_rt {
+                                max_rt = rt;
+                            }
                         }
-
                         if let Some(bytes) = entry.bytes_sent {
                             stats.total_bytes_sent += bytes;
                         }
                     }
-                    LogEventType::SecurityAlert => {
-                        stats.security_alerts += 1;
-                    }
-                    LogEventType::PerformanceWarning => {
-                        stats.performance_warnings += 1;
-                    }
+                    LogEventType::SecurityAlert => stats.security_alerts += 1,
+                    LogEventType::PerformanceWarning => stats.performance_warnings += 1,
                     _ => {}
                 }
             }
         }
 
         stats.unique_ips = unique_ips.len() as u64;
-
-        if !response_times.is_empty() {
-            response_times.sort();
-            stats.avg_response_time =
-                response_times.iter().sum::<u64>() / response_times.len() as u64;
-            stats.max_response_time = *response_times.last().unwrap_or(&0);
+        if cnt_rt > 0 {
+            stats.avg_response_time = sum_rt / cnt_rt;
+            stats.max_response_time = max_rt;
         }
 
         Ok(stats)
     }
 
-    // NEW: Getters for config validation
     pub fn get_config_summary(&self) -> String {
         format!(
             "Log Config: Max Size {}MB, Archives: {}, Compression: {}, Requests: {}, Security: {}, Performance: {}",
@@ -516,7 +512,7 @@ pub struct ServerStats {
     pub unique_ips: u64,
     pub error_requests: u64,
     pub security_alerts: u64,
-    pub performance_warnings: u64, // NEW: Track performance warnings
+    pub performance_warnings: u64,
     pub total_bytes_sent: u64,
     pub avg_response_time: u64,
     pub max_response_time: u64,
