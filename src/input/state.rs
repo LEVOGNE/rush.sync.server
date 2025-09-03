@@ -595,7 +595,7 @@ impl InputState {
 
 // ✅ WIDGET TRAIT IMPLEMENTATIONS (unverändert)
 impl Widget for InputState {
-    fn render(&self) -> Paragraph {
+    fn render(&self) -> Paragraph<'_> {
         self.render_with_cursor().0
     }
 
@@ -605,7 +605,7 @@ impl Widget for InputState {
 }
 
 impl CursorWidget for InputState {
-    fn render_with_cursor(&self) -> (Paragraph, Option<(u16, u16)>) {
+    fn render_with_cursor(&self) -> (Paragraph<'_>, Option<(u16, u16)>) {
         let graphemes: Vec<&str> = self.content.graphemes(true).collect();
         let cursor_pos = self.cursor.get_position();
         let prompt_width = self.prompt.width();

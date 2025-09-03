@@ -63,12 +63,6 @@ body {
   overflow-x: hidden;
 }
 
-.dashboard {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
 /* ===== HEADER ===== */
 .dashboard-header {
   background: var(--bg-secondary);
@@ -145,6 +139,33 @@ body {
   font-weight: 500;
   color: var(--text-secondary);
   text-transform: uppercase;
+}
+
+/* Kompakte Header Actions */
+.header-actions {
+  display: flex;
+  gap: 8px;
+  margin: 0 20px;
+}
+.header-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.header-btn.primary {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+.header-btn:hover {
+  background: var(--border-light);
+}
+.header-btn.primary:hover {
+  background: rgba(0, 212, 255, 0.8);
 }
 
 /* NEW: Hot Reload Badge */
@@ -231,6 +252,12 @@ body {
 }
 
 /* ===== MAIN CONTENT ===== */
+.dashboard {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .dashboard-content {
   flex: 1;
   padding: var(--space-lg);

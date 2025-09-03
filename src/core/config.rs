@@ -1,12 +1,13 @@
-// Enhanced src/core/config.rs - COMPLETE IMPLEMENTATION
+// src/core/config.rs - Cleaned and simplified
 use crate::core::constants::{DEFAULT_BUFFER_SIZE, DEFAULT_POLL_RATE};
 use crate::core::prelude::*;
+use crate::proxy::types::{ProxyConfig, ProxyConfigToml};
 use crate::ui::color::AppColor;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
-// TOML Deserializer Structures
+// TOML Configuration Structure
 #[derive(Debug, Serialize, Deserialize)]
 struct ConfigFile {
     general: GeneralConfig,
@@ -17,6 +18,7 @@ struct ConfigFile {
     #[serde(default)]
     theme: Option<HashMap<String, ThemeDefinitionConfig>>,
     language: LanguageConfig,
+    proxy: Option<ProxyConfigToml>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,7 +38,6 @@ struct LanguageConfig {
     current: String,
 }
 
-// FIXED: Server Configuration TOML Structure with auto_open_browser
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct ServerConfigToml {
     #[serde(default = "default_port_start")]
@@ -53,9 +54,26 @@ struct ServerConfigToml {
     workers: usize,
     #[serde(default = "default_auto_open_browser")]
     auto_open_browser: bool,
+
+    // TLS Configuration
+    #[serde(default = "default_enable_https")]
+    enable_https: bool,
+    #[serde(default = "default_https_port_offset")]
+    https_port_offset: u16,
+    #[serde(default = "default_cert_dir")]
+    cert_dir: String,
+    #[serde(default = "default_auto_cert")]
+    auto_cert: bool,
+    #[serde(default = "default_cert_validity_days")]
+    cert_validity_days: u32,
+
+    // Production Settings
+    #[serde(default = "default_use_lets_encrypt")]
+    use_lets_encrypt: bool,
+    #[serde(default = "default_production_domain")]
+    production_domain: String,
 }
 
-// NEW: Logging Configuration TOML Structure
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct LoggingConfigToml {
     #[serde(default = "default_max_file_size")]
@@ -90,7 +108,7 @@ struct ThemeDefinitionConfig {
     output_cursor_color: String,
 }
 
-// Default functions for TOML deserialization
+// Default Functions
 fn default_theme() -> String {
     "dark".into()
 }
@@ -107,7 +125,7 @@ fn default_cursor() -> String {
     "PIPE".into()
 }
 
-// Server defaults
+// Server Defaults
 fn default_port_start() -> u16 {
     8080
 }
@@ -130,7 +148,30 @@ fn default_auto_open_browser() -> bool {
     true
 }
 
-// Logging defaults
+// TLS Defaults
+fn default_enable_https() -> bool {
+    true
+}
+fn default_https_port_offset() -> u16 {
+    1000
+}
+fn default_cert_dir() -> String {
+    ".rss/certs".to_string()
+}
+fn default_auto_cert() -> bool {
+    true
+}
+fn default_cert_validity_days() -> u32 {
+    365
+}
+fn default_use_lets_encrypt() -> bool {
+    false
+}
+fn default_production_domain() -> String {
+    "localhost".to_string()
+}
+
+// Logging Defaults
 fn default_max_file_size() -> u64 {
     100
 }
@@ -164,9 +205,9 @@ pub struct Config {
     pub current_theme_name: String,
     pub language: String,
     pub debug_info: Option<String>,
-    // NEW: Server and Logging configs
     pub server: ServerConfig,
     pub logging: LoggingConfig,
+    pub proxy: ProxyConfig,
 }
 
 #[derive(Clone)]
@@ -178,6 +219,15 @@ pub struct ServerConfig {
     pub startup_delay_ms: u64,
     pub workers: usize,
     pub auto_open_browser: bool,
+
+    // TLS Configuration
+    pub enable_https: bool,
+    pub https_port_offset: u16,
+    pub cert_dir: String,
+    pub auto_cert: bool,
+    pub cert_validity_days: u32,
+    pub use_lets_encrypt: bool,
+    pub production_domain: String,
 }
 
 #[derive(Clone)]
@@ -229,6 +279,13 @@ impl Default for ServerConfig {
             startup_delay_ms: 500,
             workers: 1,
             auto_open_browser: true,
+            enable_https: true,
+            https_port_offset: 1000,
+            cert_dir: ".rss/certs".to_string(),
+            auto_cert: true,
+            cert_validity_days: 365,
+            use_lets_encrypt: false,
+            production_domain: "localhost".to_string(),
         }
     }
 }
@@ -289,7 +346,7 @@ impl Config {
         let typewriter = Self::clamp(file.general.typewriter_delay, 0, 2000, 50);
         let theme = Self::load_theme(&file).unwrap_or_default();
 
-        // FIXED: Load server config with all fields including auto_open_browser
+        // Load server config
         let server = file
             .server
             .map_or_else(ServerConfig::default, |s| ServerConfig {
@@ -300,9 +357,16 @@ impl Config {
                 startup_delay_ms: s.startup_delay_ms,
                 workers: s.workers,
                 auto_open_browser: s.auto_open_browser,
+                enable_https: s.enable_https,
+                https_port_offset: s.https_port_offset,
+                cert_dir: s.cert_dir,
+                auto_cert: s.auto_cert,
+                cert_validity_days: s.cert_validity_days,
+                use_lets_encrypt: s.use_lets_encrypt,
+                production_domain: s.production_domain,
             });
 
-        // Load logging config with defaults
+        // Load logging config
         let logging = file
             .logging
             .map_or_else(LoggingConfig::default, |l| LoggingConfig {
@@ -328,6 +392,7 @@ impl Config {
             debug_info: None,
             server,
             logging,
+            proxy: file.proxy.map(ProxyConfig::from).unwrap_or_default(),
         };
 
         // Auto-save corrected values
@@ -338,21 +403,6 @@ impl Config {
         Ok(config)
     }
 
-    fn clamp(value: u64, min: u64, max: u64, default: u64) -> u64 {
-        if value < min || value > max {
-            default
-        } else {
-            value
-        }
-    }
-
-    fn load_theme(file: &ConfigFile) -> Option<Theme> {
-        let themes = file.theme.as_ref()?;
-        let def = themes.get(&file.general.current_theme)?;
-        Theme::from_config(def).ok()
-    }
-
-    // FIXED: Enhanced save with server and logging configs including auto_open_browser
     pub async fn save(&self) -> Result<()> {
         let Some(path) = &self.config_path else {
             return Ok(());
@@ -377,6 +427,13 @@ impl Config {
                 startup_delay_ms: self.server.startup_delay_ms,
                 workers: self.server.workers,
                 auto_open_browser: self.server.auto_open_browser,
+                enable_https: self.server.enable_https,
+                https_port_offset: self.server.https_port_offset,
+                cert_dir: self.server.cert_dir.clone(),
+                auto_cert: self.server.auto_cert,
+                cert_validity_days: self.server.cert_validity_days,
+                use_lets_encrypt: self.server.use_lets_encrypt,
+                production_domain: self.server.production_domain.clone(),
             }),
             logging: Some(LoggingConfigToml {
                 max_file_size_mb: self.logging.max_file_size_mb,
@@ -394,6 +451,7 @@ impl Config {
             language: LanguageConfig {
                 current: self.language.clone(),
             },
+            proxy: Some(self.proxy.clone().into()),
         };
 
         let content = toml::to_string_pretty(&file)
@@ -409,7 +467,6 @@ impl Config {
         tokio::fs::write(path, content).await.map_err(AppError::Io)
     }
 
-    // Rest of existing methods...
     pub async fn change_theme(&mut self, name: &str) -> Result<()> {
         let themes = Self::load_existing_themes().await?;
         let def = themes
@@ -419,6 +476,34 @@ impl Config {
         self.theme = Theme::from_config(def)?;
         self.current_theme_name = name.into();
         self.save().await
+    }
+
+    pub fn get_performance_info(&self) -> String {
+        let fps = 1000.0 / self.poll_rate.as_millis() as f64;
+        let typewriter = if self.typewriter_delay.as_millis() > 0 {
+            1000.0 / self.typewriter_delay.as_millis() as f64
+        } else {
+            f64::INFINITY
+        };
+        format!(
+            "Performance: {:.1} FPS, Typewriter: {:.1} chars/sec, Max Servers: {}",
+            fps, typewriter, self.server.max_concurrent
+        )
+    }
+
+    // Helper methods
+    fn clamp(value: u64, min: u64, max: u64, default: u64) -> u64 {
+        if value < min || value > max {
+            default
+        } else {
+            value
+        }
+    }
+
+    fn load_theme(file: &ConfigFile) -> Option<Theme> {
+        let themes = file.theme.as_ref()?;
+        let def = themes.get(&file.general.current_theme)?;
+        Theme::from_config(def).ok()
     }
 
     async fn load_existing_themes() -> Result<HashMap<String, ThemeDefinitionConfig>> {
@@ -436,19 +521,6 @@ impl Config {
             }
         }
         Ok(HashMap::new())
-    }
-
-    pub fn get_performance_info(&self) -> String {
-        let fps = 1000.0 / self.poll_rate.as_millis() as f64;
-        let typewriter = if self.typewriter_delay.as_millis() > 0 {
-            1000.0 / self.typewriter_delay.as_millis() as f64
-        } else {
-            f64::INFINITY
-        };
-        format!(
-            "Performance: {:.1} FPS, Typewriter: {:.1} chars/sec, Max Servers: {}",
-            fps, typewriter, self.server.max_concurrent
-        )
     }
 
     async fn apply_language(config: &Config) {
@@ -503,6 +575,7 @@ impl Default for Config {
             debug_info: None,
             server: ServerConfig::default(),
             logging: LoggingConfig::default(),
+            proxy: ProxyConfig::default(),
         }
     }
 }

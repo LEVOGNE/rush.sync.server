@@ -158,11 +158,8 @@ impl CreateCommand {
         let registry = crate::server::shared::get_persistent_registry();
         let server_info_clone = server_info.clone();
         tokio::spawn(async move {
-            if let Ok(persistent_servers) = registry.load_servers().await {
-                if let Err(e) = registry
-                    .add_server(persistent_servers, server_info_clone)
-                    .await
-                {
+            if let Ok(_persistent_servers) = registry.load_servers().await {
+                if let Err(e) = registry.add_server(server_info_clone).await {
                     log::error!("Failed to persist server: {}", e);
                 }
             }

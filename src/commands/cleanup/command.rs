@@ -72,9 +72,9 @@ impl CleanupCommand {
 
         // Async cleanup mit Persistence
         tokio::spawn(async move {
-            if let Ok(servers) = registry.load_servers().await {
+            if let Ok(_servers) = registry.load_servers().await {
                 if let Ok((_updated_servers, removed_count)) = registry
-                    .cleanup_servers(servers, crate::server::persistence::CleanupType::Stopped)
+                    .cleanup_servers(crate::server::persistence::CleanupType::Stopped)
                     .await
                 {
                     if removed_count > 0 {
@@ -108,9 +108,9 @@ impl CleanupCommand {
 
         // Async cleanup mit Persistence
         tokio::spawn(async move {
-            if let Ok(servers) = registry.load_servers().await {
+            if let Ok(_servers) = registry.load_servers().await {
                 if let Ok((_updated_servers, removed_count)) = registry
-                    .cleanup_servers(servers, crate::server::persistence::CleanupType::Failed)
+                    .cleanup_servers(crate::server::persistence::CleanupType::Stopped)
                     .await
                 {
                     if removed_count > 0 {

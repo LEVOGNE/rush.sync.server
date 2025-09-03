@@ -1,11 +1,13 @@
 use crate::core::config::Config;
+use crate::proxy::ProxyManager;
 use crate::server::persistence::ServerRegistry;
 use crate::server::types::{ServerContext, ServerStatus};
 use crate::server::utils::port::is_port_available;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 static SHARED_CONTEXT: OnceLock<ServerContext> = OnceLock::new();
 static PERSISTENT_REGISTRY: OnceLock<ServerRegistry> = OnceLock::new();
+static PROXY_MANAGER: OnceLock<Arc<ProxyManager>> = OnceLock::new();
 
 pub fn get_shared_context() -> &'static ServerContext {
     SHARED_CONTEXT.get_or_init(ServerContext::default)
@@ -14,6 +16,21 @@ pub fn get_shared_context() -> &'static ServerContext {
 pub fn get_persistent_registry() -> &'static ServerRegistry {
     PERSISTENT_REGISTRY
         .get_or_init(|| ServerRegistry::new().expect("Failed to initialize server registry"))
+}
+
+pub fn get_proxy_manager() -> &'static Arc<ProxyManager> {
+    PROXY_MANAGER.get_or_init(|| {
+        // Config laden und Proxy Manager erstellen
+        let config = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                crate::core::config::Config::load()
+                    .await
+                    .unwrap_or_default()
+            })
+        });
+
+        Arc::new(ProxyManager::new(config.proxy))
+    })
 }
 
 pub async fn initialize_server_system() -> crate::core::error::Result<()> {
@@ -97,18 +114,60 @@ pub async fn initialize_server_system() -> crate::core::error::Result<()> {
         }
     }
 
+    // NEU: Proxy Manager initialisieren und starten
+    if config.proxy.enabled {
+        let proxy_manager = get_proxy_manager();
+
+        // Proxy-Server starten
+        if let Err(e) = Arc::clone(proxy_manager).start_proxy_server().await {
+            log::error!("Failed to start proxy server: {}", e);
+        } else {
+            log::info!("Reverse Proxy started on port {}", config.proxy.port);
+        }
+
+        // Bereits laufende Server beim Proxy registrieren
+        for (_id, persistent_info) in persistent_servers.iter() {
+            if persistent_info.status == ServerStatus::Running {
+                if let Err(e) = proxy_manager
+                    .add_route(
+                        &persistent_info.name,
+                        &persistent_info.id,
+                        persistent_info.port,
+                    )
+                    .await
+                {
+                    log::error!(
+                        "Failed to register server {} with proxy: {}",
+                        persistent_info.name,
+                        e
+                    );
+                }
+            }
+        }
+    } else {
+        log::info!("Reverse Proxy disabled in configuration");
+    }
+
+    log::info!(
+        "Server system initialized with {} persistent servers",
+        persistent_servers.len()
+    );
+
+    // Log-Beispiele für Nutzung
+    if config.proxy.enabled {
+        log::info!("Proxy Usage:");
+        log::info!("  1. Start a server: cargo run server create myapp --port 8080");
+        log::info!("  2. Access via:     http://myapp.localhost");
+        log::info!("  3. Add to /etc/hosts: 127.0.0.1 myapp.localhost");
+    }
+
     Ok(())
 }
 
 pub async fn persist_server_update(server_id: &str, status: crate::server::types::ServerStatus) {
     let registry = get_persistent_registry();
-    if let Ok(servers) = registry.load_servers().await {
-        if let Err(e) = registry
-            .update_server_status(servers, server_id, status)
-            .await
-        {
-            log::error!("Failed to persist server status update: {}", e);
-        }
+    if let Err(e) = registry.update_server_status(server_id, status).await {
+        log::error!("Failed to persist server status update: {}", e);
     }
 }
 
@@ -137,26 +196,10 @@ pub async fn shutdown_all_servers_on_exit() -> crate::core::error::Result<()> {
             handle.stop(false).await;
         }
 
-        if let Ok(servers) = registry.load_servers().await {
-            let _ = registry
-                .update_server_status(servers, &server_id, ServerStatus::Stopped)
-                .await;
-        }
-    }
-
-    if let Ok(mut servers) = registry.load_servers().await {
-        let mut updated = false;
-        for server in servers.values_mut() {
-            if server.status == ServerStatus::Running {
-                server.status = ServerStatus::Stopped;
-                updated = true;
-            }
-        }
-
-        if updated {
-            let _ = registry.save_servers(&servers).await;
-            log::info!("Updated all running servers to stopped status");
-        }
+        // Korrigierte API-Aufrufe
+        let _ = registry
+            .update_server_status(&server_id, ServerStatus::Stopped)
+            .await;
     }
 
     log::info!("Server system shutdown complete");

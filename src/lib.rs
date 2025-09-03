@@ -26,6 +26,7 @@ pub mod core;
 pub mod i18n;
 pub mod input;
 pub mod output;
+pub mod proxy;
 pub mod server;
 pub mod setup;
 pub mod ui;

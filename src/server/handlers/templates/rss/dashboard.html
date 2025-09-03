@@ -9,7 +9,7 @@
   </head>
   <body>
     <div class="dashboard">
-      <!-- Header mit Status -->
+      <!-- Header mit kompakten Quick Actions -->
       <header class="dashboard-header">
         <div class="server-info">
           <h1>Rush Sync Server</h1>
@@ -25,10 +25,24 @@
           </div>
         </div>
 
+        <!-- Kompakte Quick Actions im Header -->
+        <div class="header-actions">
+          <button class="header-btn primary" data-action="view-http" title="Open HTTP">HTTP</button>
+          <button class="header-btn" data-action="view-proxy" title="Open via Proxy">PROXY</button>
+          <button class="header-btn" data-action="test-apis" title="Test APIs">TEST</button>
+          <button class="header-btn" data-action="refresh-stats" title="Refresh Stats">
+            REFRESH
+          </button>
+        </div>
+
         <div class="quick-stats">
           <div class="stat">
             <span class="stat-label">Port</span>
             <span class="stat-value">{{PORT}}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Proxy</span>
+            <span class="stat-value">8443</span>
           </div>
           <div class="stat">
             <span class="stat-label">Uptime</span>
@@ -53,12 +67,13 @@
           <button class="tab-btn" data-tab="endpoints">API</button>
           <button class="tab-btn" data-tab="logs">Live Logs</button>
           <button class="tab-btn" data-tab="metrics">Metrics</button>
+          <button class="tab-btn" data-tab="certificates">TLS</button>
           <button class="tab-btn" data-tab="hotreload">Hot Reload</button>
         </nav>
 
         <!-- Tab Content -->
         <div class="tab-content">
-          <!-- Overview Tab -->
+          <!-- Overview Tab - VOLLSTÄNDIG WIEDERHERGESTELLT -->
           <div class="tab-panel active" id="tab-overview">
             <div class="overview-grid">
               <!-- Server Config -->
@@ -74,8 +89,14 @@
                     <span>{{VERSION}}</span>
                   </div>
                   <div class="config-item">
-                    <span>URL</span>
+                    <span>HTTP URL</span>
                     <a href="http://127.0.0.1:{{PORT}}" target="_blank">127.0.0.1:{{PORT}}</a>
+                  </div>
+                  <div class="config-item">
+                    <span>Proxy HTTPS URL</span>
+                    <a href="https://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}" target="_blank"
+                      >{{SERVER_NAME}}.localhost:{{PROXY_PORT}}</a
+                    >
                   </div>
                   <div class="config-item">
                     <span>WebSocket</span>
@@ -88,6 +109,33 @@
                 </div>
               </div>
 
+              <!-- TLS Certificate Info -->
+              <div class="card compact">
+                <h3>TLS Certificate</h3>
+                <div class="config-items">
+                  <div class="config-item">
+                    <span>Certificate</span>
+                    <code>{{SERVER_NAME}}-{{PORT}}.cert</code>
+                  </div>
+                  <div class="config-item">
+                    <span>Private Key</span>
+                    <code>{{SERVER_NAME}}-{{PORT}}.key</code>
+                  </div>
+                  <div class="config-item">
+                    <span>Valid Days</span>
+                    <span id="cert-valid-days">365</span>
+                  </div>
+                  <div class="config-item">
+                    <span>Common Name</span>
+                    <code>{{SERVER_NAME}}.localhost</code>
+                  </div>
+                  <div class="config-item">
+                    <span>Alt Names</span>
+                    <span>localhost, 127.0.0.1</span>
+                  </div>
+                </div>
+              </div>
+
               <!-- Features -->
               <div class="card compact">
                 <h3>Features</h3>
@@ -95,6 +143,14 @@
                   <div class="feature-item">
                     <span class="feature-icon">🔄</span>
                     <span>Hot Reload</span>
+                  </div>
+                  <div class="feature-item">
+                    <span class="feature-icon">🔒</span>
+                    <span>HTTPS/TLS</span>
+                  </div>
+                  <div class="feature-item">
+                    <span class="feature-icon">🌐</span>
+                    <span>Reverse Proxy</span>
                   </div>
                   <div class="feature-item">
                     <span class="feature-icon">📊</span>
@@ -110,20 +166,10 @@
                   </div>
                 </div>
               </div>
-
-              <!-- Quick Actions - KORRIGIERT: Entfernung der onclick Handler -->
-              <div class="card compact">
-                <h3>Quick Actions</h3>
-                <div class="action-buttons">
-                  <button class="btn btn-primary">View Site</button>
-                  <button class="btn btn-secondary">Test APIs</button>
-                  <button class="btn btn-secondary">Refresh Stats</button>
-                </div>
-              </div>
             </div>
           </div>
 
-          <!-- Endpoints Tab -->
+          <!-- Endpoints Tab - VOLLSTÄNDIG -->
           <div class="tab-panel" id="tab-endpoints">
             <div class="endpoint-groups">
               <div class="endpoint-group">
@@ -137,15 +183,15 @@
                   </div>
                   <div class="endpoint">
                     <span class="method get">GET</span>
-                    <code>/style.css</code>
+                    <code>/.rss/style.css</code>
                     <span class="desc">Stylesheet</span>
-                    <button class="test-btn" data-url="/style.css">Test</button>
+                    <button class="test-btn" data-url="/.rss/style.css">Test</button>
                   </div>
                   <div class="endpoint">
                     <span class="method get">GET</span>
-                    <code>/app.js</code>
+                    <code>/rss.js</code>
                     <span class="desc">JavaScript</span>
-                    <button class="test-btn" data-url="/app.js">Test</button>
+                    <button class="test-btn" data-url="/rss.js">Test</button>
                   </div>
                   <div class="endpoint">
                     <span class="method get">GET</span>
@@ -178,6 +224,12 @@
                     <button class="test-btn" data-url="/api/metrics">Test</button>
                   </div>
                   <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <code>/api/logs</code>
+                    <span class="desc">Log viewer</span>
+                    <button class="test-btn" data-url="/api/logs">Test</button>
+                  </div>
+                  <div class="endpoint">
                     <span class="method ws">WS</span>
                     <code>/ws/hot-reload</code>
                     <span class="desc">Hot Reload</span>
@@ -188,7 +240,7 @@
             </div>
           </div>
 
-          <!-- Live Logs Tab - KORRIGIERT: Entfernung der onclick Handler -->
+          <!-- Live Logs Tab - VOLLSTÄNDIG -->
           <div class="tab-panel" id="tab-logs">
             <div class="terminal-container">
               <div class="terminal-header">
@@ -197,12 +249,13 @@
                   <span class="control-dot yellow"></span>
                   <span class="control-dot green"></span>
                 </div>
-                <div class="terminal-title">rush-sync-server-{{SERVER_NAME}}-[{{PORT}}].log</div>
+                <div class="terminal-title">{{SERVER_NAME}}-[{{PORT}}].log</div>
                 <div class="terminal-actions">
                   <button class="terminal-btn">Clear</button>
                   <button class="terminal-btn">
                     <span id="autoscroll-text">Auto-scroll ON</span>
                   </button>
+                  <button class="terminal-btn">Download Log</button>
                 </div>
               </div>
               <div class="terminal-body" id="log-output">
@@ -214,18 +267,36 @@
                 <div class="log-line system">
                   <span class="log-time">{{CREATION_TIME}}</span>
                   <span class="log-level INFO">INFO</span>
+                  <span class="log-message">TLS certificate: {{SERVER_NAME}}-{{PORT}}.cert</span>
+                </div>
+                <div class="log-line system">
+                  <span class="log-time">{{CREATION_TIME}}</span>
+                  <span class="log-level INFO">INFO</span>
                   <span class="log-message">Hot Reload WebSocket enabled on /ws/hot-reload</span>
                 </div>
                 <div class="log-line system">
                   <span class="log-time">{{CREATION_TIME}}</span>
                   <span class="log-level INFO">INFO</span>
-                  <span class="log-message">Listening on http://127.0.0.1:{{PORT}}</span>
+                  <span class="log-message">HTTP listening on 127.0.0.1:{{PORT}}</span>
+                </div>
+                <div class="log-line system">
+                  <span class="log-time">{{CREATION_TIME}}</span>
+                  <span class="log-level INFO">INFO</span>
+                  <span class="log-message">HTTPS listening on 127.0.0.1:{{HTTPS_PORT}}</span>
+                </div>
+                <div class="log-line system">
+                  <span class="log-time">{{CREATION_TIME}}</span>
+                  <span class="log-level INFO">INFO</span>
+                  <span class="log-message"
+                    >Proxy route: {{SERVER_NAME}}.localhost:{{PROXY_PORT}} ->
+                    127.0.0.1:{{PORT}}</span
+                  >
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Metrics Tab -->
+          <!-- Metrics Tab - VOLLSTÄNDIG WIEDERHERGESTELLT -->
           <div class="tab-panel" id="tab-metrics">
             <div class="metrics-grid">
               <div class="metric-card">
@@ -271,14 +342,105 @@
                 <div id="recent-activity">
                   <div class="activity-item">
                     <span class="activity-time">Just now</span>
-                    <span class="activity-desc">Server started</span>
+                    <span class="activity-desc">Server started with TLS support</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Hot Reload Tab - KORRIGIERT -->
+          <!-- TLS Certificate Tab - VOLLSTÄNDIG WIEDERHERGESTELLT -->
+          <div class="tab-panel" id="tab-certificates">
+            <div class="overview-grid">
+              <!-- Certificate Details -->
+              <div class="card">
+                <h3>Server Certificate</h3>
+                <div class="config-items">
+                  <div class="config-item">
+                    <span>Certificate File</span>
+                    <code>.rss/certs/{{SERVER_NAME}}-{{PORT}}.cert</code>
+                  </div>
+                  <div class="config-item">
+                    <span>Private Key</span>
+                    <code>.rss/certs/{{SERVER_NAME}}-{{PORT}}.key</code>
+                  </div>
+                  <div class="config-item">
+                    <span>Common Name</span>
+                    <code>{{SERVER_NAME}}.localhost</code>
+                  </div>
+                  <div class="config-item">
+                    <span>Subject Alt Names</span>
+                    <span>localhost, 127.0.0.1, {{SERVER_NAME}}.localhost</span>
+                  </div>
+                  <div class="config-item">
+                    <span>Valid for</span>
+                    <span id="cert-validity">365 days</span>
+                  </div>
+                  <div class="config-item">
+                    <span>Auto-generated</span>
+                    <span class="status-value success">Yes</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Proxy Certificate -->
+              <div class="card">
+                <h3>Proxy Certificate</h3>
+                <div class="config-items">
+                  <div class="config-item">
+                    <span>Certificate File</span>
+                    <code>.rss/certs/proxy-{{PROXY_PORT}}.cert</code>
+                  </div>
+                  <div class="config-item">
+                    <span>Private Key</span>
+                    <code>.rss/certs/proxy-{{PROXY_PORT}}.key</code>
+                  </div>
+                  <div class="config-item">
+                    <span>Common Name</span>
+                    <code>*.localhost</code>
+                  </div>
+                  <div class="config-item">
+                    <span>Subject Alt Names</span>
+                    <span>localhost, 127.0.0.1, *.localhost, proxy.localhost</span>
+                  </div>
+                  <div class="config-item">
+                    <span>Wildcard Support</span>
+                    <span class="status-value success">Yes</span>
+                  </div>
+                  <div class="config-item">
+                    <span>Auto-generated</span>
+                    <span class="status-value success">Yes</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- URL Testing -->
+              <div class="card full-width">
+                <h3>URL Testing</h3>
+                <div class="endpoint-list compact">
+                  <div class="endpoint">
+                    <span class="method get">HTTP</span>
+                    <code>http://127.0.0.1:{{PORT}}</code>
+                    <span class="desc">Direct HTTP access</span>
+                    <button class="test-btn" data-url="http://127.0.0.1:{{PORT}}">Test</button>
+                  </div>
+                  <div class="endpoint">
+                    <span class="method get">PROXY</span>
+                    <code>https://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}</code>
+                    <span class="desc">Via reverse proxy</span>
+                    <button
+                      class="test-btn"
+                      data-url="https://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}"
+                    >
+                      Test
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hot Reload Tab - VOLLSTÄNDIG WIEDERHERGESTELLT -->
           <div class="tab-panel" id="tab-hotreload">
             <div class="hotreload-grid">
               <!-- WebSocket Status -->
@@ -335,7 +497,7 @@
               </div>
             </div>
 
-            <!-- Test Hot Reload - KORRIGIERT: Entfernung des onclick Handler -->
+            <!-- Test Hot Reload -->
             <div class="card">
               <h3>Test Hot Reload</h3>
               <p class="test-instructions">
@@ -344,7 +506,9 @@
                 reload when you save changes.
               </p>
               <div class="test-actions">
-                <button class="btn btn-secondary">Simulate File Change</button>
+                <button class="btn btn-secondary" data-action="simulate-file-change">
+                  Simulate File Change
+                </button>
               </div>
             </div>
           </div>

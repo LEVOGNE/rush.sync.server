@@ -1,3 +1,4 @@
+// ## FILE: src/server/persistence.rs - OPTIMIERT
 use crate::core::prelude::*;
 use crate::server::types::{ServerInfo, ServerStatus};
 use serde::{Deserialize, Serialize};
@@ -93,7 +94,7 @@ impl ServerRegistry {
         servers: &HashMap<String, PersistentServerInfo>,
     ) -> Result<()> {
         let mut server_list: Vec<PersistentServerInfo> = servers.values().cloned().collect();
-        server_list.sort_by(|a, b| a.created_timestamp.cmp(&b.created_timestamp));
+        server_list.sort_by_key(|s| s.created_timestamp);
 
         let content = serde_json::to_string_pretty(&server_list)
             .map_err(|e| AppError::Validation(format!("Failed to serialize servers: {}", e)))?;
@@ -109,11 +110,52 @@ impl ServerRegistry {
         Ok(())
     }
 
+    // Vereinfachte Update-Methoden mit weniger Boilerplate
+    async fn update_server(
+        &self,
+        server_id: &str,
+        update_fn: impl Fn(&mut PersistentServerInfo),
+    ) -> Result<HashMap<String, PersistentServerInfo>> {
+        let mut servers = self.load_servers().await?;
+        if let Some(server) = servers.get_mut(server_id) {
+            update_fn(server);
+            self.save_servers(&servers).await?;
+        }
+        Ok(servers)
+    }
+
+    pub async fn update_server_status(
+        &self,
+        server_id: &str,
+        status: ServerStatus,
+    ) -> Result<HashMap<String, PersistentServerInfo>> {
+        self.update_server(server_id, |server| {
+            server.status = status;
+            if status == ServerStatus::Running {
+                server.last_started =
+                    Some(chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string());
+                server.start_count += 1;
+            }
+        })
+        .await
+    }
+
+    pub async fn set_auto_start(
+        &self,
+        server_id: &str,
+        auto_start: bool,
+    ) -> Result<HashMap<String, PersistentServerInfo>> {
+        self.update_server(server_id, |server| {
+            server.auto_start = auto_start;
+        })
+        .await
+    }
+
     pub async fn add_server(
         &self,
-        mut servers: HashMap<String, PersistentServerInfo>,
         server_info: ServerInfo,
     ) -> Result<HashMap<String, PersistentServerInfo>> {
+        let mut servers = self.load_servers().await?;
         let persistent_info = PersistentServerInfo::from(server_info);
         servers.insert(persistent_info.id.clone(), persistent_info);
         self.save_servers(&servers).await?;
@@ -122,44 +164,26 @@ impl ServerRegistry {
 
     pub async fn remove_server(
         &self,
-        mut servers: HashMap<String, PersistentServerInfo>,
         server_id: &str,
     ) -> Result<HashMap<String, PersistentServerInfo>> {
+        let mut servers = self.load_servers().await?;
         servers.remove(server_id);
-        self.save_servers(&servers).await?;
-        Ok(servers)
-    }
-
-    pub async fn update_server_status(
-        &self,
-        mut servers: HashMap<String, PersistentServerInfo>,
-        server_id: &str,
-        status: ServerStatus,
-    ) -> Result<HashMap<String, PersistentServerInfo>> {
-        if let Some(server) = servers.get_mut(server_id) {
-            server.status = status;
-            if status == ServerStatus::Running {
-                server.last_started =
-                    Some(chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string());
-                server.start_count += 1;
-            }
-        }
         self.save_servers(&servers).await?;
         Ok(servers)
     }
 
     pub async fn cleanup_servers(
         &self,
-        mut servers: HashMap<String, PersistentServerInfo>,
         cleanup_type: CleanupType,
     ) -> Result<(HashMap<String, PersistentServerInfo>, usize)> {
+        let mut servers = self.load_servers().await?;
         let initial_count = servers.len();
 
-        match cleanup_type {
-            CleanupType::Stopped => servers.retain(|_, s| s.status != ServerStatus::Stopped),
-            CleanupType::Failed => servers.retain(|_, s| s.status != ServerStatus::Failed),
-            CleanupType::All => servers.retain(|_, s| s.status == ServerStatus::Running),
-        }
+        servers.retain(|_, s| match cleanup_type {
+            CleanupType::Stopped => s.status != ServerStatus::Stopped,
+            CleanupType::Failed => s.status != ServerStatus::Failed,
+            CleanupType::All => s.status == ServerStatus::Running,
+        });
 
         let removed_count = initial_count - servers.len();
         if removed_count > 0 {
@@ -180,19 +204,7 @@ impl ServerRegistry {
             .collect()
     }
 
-    pub async fn set_auto_start(
-        &self,
-        mut servers: HashMap<String, PersistentServerInfo>,
-        server_id: &str,
-        auto_start: bool,
-    ) -> Result<HashMap<String, PersistentServerInfo>> {
-        if let Some(server) = servers.get_mut(server_id) {
-            server.auto_start = auto_start;
-            self.save_servers(&servers).await?;
-        }
-        Ok(servers)
-    }
-
+    // Utility-Methoden mit besserer Error-Behandlung
     pub async fn cleanup_server_directory(&self, server_name: &str, port: u16) -> Result<()> {
         let exe_path = std::env::current_exe().map_err(AppError::Io)?;
         let base_dir = exe_path.parent().ok_or_else(|| {

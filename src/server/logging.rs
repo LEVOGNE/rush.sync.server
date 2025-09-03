@@ -1,6 +1,7 @@
+// ## FILE: src/server/logging.rs - ALLE FIXES APPLIED
 use crate::core::config::LoggingConfig;
 use crate::core::prelude::*;
-use actix_web::HttpMessage;
+use actix_web::HttpMessage; // HINZUGEFÜGT
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -24,7 +25,8 @@ pub struct ServerLogEntry {
     pub session_id: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+// Copy-Trait hinzugefügt für LogEventType
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub enum LogEventType {
     Request,
     ServerStart,
@@ -41,12 +43,12 @@ pub struct LogRotationConfig {
     pub compress_archives: bool,
 }
 
-impl LogRotationConfig {
-    pub fn from_main_config(logging_config: &LoggingConfig) -> Self {
+impl From<&LoggingConfig> for LogRotationConfig {
+    fn from(config: &LoggingConfig) -> Self {
         Self {
-            max_file_size_bytes: logging_config.max_file_size_mb * 1024 * 1024,
-            max_archive_files: logging_config.max_archive_files,
-            compress_archives: logging_config.compress_archives,
+            max_file_size_bytes: config.max_file_size_mb * 1024 * 1024,
+            max_archive_files: config.max_archive_files,
+            compress_archives: config.compress_archives,
         }
     }
 }
@@ -64,9 +66,9 @@ impl Default for LogRotationConfig {
 pub struct ServerLogger {
     log_file_path: PathBuf,
     config: LogRotationConfig,
-    should_log_requests: bool,
-    should_log_security: bool,
-    should_log_performance: bool,
+    log_requests: bool,
+    log_security: bool,
+    log_performance: bool,
 }
 
 impl ServerLogger {
@@ -89,34 +91,30 @@ impl ServerLogger {
             std::fs::create_dir_all(parent).map_err(AppError::Io)?;
         }
 
-        let config = LogRotationConfig::from_main_config(logging_config);
-
         Ok(Self {
             log_file_path,
-            config,
-            should_log_requests: logging_config.log_requests,
-            should_log_security: logging_config.log_security_alerts,
-            should_log_performance: logging_config.log_performance,
+            config: LogRotationConfig::from(logging_config),
+            log_requests: logging_config.log_requests,
+            log_security: logging_config.log_security_alerts,
+            log_performance: logging_config.log_performance,
         })
     }
 
     pub fn new(server_name: &str, port: u16) -> Result<Self> {
-        let default_config = LoggingConfig::default();
-        Self::new_with_config(server_name, port, &default_config)
+        Self::new_with_config(server_name, port, &LoggingConfig::default())
     }
 
+    // Vereinfachte System-Log Methoden
     pub async fn log_server_start(&self) -> Result<()> {
-        let entry = self.create_system_entry(LogEventType::ServerStart);
-        self.write_log_entry(entry).await
+        self.write_system_entry(LogEventType::ServerStart).await
     }
 
     pub async fn log_server_stop(&self) -> Result<()> {
-        let entry = self.create_system_entry(LogEventType::ServerStop);
-        self.write_log_entry(entry).await
+        self.write_system_entry(LogEventType::ServerStop).await
     }
 
-    fn create_system_entry(&self, event_type: LogEventType) -> ServerLogEntry {
-        ServerLogEntry {
+    async fn write_system_entry(&self, event_type: LogEventType) -> Result<()> {
+        let entry = ServerLogEntry {
             timestamp: chrono::Local::now()
                 .format("%Y-%m-%d %H:%M:%S%.3f")
                 .to_string(),
@@ -136,9 +134,11 @@ impl ServerLogger {
             query_string: None,
             headers: HashMap::new(),
             session_id: None,
-        }
+        };
+        self.write_log_entry(entry).await
     }
 
+    // Optimierte Request Logging
     pub async fn log_request(
         &self,
         req: &actix_web::HttpRequest,
@@ -146,7 +146,7 @@ impl ServerLogger {
         response_time: u64,
         bytes_sent: u64,
     ) -> Result<()> {
-        if !self.should_log_requests {
+        if !self.log_requests {
             return Ok(());
         }
 
@@ -162,18 +162,20 @@ impl ServerLogger {
                 .to_string()
         };
 
-        let headers: HashMap<String, String> = req
+        // Nur relevante Headers filtern
+        let headers = req
             .headers()
             .iter()
             .filter_map(|(name, value)| {
                 let header_name = name.as_str().to_lowercase();
-                if !["authorization", "cookie", "x-api-key"].contains(&header_name.as_str()) {
-                    value
+                match header_name.as_str() {
+                    "authorization" | "cookie" | "x-api-key" => {
+                        Some((name.as_str().to_string(), "[FILTERED]".to_string()))
+                    }
+                    _ => value
                         .to_str()
                         .ok()
-                        .map(|v| (name.as_str().to_string(), v.to_string()))
-                } else {
-                    Some((name.as_str().to_string(), "[FILTERED]".to_string()))
+                        .map(|v| (name.as_str().to_string(), v.to_string())),
                 }
             })
             .collect();
@@ -187,12 +189,12 @@ impl ServerLogger {
                 .unwrap_or_default()
                 .as_secs(),
             event_type: LogEventType::Request,
-            ip_address: ip,
+            ip_address: ip.to_string(),
             user_agent: req
                 .headers()
                 .get("user-agent")
                 .and_then(|h| h.to_str().ok())
-                .map(|s| s.to_string()),
+                .map(String::from),
             method: req.method().to_string(),
             path: req.path().to_string(),
             status_code: Some(status),
@@ -202,51 +204,26 @@ impl ServerLogger {
                 .headers()
                 .get("referer")
                 .and_then(|h| h.to_str().ok())
-                .map(|s| s.to_string()),
+                .map(String::from),
             query_string: if req.query_string().is_empty() {
                 None
             } else {
                 Some(req.query_string().to_string())
             },
             headers,
-            session_id: req.extensions().get::<String>().cloned(),
+            session_id: req.extensions().get::<String>().cloned(), // Jetzt funktioniert es mit HttpMessage import
         };
 
         self.write_log_entry(entry).await
     }
 
+    // Vereinfachte Alert-Logging
     pub async fn log_security_alert(&self, ip: &str, reason: &str, details: &str) -> Result<()> {
-        if !self.should_log_security {
+        if !self.log_security {
             return Ok(());
         }
-
-        let mut headers = HashMap::new();
-        headers.insert("alert_reason".to_string(), reason.to_string());
-        headers.insert("alert_details".to_string(), details.to_string());
-
-        let entry = ServerLogEntry {
-            timestamp: chrono::Local::now()
-                .format("%Y-%m-%d %H:%M:%S%.3f")
-                .to_string(),
-            timestamp_unix: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-            event_type: LogEventType::SecurityAlert,
-            ip_address: ip.to_string(),
-            user_agent: None,
-            method: "SECURITY".to_string(),
-            path: "/".to_string(),
-            status_code: None,
-            response_time_ms: None,
-            bytes_sent: None,
-            referer: None,
-            query_string: None,
-            headers,
-            session_id: None,
-        };
-
-        self.write_log_entry(entry).await
+        self.write_alert_entry(LogEventType::SecurityAlert, ip, reason, details, None)
+            .await
     }
 
     pub async fn log_performance_warning(
@@ -255,14 +232,37 @@ impl ServerLogger {
         value: u64,
         threshold: u64,
     ) -> Result<()> {
-        if !self.should_log_performance {
+        if !self.log_performance {
             return Ok(());
         }
+        self.write_alert_entry(
+            LogEventType::PerformanceWarning,
+            "127.0.0.1",
+            metric,
+            &format!("value={}, threshold={}", value, threshold),
+            Some(value),
+        )
+        .await
+    }
 
+    // KORRIGIERTE write_alert_entry Method
+    async fn write_alert_entry(
+        &self,
+        event_type: LogEventType,
+        ip: &str,
+        reason: &str,
+        details: &str,
+        response_time: Option<u64>,
+    ) -> Result<()> {
         let mut headers = HashMap::new();
-        headers.insert("metric".to_string(), metric.to_string());
-        headers.insert("value".to_string(), value.to_string());
-        headers.insert("threshold".to_string(), threshold.to_string());
+        headers.insert("alert_reason".to_string(), reason.to_string());
+        headers.insert("alert_details".to_string(), details.to_string());
+
+        let method_name = match event_type {
+            LogEventType::SecurityAlert => "SECURITY",
+            LogEventType::PerformanceWarning => "PERFORMANCE",
+            _ => "SYSTEM",
+        };
 
         let entry = ServerLogEntry {
             timestamp: chrono::Local::now()
@@ -272,13 +272,13 @@ impl ServerLogger {
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs(),
-            event_type: LogEventType::PerformanceWarning,
-            ip_address: "127.0.0.1".to_string(),
+            event_type, // Jetzt Copy-able, kein Move-Problem mehr
+            ip_address: ip.to_string(),
             user_agent: None,
-            method: "PERFORMANCE".to_string(),
+            method: method_name.to_string(),
             path: "/".to_string(),
             status_code: None,
-            response_time_ms: Some(value),
+            response_time_ms: response_time,
             bytes_sent: None,
             referer: None,
             query_string: None,
@@ -302,13 +302,11 @@ impl ServerLogger {
             .await
             .map_err(AppError::Io)?;
 
-        tokio::io::AsyncWriteExt::write_all(&mut file, format!("{}\n", json_line).as_bytes())
+        use tokio::io::AsyncWriteExt;
+        file.write_all(format!("{}\n", json_line).as_bytes())
             .await
             .map_err(AppError::Io)?;
-
-        tokio::io::AsyncWriteExt::flush(&mut file)
-            .await
-            .map_err(AppError::Io)?;
+        file.flush().await.map_err(AppError::Io)?;
         Ok(())
     }
 
@@ -323,7 +321,6 @@ impl ServerLogger {
         if metadata.len() >= self.config.max_file_size_bytes {
             self.rotate_log_files().await?;
         }
-
         Ok(())
     }
 
@@ -332,23 +329,19 @@ impl ServerLogger {
         let base_name = base_path.file_stem().unwrap().to_string_lossy();
         let parent_dir = base_path.parent().unwrap();
 
+        // Rotate existing archives
         for i in (1..self.config.max_archive_files).rev() {
-            let old_gz_path = parent_dir.join(format!("{}.{}.log.gz", base_name, i));
-            let old_log_path = parent_dir.join(format!("{}.{}.log", base_name, i));
-            let new_gz_path = parent_dir.join(format!("{}.{}.log.gz", base_name, i + 1));
-            let new_log_path = parent_dir.join(format!("{}.{}.log", base_name, i + 1));
+            let old_path = parent_dir.join(format!("{}.{}.log.gz", base_name, i));
+            let new_path = parent_dir.join(format!("{}.{}.log.gz", base_name, i + 1));
 
-            if old_gz_path.exists() {
-                tokio::fs::rename(&old_gz_path, &new_gz_path)
-                    .await
-                    .map_err(AppError::Io)?;
-            } else if old_log_path.exists() {
-                tokio::fs::rename(&old_log_path, &new_log_path)
+            if old_path.exists() {
+                tokio::fs::rename(&old_path, &new_path)
                     .await
                     .map_err(AppError::Io)?;
             }
         }
 
+        // Move current log to archive
         let archive_path = parent_dir.join(format!("{}.1.log", base_name));
         tokio::fs::rename(base_path, &archive_path)
             .await
@@ -358,17 +351,14 @@ impl ServerLogger {
             self.compress_log_file(&archive_path).await?;
         }
 
-        let cleanup_num = self.config.max_archive_files + 1;
-        let cleanup_log = parent_dir.join(format!("{}.{}.log", base_name, cleanup_num));
-        let cleanup_gz = parent_dir.join(format!("{}.{}.log.gz", base_name, cleanup_num));
-
-        if cleanup_log.exists() {
-            tokio::fs::remove_file(&cleanup_log)
-                .await
-                .map_err(AppError::Io)?;
-        }
-        if cleanup_gz.exists() {
-            tokio::fs::remove_file(&cleanup_gz)
+        // Cleanup old files
+        let cleanup_path = parent_dir.join(format!(
+            "{}.{}.log.gz",
+            base_name,
+            self.config.max_archive_files + 1
+        ));
+        if cleanup_path.exists() {
+            tokio::fs::remove_file(&cleanup_path)
                 .await
                 .map_err(AppError::Io)?;
         }
@@ -393,6 +383,7 @@ impl ServerLogger {
                 .ok_or_else(|| AppError::Validation("Invalid file path".to_string()))?
                 .to_string_lossy()
         ));
+
         tokio::fs::write(&gz_path, compressed)
             .await
             .map_err(AppError::Io)?;
@@ -421,19 +412,19 @@ impl ServerLogger {
         }
 
         for i in 1..=10 {
-            let archive_path = parent_dir.join(format!("{}.{}.log", base_name, i));
-            let gz_path = parent_dir.join(format!("{}.{}.log.gz", base_name, i));
-
-            if archive_path.exists() {
-                files.push(archive_path);
-            } else if gz_path.exists() {
-                files.push(gz_path);
+            for ext in &["log", "log.gz"] {
+                let path = parent_dir.join(format!("{}.{}.{}", base_name, i, ext));
+                if path.exists() {
+                    files.push(path);
+                    break; // Only add one version (prefer compressed)
+                }
             }
         }
 
         Ok(files)
     }
 
+    // Optimierte Stats-Berechnung
     pub async fn get_request_stats(&self) -> Result<ServerStats> {
         use tokio::io::{AsyncBufReadExt, BufReader};
 
@@ -448,18 +439,14 @@ impl ServerLogger {
 
         let mut stats = ServerStats::default();
         let mut unique_ips = std::collections::HashSet::new();
-
-        // Ein-Pass-Statistik (ohne Sort)
-        let mut sum_rt: u64 = 0;
-        let mut cnt_rt: u64 = 0;
-        let mut max_rt: u64 = 0;
+        let mut response_times = Vec::new();
 
         while let Some(line) = reader.next_line().await.map_err(AppError::Io)? {
             if let Ok(entry) = serde_json::from_str::<ServerLogEntry>(&line) {
                 match entry.event_type {
                     LogEventType::Request => {
                         stats.total_requests += 1;
-                        unique_ips.insert(entry.ip_address.clone());
+                        unique_ips.insert(entry.ip_address);
 
                         if let Some(status) = entry.status_code {
                             if status >= 400 {
@@ -467,11 +454,7 @@ impl ServerLogger {
                             }
                         }
                         if let Some(rt) = entry.response_time_ms {
-                            sum_rt += rt;
-                            cnt_rt += 1;
-                            if rt > max_rt {
-                                max_rt = rt;
-                            }
+                            response_times.push(rt);
                         }
                         if let Some(bytes) = entry.bytes_sent {
                             stats.total_bytes_sent += bytes;
@@ -485,9 +468,10 @@ impl ServerLogger {
         }
 
         stats.unique_ips = unique_ips.len() as u64;
-        if cnt_rt > 0 {
-            stats.avg_response_time = sum_rt / cnt_rt;
-            stats.max_response_time = max_rt;
+        if !response_times.is_empty() {
+            stats.avg_response_time =
+                response_times.iter().sum::<u64>() / response_times.len() as u64;
+            stats.max_response_time = *response_times.iter().max().unwrap_or(&0);
         }
 
         Ok(stats)
@@ -495,13 +479,13 @@ impl ServerLogger {
 
     pub fn get_config_summary(&self) -> String {
         format!(
-            "Log Config: Max Size {}MB, Archives: {}, Compression: {}, Requests: {}, Security: {}, Performance: {}",
+            "Log Config: {}MB max, {} archives, compression: {}, requests: {}, security: {}, performance: {}",
             self.config.max_file_size_bytes / 1024 / 1024,
             self.config.max_archive_files,
             self.config.compress_archives,
-            self.should_log_requests,
-            self.should_log_security,
-            self.should_log_performance
+            self.log_requests,
+            self.log_security,
+            self.log_performance
         )
     }
 }

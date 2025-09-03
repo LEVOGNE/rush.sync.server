@@ -1,9 +1,9 @@
-// Enhanced src/setup/setup_toml.rs
+// src/setup/setup_toml.rs - Cleaned and optimized
 use crate::core::prelude::*;
 use std::path::PathBuf;
 use tokio::fs;
 
-// Enhanced DEFAULT_CONFIG with server and logging sections
+// Consolidated DEFAULT_CONFIG - All sections in one place
 const DEFAULT_CONFIG: &str = r#"[general]
 max_messages = 1000
 typewriter_delay = 5
@@ -17,16 +17,42 @@ current_theme = "dark"
 current = "en"
 
 # =====================================================
-# SERVER MANAGEMENT CONFIGURATION
+# SERVER CONFIGURATION
 # =====================================================
 [server]
+# Port Management
 port_range_start = 8080      # Starting port for auto-allocation
 port_range_end = 8180        # Maximum port for auto-allocation
 max_concurrent = 10          # Maximum simultaneous servers
 shutdown_timeout = 5         # Graceful shutdown timeout (seconds)
 startup_delay_ms = 500       # Delay after server creation (milliseconds)
 workers = 1                  # Actix workers per server
-auto_open_browser = true     # Autostart Browser
+auto_open_browser = true     # Automatically open browser
+
+# HTTPS/TLS Configuration
+enable_https = true          # Enable HTTPS support
+https_port_offset = 1000     # HTTPS port = HTTP port + offset
+cert_dir = ".rss/certs"      # Certificate storage directory
+auto_cert = true             # Generate certificates automatically
+cert_validity_days = 365     # Certificate validity (days)
+
+# Production Settings
+use_lets_encrypt = false     # Use Let's Encrypt (requires public domain)
+production_domain = "localhost"  # Production domain name
+
+# =====================================================
+# REVERSE PROXY CONFIGURATION
+# =====================================================
+[proxy]
+enabled = true               # Enable integrated reverse proxy
+port = 8000                  # Proxy listening port
+bind_address = "127.0.0.1"   # Proxy bind address
+health_check_interval = 30   # Health check interval (seconds)
+timeout_ms = 5000           # Request timeout (milliseconds)
+
+# For production use:
+# port = 80                  # Standard HTTP Port
+# bind_address = "0.0.0.0"   # All interfaces (for external access)
 
 # =====================================================
 # LOGGING CONFIGURATION
@@ -88,19 +114,14 @@ input_cursor_color = "White"
 "#;
 
 pub async fn ensure_config_exists() -> Result<PathBuf> {
-    let exe_path = std::env::current_exe().map_err(AppError::Io)?;
-    let base_dir = exe_path
-        .parent()
-        .ok_or_else(|| AppError::Validation(get_translation("system.config.dir_error", &[])))?;
+    let config_path = get_primary_config_path()?;
 
-    let config_dir = base_dir.join(".rss");
-    if !config_dir.exists() {
-        fs::create_dir_all(&config_dir)
-            .await
-            .map_err(AppError::Io)?;
+    // Create directory if needed
+    if let Some(parent) = config_path.parent() {
+        fs::create_dir_all(parent).await.map_err(AppError::Io)?;
     }
 
-    let config_path = config_dir.join("rush.toml");
+    // Create config file if it doesn't exist
     if !config_path.exists() {
         fs::write(&config_path, DEFAULT_CONFIG)
             .await
@@ -120,17 +141,31 @@ pub async fn ensure_config_exists() -> Result<PathBuf> {
 
 pub fn get_config_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
+
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(base_dir) = exe_path.parent() {
+            // Primary locations (in order of preference)
             paths.push(base_dir.join(".rss/rush.toml"));
             paths.push(base_dir.join("rush.toml"));
             paths.push(base_dir.join("config/rush.toml"));
         }
     }
+
+    // Development fallbacks
     #[cfg(debug_assertions)]
     {
         paths.push(PathBuf::from("rush.toml"));
         paths.push(PathBuf::from("src/rush.toml"));
     }
+
     paths
+}
+
+fn get_primary_config_path() -> Result<PathBuf> {
+    let exe_path = std::env::current_exe().map_err(AppError::Io)?;
+    let base_dir = exe_path
+        .parent()
+        .ok_or_else(|| AppError::Validation(get_translation("system.config.dir_error", &[])))?;
+
+    Ok(base_dir.join(".rss/rush.toml"))
 }

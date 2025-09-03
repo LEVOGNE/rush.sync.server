@@ -5,13 +5,13 @@ use ratatui::widgets::Paragraph;
 
 /// Core Widget trait - essentielles Rendering
 pub trait Widget {
-    fn render(&self) -> Paragraph;
+    fn render(&self) -> Paragraph<'_>;
     fn handle_input(&mut self, key: KeyEvent) -> Option<String>;
 }
 
 /// Cursor-fähige Widgets
 pub trait CursorWidget: Widget {
-    fn render_with_cursor(&self) -> (Paragraph, Option<(u16, u16)>);
+    fn render_with_cursor(&self) -> (Paragraph<'_>, Option<(u16, u16)>);
 }
 
 /// State-Management für Widgets
@@ -39,7 +39,7 @@ pub mod utils {
         widgets::{Block, Borders},
     };
 
-    pub fn simple_text(content: &str, style: Style) -> Paragraph {
+    pub fn simple_text(content: &str, style: Style) -> Paragraph<'_> {
         Paragraph::new(content.to_string())
             .style(style)
             .block(Block::default().borders(Borders::NONE))
@@ -59,7 +59,7 @@ mod examples {
     pub struct SimpleWidget(String);
 
     impl Widget for SimpleWidget {
-        fn render(&self) -> Paragraph {
+        fn render(&self) -> Paragraph<'_> {
             utils::simple_text(&self.0, ratatui::style::Style::default())
         }
 
@@ -76,7 +76,7 @@ mod examples {
     }
 
     impl Widget for FullInputWidget {
-        fn render(&self) -> Paragraph {
+        fn render(&self) -> Paragraph<'_> {
             self.render_with_cursor().0
         }
 
@@ -86,7 +86,7 @@ mod examples {
     }
 
     impl CursorWidget for FullInputWidget {
-        fn render_with_cursor(&self) -> (Paragraph, Option<(u16, u16)>) {
+        fn render_with_cursor(&self) -> (Paragraph<'_>, Option<(u16, u16)>) {
             let para = utils::simple_text(&self.content, ratatui::style::Style::default());
             let cursor = if self.visible {
                 Some((self.cursor_pos as u16, 0))

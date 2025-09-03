@@ -1,6 +1,6 @@
 [package]
 name = "rush-sync-server"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2021"
 description = "Modern asynchronous TUI application with i18n and modular command system"
 license = "GPL-3.0 OR LicenseRef-Commercial"
@@ -55,6 +55,17 @@ reqwest = { version = "0.11", features = ["json"] }
 notify = "6.0"
 actix-web-actors = "4.2"
 actix = "0.13"
+
+# TLS/HTTPS Support
+rustls = "0.21"
+rustls-pemfile = "1.0"
+rcgen = "0.11"
+time = { version = "0.3", features = ["macros"] }
+
+# NEU für Reverse Proxy:
+hyper = { version = "0.14", features = ["full"] }
+hyper-rustls = "0.24"
+tokio-rustls = "0.24"
 
 # =====================================================
 # OPTIONAL FEATURES (für später)

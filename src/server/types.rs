@@ -1,3 +1,4 @@
+// ## FILE: src/server/types.rs - KOMPLETT KORRIGIERT
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -10,6 +11,27 @@ pub struct ServerInfo {
     pub status: ServerStatus,
     pub created_at: String,
     pub created_timestamp: u64,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum ServerStatus {
+    Stopped,
+    Running,
+    Failed,
+}
+
+impl std::fmt::Display for ServerStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Stopped => "STOPPED",
+                Self::Running => "RUNNING",
+                Self::Failed => "FAILED",
+            }
+        )
+    }
 }
 
 impl Default for ServerInfo {
@@ -30,23 +52,7 @@ impl Default for ServerInfo {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum ServerStatus {
-    Stopped,
-    Running,
-    Failed,
-}
-
-impl std::fmt::Display for ServerStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ServerStatus::Stopped => write!(f, "STOPPED"),
-            ServerStatus::Running => write!(f, "RUNNING"),
-            ServerStatus::Failed => write!(f, "FAILED"),
-        }
-    }
-}
-
+// WICHTIG: ServerData-Struktur hinzugefügt
 #[derive(Debug, Clone)]
 pub struct ServerData {
     pub id: String,
@@ -57,41 +63,8 @@ pub struct ServerData {
 pub type ServerMap = Arc<RwLock<HashMap<String, ServerInfo>>>;
 pub type ServerHandles = Arc<RwLock<HashMap<String, actix_web::dev::ServerHandle>>>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ServerContext {
     pub servers: ServerMap,
     pub handles: ServerHandles,
-}
-
-impl Default for ServerContext {
-    fn default() -> Self {
-        Self {
-            servers: Arc::new(RwLock::new(HashMap::new())),
-            handles: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-}
-// ## END ##
-
-// ## FILE: src/server/config.rs
-// ## BEGIN ##
-use crate::core::config::Config;
-
-pub fn get_server_version() -> &'static str {
-    env!("CARGO_PKG_VERSION")
-}
-
-pub fn get_server_name() -> &'static str {
-    env!("CARGO_PKG_NAME")
-}
-
-pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const SERVER_NAME: &str = env!("CARGO_PKG_NAME");
-
-pub fn get_server_config_from_main(config: &Config) -> &crate::core::config::ServerConfig {
-    &config.server
-}
-
-pub fn get_logging_config_from_main(config: &Config) -> &crate::core::config::LoggingConfig {
-    &config.logging
 }

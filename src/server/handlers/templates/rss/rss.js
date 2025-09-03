@@ -1,24 +1,25 @@
 /**
- * Rush Sync Dashboard - Optimiert für Performance und Robustheit
- * WebSocket Hot Reload mit minimaler Speicher- und CPU-Belastung
+ * Rush Sync Dashboard - Enhanced with Real Log Loading and TLS Info
+ * WebSocket Hot Reload with real server log display
  */
 
 class RushSyncApp {
   constructor() {
-    // Konsolidierte Config - Reduzierung von Objekt-Allokationen
+    // Consolidated Config
     this.config = {
       statusInterval: 5000,
-      logPollInterval: 2000,
+      logPollInterval: 3000,
       metricsInterval: 10000,
-      maxLogLines: 500,
+      maxLogLines: 1000,
       autoScroll: true,
       serverHealthCheckInterval: 2000,
       websocketReconnectDelay: 1000,
       maxReconnectAttempts: 10,
       hotReloadDebounce: 250,
+      logRefreshInterval: 2000, // Real log refresh
     };
 
-    // Optimierter State - Reduzierte Verschachtelung
+    // Enhanced State
     this.state = {
       currentTab: 'overview',
       logs: [],
@@ -32,12 +33,17 @@ class RushSyncApp {
       websocketConnected: false,
       reconnectAttempts: 0,
       lastReloadTime: 0,
+      lastLogCheck: 0,
+      realLogs: [], // Real server logs
+      logFileSize: 0,
     };
 
     this.intervals = {};
     this.startTime = Date.now();
     this.serverName = '{{SERVER_NAME}}';
     this.serverPort = '{{PORT}}';
+    this.httpsPort = '{{HTTPS_PORT}}';
+    this.proxyPort = '8443';
 
     this.init();
   }
@@ -48,14 +54,210 @@ class RushSyncApp {
     this.formatCreationTime();
     this.startAllMonitoring();
     this.initializeHotReload();
+    this.startRealLogMonitoring();
 
     window.RushApp = this;
 
-    console.log('[Rush Sync] Dashboard initialized with Hot Reload');
-    this.addLogEntry('INFO', 'Hot Reload WebSocket initializing...', 'system');
+    console.log('[Rush Sync] Dashboard initialized with Enhanced Logging');
+    this.addLogEntry('INFO', 'Enhanced Dashboard with TLS and Proxy support loaded');
   }
 
-  // Hot Reload WebSocket - Optimiert
+  // Real Log Loading System
+  startRealLogMonitoring() {
+    this.intervals.realLogs = setInterval(() => {
+      if (this.state.currentTab === 'logs') {
+        this.loadRealLogs();
+      }
+    }, this.config.logRefreshInterval);
+  }
+
+  async loadRealLogs() {
+    try {
+      const response = await fetch('/api/logs/raw', {
+        cache: 'no-cache',
+        headers: {
+          Accept: 'application/json',
+          'X-Log-Size': this.state.logFileSize.toString(),
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        if (data.new_entries && data.new_entries.length > 0) {
+          this.processRealLogEntries(data.new_entries);
+          this.state.logFileSize = data.file_size || this.state.logFileSize;
+        }
+
+        if (data.stats) {
+          this.updateLogStats(data.stats);
+        }
+      }
+    } catch (error) {
+      console.warn('[Rush Sync] Real log loading failed:', error);
+    }
+  }
+
+  processRealLogEntries(entries) {
+    const container = document.getElementById('log-output');
+    if (!container) return;
+
+    entries.forEach((entry) => {
+      try {
+        const logData = typeof entry === 'string' ? JSON.parse(entry) : entry;
+        this.displayRealLogEntry(logData, container);
+      } catch (e) {
+        // Fallback for non-JSON log lines
+        this.displayPlainLogEntry(entry, container);
+      }
+    });
+
+    // Log rotation
+    const lines = container.children;
+    if (lines.length > this.config.maxLogLines) {
+      const excess = lines.length - this.config.maxLogLines;
+      for (let i = 0; i < excess; i++) {
+        container.removeChild(lines[0]);
+      }
+    }
+
+    if (this.config.autoScroll && this.state.currentTab === 'logs') {
+      container.scrollTop = container.scrollHeight;
+    }
+  }
+
+  displayRealLogEntry(logData, container) {
+    const logLine = document.createElement('div');
+    const eventType = this.getLogEventType(logData);
+    logLine.className = `log-line ${eventType}`;
+
+    const timestamp = this.formatLogTimestamp(logData.timestamp);
+    const level = this.getLogLevel(logData);
+    const message = this.formatLogMessage(logData);
+
+    logLine.innerHTML = `
+      <span class="log-time">${timestamp}</span>
+      <span class="log-level ${level}">${level}</span>
+      <span class="log-message">${message}</span>
+    `;
+
+    container.appendChild(logLine);
+  }
+
+  displayPlainLogEntry(entry, container) {
+    const logLine = document.createElement('div');
+    logLine.className = 'log-line system';
+
+    const now = new Date().toLocaleTimeString('de-DE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    logLine.innerHTML = `
+      <span class="log-time">${now}</span>
+      <span class="log-level INFO">INFO</span>
+      <span class="log-message">${this.escapeHtml(entry)}</span>
+    `;
+
+    container.appendChild(logLine);
+  }
+
+  getLogEventType(logData) {
+    switch (logData.event_type) {
+      case 'Request':
+        return 'request';
+      case 'ServerError':
+        return 'error';
+      case 'SecurityAlert':
+        return 'security';
+      case 'PerformanceWarning':
+        return 'performance';
+      default:
+        return 'system';
+    }
+  }
+
+  getLogLevel(logData) {
+    if (logData.event_type === 'ServerError') return 'ERROR';
+    if (logData.event_type === 'SecurityAlert') return 'WARN';
+    if (logData.event_type === 'PerformanceWarning') return 'WARN';
+    if (logData.status_code >= 400) return 'WARN';
+    if (logData.status_code >= 200 && logData.status_code < 300) return 'SUCCESS';
+    return 'INFO';
+  }
+
+  formatLogMessage(logData) {
+    if (logData.event_type === 'Request') {
+      const responseTime = logData.response_time_ms ? ` - ${logData.response_time_ms}ms` : '';
+      const bytes = logData.bytes_sent ? ` - ${this.formatBytes(logData.bytes_sent)}` : '';
+      return `${logData.method} ${logData.path} - ${logData.status_code}${responseTime}${bytes} [${logData.ip_address}]`;
+    }
+
+    if (logData.event_type === 'SecurityAlert') {
+      return `Security Alert: ${logData.headers?.alert_reason || 'Unknown'} - ${
+        logData.headers?.alert_details || logData.path
+      }`;
+    }
+
+    if (logData.event_type === 'PerformanceWarning') {
+      return `Performance Warning: ${logData.headers?.metric || 'Response time'} = ${
+        logData.response_time_ms
+      }ms (threshold exceeded)`;
+    }
+
+    if (logData.event_type === 'ServerStart') {
+      return `Server started on port ${this.serverPort}`;
+    }
+
+    if (logData.event_type === 'ServerStop') {
+      return `Server stopped gracefully`;
+    }
+
+    if (logData.event_type === 'ServerError') {
+      return `Server Error: ${logData.path} - ${
+        logData.headers?.error_message || 'Internal error'
+      }`;
+    }
+
+    return logData.path || 'System event';
+  }
+
+  formatLogTimestamp(timestamp) {
+    if (!timestamp) return new Date().toLocaleTimeString('de-DE');
+
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString('de-DE', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        fractionalSecondDigits: 3,
+      });
+    } catch (e) {
+      return timestamp.substring(11, 23) || new Date().toLocaleTimeString('de-DE');
+    }
+  }
+
+  updateLogStats(stats) {
+    if (stats.total_requests !== undefined) {
+      const requestElement = document.getElementById('request-count');
+      if (requestElement) requestElement.textContent = stats.total_requests;
+    }
+
+    if (stats.error_requests !== undefined) {
+      const errorElement = document.getElementById('error-count');
+      if (errorElement) errorElement.textContent = stats.error_requests;
+    }
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Hot Reload WebSocket - Same as before
   initializeHotReload() {
     this.connectWebSocket();
   }
@@ -116,9 +318,40 @@ class RushSyncApp {
     const fileName = changeEvent.file_path.split('/').pop() || 'unknown';
     this.addLogEntry('INFO', `File ${changeEvent.event_type}: ${fileName}`, 'hotreload');
 
+    // Add to file changes log
+    this.addFileChangeToLog(changeEvent, fileName);
+
     if (this.shouldTriggerReload(changeEvent)) {
       this.state.lastReloadTime = now;
       this.triggerPageReload(fileName);
+    }
+  }
+
+  addFileChangeToLog(changeEvent, fileName) {
+    const container = document.getElementById('file-changes-log');
+    if (!container) return;
+
+    const changeItem = document.createElement('div');
+    changeItem.className = 'change-item';
+
+    const timestamp = new Date().toLocaleTimeString('de-DE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    changeItem.innerHTML = `
+      <span class="change-time">${timestamp}</span>
+      <span class="change-type ${changeEvent.event_type.toLowerCase()}">${changeEvent.event_type.toUpperCase()}</span>
+      <span class="change-file">${fileName}</span>
+      <span class="change-desc">${changeEvent.file_extension} file changed</span>
+    `;
+
+    container.insertBefore(changeItem, container.firstChild);
+
+    // Keep only last 20 changes
+    while (container.children.length > 20) {
+      container.removeChild(container.lastChild);
     }
   }
 
@@ -149,7 +382,6 @@ class RushSyncApp {
     }, 500);
   }
 
-  // Optimierte Notification - Reduzierte DOM-Operationen
   showReloadNotification(fileName) {
     const existing = document.getElementById('hot-reload-notification');
     if (existing) existing.remove();
@@ -185,6 +417,8 @@ class RushSyncApp {
 
   updateHotReloadStatus(status) {
     const statusElement = document.getElementById('hotreload-status');
+    const wsStatusElement = document.getElementById('ws-connection-status');
+
     if (!statusElement) return;
 
     const statusText = {
@@ -195,9 +429,237 @@ class RushSyncApp {
 
     statusElement.textContent = statusText[status] || '🔴 Unknown';
     statusElement.className = `hotreload-status ${status}`;
+
+    if (wsStatusElement) {
+      wsStatusElement.textContent =
+        status === 'connected' ? 'Connected' : status === 'disconnected' ? 'Reconnecting' : 'Error';
+      wsStatusElement.className = `status-value ${status}`;
+    }
+
+    const reconnectElement = document.getElementById('reconnect-attempts');
+    if (reconnectElement) {
+      reconnectElement.textContent = this.state.reconnectAttempts;
+    }
   }
 
-  // Server Health Monitoring - Optimiert
+  // Enhanced Event Listeners with new button handlers
+  setupEventListeners() {
+    document.addEventListener('DOMContentLoaded', () => this.onDOMReady());
+    window.addEventListener('beforeunload', () => this.cleanup());
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.pauseMonitoring();
+      } else {
+        this.resumeMonitoring();
+      }
+    });
+
+    // Event Delegation für alle Klicks
+    document.addEventListener('click', (e) => {
+      // Tab Navigation
+      if (e.target.classList.contains('tab-btn')) {
+        this.switchTab(e.target.dataset.tab);
+      }
+      // Endpoint Testing
+      else if (e.target.classList.contains('test-btn')) {
+        this.testEndpoint(e.target.dataset.url, e.target);
+      }
+      // NEUE: Header Actions mit data-action
+      else if (e.target.hasAttribute('data-action')) {
+        e.preventDefault();
+        const action = e.target.dataset.action;
+
+        console.log('[Rush Sync] Action:', action);
+
+        switch (action) {
+          case 'view-http':
+            window.open(`http://127.0.0.1:${this.serverPort}`, '_blank');
+            break;
+          case 'view-https':
+            // ENTFERNT - macht keinen Sinn bei Proxy-Setup
+            this.addLogEntry('INFO', 'HTTPS direct access disabled - use proxy instead');
+            break;
+          case 'view-proxy':
+            // KORREKTUR: HTTPS für Proxy verwenden
+            window.open(`https://${this.serverName}.localhost:${this.proxyPort}`, '_blank');
+            break;
+          case 'test-apis':
+            this.testAllEndpoints();
+            break;
+          case 'refresh-stats':
+            this.refreshStats();
+            break;
+          case 'simulate-file-change':
+            this.simulateFileChange();
+            break;
+          default:
+            console.warn('[Rush Sync] Unknown action:', action);
+        }
+      }
+      // FALLBACK: Alte Buttons mit CSS-Klasse .btn (für Kompatibilität)
+      else if (e.target.classList.contains('btn')) {
+        e.preventDefault();
+        const buttonText = e.target.textContent.trim();
+
+        console.log('[Rush Sync] Button clicked:', buttonText);
+
+        switch (buttonText) {
+          case 'View Site (HTTP)':
+            window.open(`http://127.0.0.1:${this.serverPort}`, '_blank');
+            break;
+          case 'View Site (HTTPS)':
+            this.addLogEntry('INFO', 'HTTPS direct access disabled - use proxy instead');
+            break;
+          case 'View via Proxy':
+            // KORREKTUR: HTTPS für Proxy
+            window.open(`https://${this.serverName}.localhost:${this.proxyPort}`, '_blank');
+            break;
+          case 'Test APIs':
+            this.testAllEndpoints();
+            break;
+          case 'Refresh Stats':
+            this.refreshStats();
+            break;
+          case 'Simulate File Change':
+            this.simulateFileChange();
+            break;
+          default:
+            console.warn('[Rush Sync] Unknown button:', buttonText);
+        }
+      }
+      // Header Buttons (neue kompakte Buttons)
+      else if (e.target.classList.contains('header-btn')) {
+        e.preventDefault();
+        const action = e.target.dataset.action;
+
+        console.log('[Rush Sync] Header button action:', action);
+
+        switch (action) {
+          case 'view-proxy':
+            window.open(`https://${this.serverName}.localhost:${this.proxyPort}`, '_blank');
+            break;
+          case 'test-apis':
+            this.testAllEndpoints();
+            break;
+          case 'refresh-stats':
+            this.refreshStats();
+            break;
+          default:
+            console.warn('[Rush Sync] Unknown header action:', action);
+        }
+      }
+      // Terminal Action Buttons
+      else if (e.target.classList.contains('terminal-btn')) {
+        const text = e.target.textContent.trim();
+        if (text === 'Clear') {
+          this.clearLogs();
+        } else if (text.includes('Auto-scroll')) {
+          this.toggleAutoScroll();
+        } else if (text === 'Download Log') {
+          this.downloadLogs();
+        }
+      }
+    });
+  }
+
+  // Rest of the methods remain the same...
+  onDOMReady() {
+    this.checkServerStatus();
+    this.loadInitialMetrics();
+    this.updateServerInfo();
+  }
+
+  updateServerInfo() {
+    // Update HTTPS port display
+    const httpsElement = document.getElementById('https-port');
+    if (httpsElement) {
+      httpsElement.textContent = this.httpsPort;
+    }
+
+    // Update certificate validity display
+    this.updateCertificateInfo();
+  }
+
+  updateCertificateInfo() {
+    // This would typically fetch from /api/certificates
+    // For now, show default values
+    const certValidityElement = document.getElementById('cert-validity');
+    if (certValidityElement) {
+      certValidityElement.textContent = '365 days';
+    }
+  }
+
+  downloadLogs() {
+    const logOutput = document.getElementById('log-output');
+    if (!logOutput) return;
+
+    const logLines = Array.from(logOutput.children)
+      .map((line) => {
+        const time = line.querySelector('.log-time')?.textContent || '';
+        const level = line.querySelector('.log-level')?.textContent || '';
+        const message = line.querySelector('.log-message')?.textContent || '';
+        return `${time} ${level} ${message}`;
+      })
+      .join('\n');
+
+    const blob = new Blob([logLines], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${this.serverName}-${this.serverPort}-logs.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    this.addLogEntry('INFO', 'Logs downloaded', 'system');
+  }
+
+  // Tab System
+  initializeTabs() {
+    this.switchTab('overview');
+  }
+
+  switchTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+
+    document.querySelectorAll('.tab-panel').forEach((panel) => {
+      panel.classList.toggle('active', panel.id === `tab-${tabName}`);
+    });
+
+    this.state.currentTab = tabName;
+
+    // Lazy loading for tabs
+    if (tabName === 'logs') {
+      this.loadLogs();
+      this.loadRealLogs(); // Load real logs immediately when tab is opened
+    } else if (tabName === 'metrics') {
+      this.loadMetrics();
+    } else if (tabName === 'certificates') {
+      this.loadCertificateInfo();
+    }
+  }
+
+  loadCertificateInfo() {
+    // This would fetch certificate details from the server
+    // For now, update with template values
+    this.updateCertificateInfo();
+  }
+
+  // Rest of methods (monitoring, metrics, etc.) remain the same as in the original...
+  startAllMonitoring() {
+    this.intervals.status = setInterval(() => this.checkServerStatus(), this.config.statusInterval);
+    this.intervals.uptime = setInterval(() => this.updateUptime(), 1000);
+    this.intervals.logs = setInterval(() => {
+      if (this.state.currentTab === 'logs') this.pollLogs();
+    }, this.config.logPollInterval);
+    this.intervals.metrics = setInterval(() => this.updateMetrics(), this.config.metricsInterval);
+    this.startServerHealthCheck();
+  }
+
   startServerHealthCheck() {
     this.intervals.healthCheck = setInterval(
       () => this.checkServerHealth(),
@@ -230,7 +692,6 @@ class RushSyncApp {
     }
   }
 
-  // Shutdown Handler - Optimiert
   handleServerShutdown() {
     if (this.state.shutdownNotified) return;
 
@@ -240,7 +701,7 @@ class RushSyncApp {
     this.state.websocket?.close();
     this.cleanup();
 
-    document.body.innerHTML = `<div style="position: absolute;left: 50%;top: 50%;transform: translate(-50%, -50%);text-align: center;padding: 30px;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;background: rgba(0, 212, 255, 0.25);color: #ffffff;display: flex;flex-direction: column;justify-content: center;align-items: center;border-radius: 11px;"><div style="border: 2px solid #00d4ff;padding: 30px;border-radius: 6px;max-width: 500px;background: #000000;"><h1 style="margin: 0 0 20px 0;color: #ff4757;font-size: 24px;font-weight: 600;text-transform: uppercase;">Server Stopped</h1><p style="margin: 10px 0; font-size: 16px; color: #ffffff; line-height: 1.4">Server '<strong style="color: #00d4ff">${this.serverName}</strong>' on port<strong style="color: #00d4ff">${this.serverPort}</strong> stopped.</p><p style="margin: 20px 0; font-size: 14px; color: #a0a6b1">Closing in <span id="countdown" style="color: #ff4757; font-weight: 600">3</span> seconds...</p><button onclick="window.close()"style="margin-top: 20px;padding: 10px 20px;background: #00d4ff;color: #1a1d23;border: none;cursor: pointer;border-radius: 5px;font-size: 12px;font-weight: 600;text-transform: uppercase;">Close Tab Now</button></div></div>`;
+    document.body.innerHTML = `<div style="position: absolute;left: 50%;top: 50%;transform: translate(-50%, -50%);text-align: center;padding: 30px;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;background: rgba(0, 212, 255, 0.25);color: #ffffff;display: flex;flex-direction: column;justify-content: center;align-items: center;border-radius: 11px;"><div style="border: 2px solid #00d4ff;padding: 30px;border-radius: 6px;max-width: 500px;background: #000000;"><h1 style="margin: 0 0 20px 0;color: #ff4757;font-size: 24px;font-weight: 600;text-transform: uppercase;">Server Stopped</h1><p style="margin: 10px 0; font-size: 16px; color: #ffffff; line-height: 1.4">Server '<strong style="color: #00d4ff">${this.serverName}</strong>' on port <strong style="color: #00d4ff">${this.serverPort}</strong> stopped.</p><p style="margin: 20px 0; font-size: 14px; color: #a0a6b1">Closing in <span id="countdown" style="color: #ff4757; font-weight: 600">3</span> seconds...</p><button onclick="window.close()" style="margin-top: 20px;padding: 10px 20px;background: #00d4ff;color: #1a1d23;border: none;cursor: pointer;border-radius: 5px;font-size: 12px;font-weight: 600;text-transform: uppercase;">Close Tab Now</button></div></div>`;
 
     let countdown = 3;
     const countdownElement = document.getElementById('countdown');
@@ -257,11 +718,7 @@ class RushSyncApp {
   attemptBrowserClose() {
     console.log('[Rush Sync] Closing tab');
     try {
-      // Erst versuchen zu schließen
       window.close();
-
-      // Falls window.close() nicht funktioniert (moderne Browser-Sicherheit)
-      // Alternative: Tab auf leere Seite umleiten
       setTimeout(() => {
         if (!window.closed) {
           window.location.href = 'about:blank';
@@ -273,61 +730,7 @@ class RushSyncApp {
     }
   }
 
-  // Event Listeners - Optimiert mit Event Delegation
-  setupEventListeners() {
-    document.addEventListener('DOMContentLoaded', () => this.onDOMReady());
-    window.addEventListener('beforeunload', () => this.cleanup());
-
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        this.pauseMonitoring();
-      } else {
-        this.resumeMonitoring();
-      }
-    });
-
-    // Event Delegation für alle Button-Klicks
-    document.addEventListener('click', (e) => {
-      // Tab Navigation
-      if (e.target.classList.contains('tab-btn')) {
-        this.switchTab(e.target.dataset.tab);
-      }
-      // Endpoint Testing
-      else if (e.target.classList.contains('test-btn')) {
-        this.testEndpoint(e.target.dataset.url, e.target);
-      }
-      // Quick Action Buttons - Robuste Button-Erkennung
-      else if (e.target.classList.contains('btn')) {
-        const text = e.target.textContent.trim();
-
-        if (text === 'View Site') {
-          window.open('/', '_blank');
-        } else if (text === 'Test APIs') {
-          this.testAllEndpoints();
-        } else if (text === 'Refresh Stats') {
-          this.refreshStats();
-        } else if (text === 'Simulate File Change') {
-          this.simulateFileChange();
-        }
-      }
-      // Terminal Action Buttons
-      else if (e.target.classList.contains('terminal-btn')) {
-        const text = e.target.textContent.trim();
-        if (text === 'Clear') {
-          this.clearLogs();
-        } else if (text.includes('Auto-scroll')) {
-          this.toggleAutoScroll();
-        }
-      }
-    });
-  }
-
-  onDOMReady() {
-    this.checkServerStatus();
-    this.loadInitialMetrics();
-  }
-
-  // Tab System - Vereinfacht
+  // Utility methods continue...
   formatCreationTime() {
     const element = document.getElementById('creation-time');
     if (!element || element.textContent === '{{CREATION_TIME}}') return;
@@ -345,36 +748,6 @@ class RushSyncApp {
     } catch (e) {
       console.warn('[Rush Sync] Time format failed:', e);
     }
-  }
-
-  initializeTabs() {
-    this.switchTab('overview');
-  }
-
-  switchTab(tabName) {
-    document.querySelectorAll('.tab-btn').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.tab === tabName);
-    });
-
-    document.querySelectorAll('.tab-panel').forEach((panel) => {
-      panel.classList.toggle('active', panel.id === `tab-${tabName}`);
-    });
-
-    this.state.currentTab = tabName;
-
-    // Lazy loading für Tabs
-    if (tabName === 'logs') this.loadLogs();
-    else if (tabName === 'metrics') this.loadMetrics();
-  }
-
-  // Monitoring - Optimiert
-  startAllMonitoring() {
-    this.intervals.status = setInterval(() => this.checkServerStatus(), this.config.statusInterval);
-    this.intervals.uptime = setInterval(() => this.updateUptime(), 1000);
-    this.intervals.logs = setInterval(() => {
-      if (this.state.currentTab === 'logs') this.pollLogs();
-    }, this.config.logPollInterval);
-    this.intervals.metrics = setInterval(() => this.updateMetrics(), this.config.metricsInterval);
   }
 
   async checkServerStatus() {
@@ -426,7 +799,15 @@ class RushSyncApp {
     return `${seconds}s`;
   }
 
-  // Metrics - Vereinfacht und optimiert
+  formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  // Continue with remaining utility methods...
   async loadInitialMetrics() {
     try {
       const response = await fetch('/api/stats');
@@ -482,14 +863,6 @@ class RushSyncApp {
     this.updateRecentActivity(data);
   }
 
-  formatBytes(bytes) {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  }
-
   updateRecentActivity(data) {
     const container = document.getElementById('recent-activity');
     if (!container) return;
@@ -497,6 +870,7 @@ class RushSyncApp {
     const activities = [
       { time: 'Just now', desc: `${data.total_requests || 0} total requests processed` },
       { time: '1m ago', desc: `Average response: ${Math.round(data.avg_response_time_ms || 0)}ms` },
+      { time: '2m ago', desc: `${data.unique_ips || 0} unique visitors` },
     ];
 
     container.innerHTML = activities
@@ -511,12 +885,11 @@ class RushSyncApp {
       .join('');
   }
 
-  // Logging - Optimiert
   async loadLogs() {
     const container = document.getElementById('log-output');
     if (!container) return;
 
-    this.addLogEntry('INFO', 'Fetching server activity...');
+    this.addLogEntry('INFO', 'Loading server activity...');
 
     try {
       const response = await fetch('/api/stats');
@@ -554,6 +927,8 @@ class RushSyncApp {
         'Cache hit: favicon.svg',
         'Metrics updated',
         'Hot Reload active',
+        'TLS certificate validated',
+        'Proxy route active',
       ];
 
       const activity = activities[Math.floor(Math.random() * activities.length)];
@@ -581,7 +956,6 @@ class RushSyncApp {
 
     container.appendChild(logLine);
 
-    // Log rotation
     const lines = container.children;
     if (lines.length > this.config.maxLogLines) {
       container.removeChild(lines[0]);
@@ -592,7 +966,6 @@ class RushSyncApp {
     }
   }
 
-  // Utility Functions - Optimiert
   async testEndpoint(url, button) {
     const originalText = button.textContent;
     button.textContent = '...';
@@ -623,27 +996,63 @@ class RushSyncApp {
   }
 
   async testAllEndpoints() {
+    console.log('[Rush Sync] Testing all endpoints...');
     const endpoints = ['/api/status', '/api/health', '/api/info', '/api/metrics'];
-    this.addLogEntry('INFO', 'Testing endpoints...');
+
+    this.addLogEntry('INFO', 'Testing all endpoints...');
 
     for (const endpoint of endpoints) {
       try {
-        const response = await fetch(endpoint, { cache: 'no-cache' });
+        const response = await fetch(endpoint, {
+          cache: 'no-cache',
+          signal: AbortSignal.timeout(5000), // 5s timeout
+        });
+
         const status = response.ok ? 'PASS' : 'FAIL';
-        this.addLogEntry('INFO', `${endpoint} - ${status} (${response.status})`);
+        const statusText = `${response.status} ${response.statusText}`;
+
+        this.addLogEntry(
+          response.ok ? 'SUCCESS' : 'WARN',
+          `${endpoint} - ${status} (${statusText})`,
+        );
+
+        console.log(`[Rush Sync] ${endpoint}: ${status} - ${statusText}`);
       } catch (e) {
         this.addLogEntry('ERROR', `${endpoint} - ERROR: ${e.message}`);
+        console.error(`[Rush Sync] ${endpoint} failed:`, e);
       }
-      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Kurze Pause zwischen Tests
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
 
     this.addLogEntry('SUCCESS', 'Endpoint testing completed');
+    console.log('[Rush Sync] All endpoints tested');
   }
 
   async refreshStats() {
-    this.addLogEntry('INFO', 'Refreshing stats...');
-    await this.updateMetrics();
-    this.addLogEntry('SUCCESS', 'Stats refreshed');
+    console.log('[Rush Sync] Refreshing stats...');
+    this.addLogEntry('INFO', 'Refreshing all stats...');
+
+    try {
+      // Stats aktualisieren
+      await this.updateMetrics();
+
+      // Status prüfen
+      await this.checkServerStatus();
+
+      // Logs aktualisieren wenn auf Log-Tab
+      if (this.state.currentTab === 'logs') {
+        this.loadLogs();
+        this.loadRealLogs();
+      }
+
+      this.addLogEntry('SUCCESS', 'Stats refreshed successfully');
+      console.log('[Rush Sync] Stats refresh completed');
+    } catch (error) {
+      this.addLogEntry('ERROR', `Stats refresh failed: ${error.message}`);
+      console.error('[Rush Sync] Stats refresh failed:', error);
+    }
   }
 
   clearLogs() {
@@ -667,7 +1076,6 @@ class RushSyncApp {
     this.updateMetrics();
   }
 
-  // Lifecycle Management - Vereinfacht
   pauseMonitoring() {
     Object.values(this.intervals).forEach((interval) => interval && clearInterval(interval));
     this.intervals = {};
@@ -684,11 +1092,11 @@ class RushSyncApp {
     console.log('[Rush Sync] Cleanup completed');
   }
 
-  // Hot Reload Test Function für Simulate Button
+  // Hot Reload Test Function for Simulate Button
   simulateFileChange() {
     this.addLogEntry('INFO', 'Simulating file change...', 'hotreload');
 
-    // Simuliere ein FileChangeEvent
+    // Simulate a FileChangeEvent
     const mockEvent = {
       event_type: 'modified',
       file_path: 'www/test-file.html',
@@ -702,14 +1110,14 @@ class RushSyncApp {
   }
 }
 
-// Optimierte Initialisierung
+// Optimized Initialization
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => new RushSyncApp());
 } else {
   new RushSyncApp();
 }
 
-// Export für Module
+// Export for modules
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = RushSyncApp;
 }
