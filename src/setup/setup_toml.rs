@@ -21,8 +21,8 @@ current = "en"
 # =====================================================
 [server]
 # Port Management
-port_range_start = 8080      # Starting port for auto-allocation
-port_range_end = 8180        # Maximum port for auto-allocation
+port_range_start = 8000      # Starting port for auto-allocation
+port_range_end = 8200        # Maximum port for auto-allocation
 max_concurrent = 10          # Maximum simultaneous servers
 shutdown_timeout = 5         # Graceful shutdown timeout (seconds)
 startup_delay_ms = 500       # Delay after server creation (milliseconds)
@@ -44,11 +44,12 @@ production_domain = "localhost"  # Production domain name
 # REVERSE PROXY CONFIGURATION
 # =====================================================
 [proxy]
-enabled = true               # Enable integrated reverse proxy
-port = 8000                  # Proxy listening port
-bind_address = "127.0.0.1"   # Proxy bind address
-health_check_interval = 30   # Health check interval (seconds)
-timeout_ms = 5000           # Request timeout (milliseconds)
+enabled = true                  # Enable integrated reverse proxy
+port = 3000                     # Proxy listening port
+https_port_offset = 443         # Neu hinzufügen
+bind_address = "127.0.0.1"      # Proxy bind address
+health_check_interval = 30      # Health check interval (seconds)
+timeout_ms = 5000               # Request timeout (milliseconds)
 
 # For production use:
 # port = 80                  # Standard HTTP Port

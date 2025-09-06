@@ -6,9 +6,11 @@
 ![Crates.io](https://img.shields.io/crates/v/rush-sync-server)
 
 > **NOTE**: Version `0.2.2` on crates.io has a critical bug in language file loading (`*.json` not embedded correctly).
-> Please use **version `0.3.5+`** for a stable release!
+> Please use **version `0.3.6+`** for a stable release!
 
-**Rush Sync Server** is a professional web server orchestration platform written in Rust. The project features a robust terminal UI with internationalization, theming, command system, and **NEW in v0.3.5**: Complete production-ready infrastructure with HTTPS/TLS, Hot Reload, Reverse Proxy, and advanced security monitoring.
+**Rush Sync Server** is a professional web server orchestration platform written in Rust. It combines a robust Terminal UI (TUI) with internationalization, theming, a modular command system, production HTTPS/TLS, reverse proxy, WebSocket-based hot reload, and a live dashboard.
+
+**NEW in v0.3.6**: Anti-Flicker color mapping for display labels, hardened terminal lifecycle (TerminalManager + safe restart flow), unified widget/input system with viewported rendering and blinking cursor, multi-terminal cursor coloring (Apple Terminal/iTerm/tmux), minimal dashboard CSS reset, viewport safety guards, and extended logging/i18n.
 
 ---
 
@@ -24,39 +26,77 @@ Rush Sync Server development phases:
 
 ---
 
-## What's New in v0.3.5
+## What's New in v0.3.6
 
-### **🚀 Production-Ready Server Infrastructure**
+### **🖍 Anti-Flicker Display Colors**
 
-Version 0.3.5 transforms Rush Sync Server into a **complete production platform**:
+A pre-compiled **DISPLAY → Color** mapping eliminates per-frame lookups and flicker when rendering label texts (e.g., `ERROR`, `DEBUG`, `THEME`, `VERSION`). Includes helpers like `available_display_texts()` and ANSI-aware color conversion for the renderer.
 
-- **🔐 Enterprise HTTPS/TLS** - Automatic certificate generation with RSA-2048 and wildcard support
-- **🌍 Reverse Proxy System** - Professional nginx-style proxy with SSL termination on port 8443
-- **⚡ Hot Reload Development** - Real-time file watching with WebSocket-based browser refresh
-- **🛡️ Advanced Security Suite** - Intrusion detection, rate limiting, and comprehensive audit logging
-- **📊 Live Dashboard Interface** - Professional web UI with metrics, logs, and TLS management
-- **🔄 Intelligent Performance** - 40% faster request processing with optimized middleware pipeline
+### **🖥 Terminal Stability & Safe Restart**
 
-### **🔐 Advanced HTTPS/TLS System**
+A new `TerminalManager` coordinates raw-mode setup/cleanup with emergency destructors. `restart` now performs a full-screen re-init (terminal, input state, message area) after a confirm prompt, with `--force` bypass support.
+
+### **⌨️ Unified Widget/Input System**
+
+`InputState` implements `Widget`, `CursorWidget`, `StatefulWidget`, and `AnimatedWidget`. Text input renders through a **viewport** (no overflow), with a **blinking cursor** and selection-safe drawing logic. Widgets are easier to compose/test and reuse across app screens.
+
+### **🎯 Cursor Styling & Cross-Terminal Coloring**
+
+Cursor shapes: **PIPE**, **BLOCK**, **UNDERSCORE**. Optional **RGB cursor color** across terminals (Apple Terminal, iTerm, tmux) with graceful fallbacks if true-color is not supported.
+
+### **🧰 System Commands w/ Confirmation**
+
+Centralized internal command processor adds `__CLEAR__`, `__EXIT__`, `__RESTART__`, `__CLEAR_HISTORY__` with structured confirm prompts (incl. cleanup actions). Exposed user commands: `clear`, `restart [-f|--force]`.
+
+### **🗺 Viewport Safety & Render Guards**
+
+Safer layout math and bounds checks to avoid rendering outside terminal area; improved messaging for tiny terminals; emergency fallback render for extreme cases.
+
+### **🖼 Dashboard UX & Minimal CSS Reset**
+
+The aggressive global reset was replaced by a **minimal reset**; dashboard styles were tuned for consistency and resilience. A graceful **server-shutdown page** was added. Monitoring can be paused/resumed; real logs integrate more cleanly.
+
+### **📝 Logging & i18n Extensions**
+
+The server logger uses rotation configuration derived from `LoggingConfig`. Numerous i18n strings were added for screen/theme/viewport/restart diagnostics and user feedback.
+
+---
+
+## 🚀 Production-Ready Server Infrastructure (recap from v0.3.5)
+
+Version 0.3.5 introduced the complete production platform:
+
+- **🔐 Enterprise HTTPS/TLS** — Automatic certificate generation with RSA‑2048 and wildcard/SAN support
+- **🌍 Reverse Proxy System** — nginx‑style proxy with SSL termination on port 8443
+- **⚡ Hot Reload Development** — Real-time file watching with WebSocket-based browser refresh
+- **🛡️ Advanced Security Suite** — Intrusion detection, rate limiting, and audit logging
+- **📊 Live Dashboard Interface** — Professional web UI with metrics, logs, TLS management
+- **🔄 Intelligent Performance** — Optimized middleware pipeline for faster request handling
+
+---
+
+## 🔐 Advanced HTTPS/TLS System
 
 **Automatic Certificate Management:**
 
-- **Self-Signed Certificates** - RSA-2048 encryption with 365-day validity
-- **Wildcard Support** - `*.localhost` certificates for seamless subdomain routing
-- **Subject Alternative Names** - Multi-domain support with localhost, 127.0.0.1, and custom domains
-- **Auto-Generation** - Certificates created on-demand for each server
-- **Secure Key Storage** - 600 permissions on private keys with organized certificate directory
+- **Self-Signed Certificates** — RSA‑2048 encryption with 365‑day validity
+- **Wildcard Support** — `*.localhost` certificates for seamless subdomain routing
+- **Subject Alternative Names** — Multi-domain support (localhost, 127.0.0.1, custom domains)
+- **Auto-Generation** — Certificates created on-demand per server
+- **Secure Key Storage** — `0600` permissions on private keys with organized directories
 
-**Certificate Features:**
+**Certificate Structure:**
 
 ```bash
-# Automatic certificate structure
 .rss/certs/myserver-8080.cert    # Server-specific certificate
-.rss/certs/myserver-8080.key     # Private key (secure permissions)
+.rss/certs/myserver-8080.key     # Private key (0600)
 .rss/certs/proxy-8443.cert       # Proxy wildcard certificate
 .rss/certs/proxy-8443.key        # Proxy private key
+```
 
-# Certificate details
+**Sample Details:**
+
+```code
 Common Name: myserver.localhost
 Subject Alt Names: localhost, 127.0.0.1, myserver.localhost
 Key Type: RSA-2048
@@ -64,17 +104,19 @@ Validity: 365 days
 Organization: Rush Sync Server
 ```
 
-### **🌍 Professional Reverse Proxy**
+---
 
-**Enterprise-Grade Proxy Features:**
+## 🌍 Professional Reverse Proxy
 
-- **SSL Termination** - HTTPS proxy on port 8443 with automatic certificate management
-- **Dynamic Routing** - Subdomain-based routing (myserver.localhost → 127.0.0.1:8080)
-- **Load Balancing** - Round-robin distribution across multiple server instances
-- **Health Checks** - Automatic upstream health monitoring with failover
-- **Request Rewriting** - Header injection and path manipulation capabilities
+**Enterprise-Grade Features:**
 
-**Proxy Usage:**
+- **SSL Termination** — HTTPS proxy on :8443 with automatic certificates
+- **Dynamic Routing** — Subdomain routing (e.g., api.localhost → 127.0.0.1:8080)
+- **Load Balancing** — Round-robin across multiple instances
+- **Health Checks** — Upstream monitoring with failover
+- **Request Rewriting** — Header injection and path manipulation
+
+**Proxy Usage Example:**
 
 ```bash
 # Start servers
@@ -82,35 +124,40 @@ create api 8080
 create admin 8081
 
 # Access via proxy (automatic HTTPS)
-https://api.localhost:8443      # Routes to 127.0.0.1:8080
-https://admin.localhost:8443    # Routes to 127.0.0.1:8081
+https://api.localhost:8443      # → 127.0.0.1:8080
+https://admin.localhost:8443    # → 127.0.0.1:8081
 
-# Add to /etc/hosts for external access
+# Optional hosts entries for clarity
 127.0.0.1 api.localhost
 127.0.0.1 admin.localhost
 ```
 
-### **⚡ Hot Reload Development System**
+---
 
-**Real-Time Development Environment:**
+## ⚡ Hot Reload Development System
 
-- **File System Watching** - Monitors HTML, CSS, JS, JSON, SVG, and image files
-- **WebSocket Integration** - Instant browser refresh on file changes
-- **Intelligent Filtering** - Ignores temporary files (.tmp, .swp, hidden files)
-- **Debounced Reloading** - Smart reload timing to prevent multiple refreshes
-- **Development Notifications** - Visual feedback system for file changes
+**Real-Time Development:**
 
-**Hot Reload Features:**
+- **File Watching** — HTML, CSS, JS, JSON, SVG, images
+- **WebSocket Integration** — Instant browser refresh
+- **Intelligent Filtering** — Ignores temp/hidden files
+- **Debounced Reloading** — Prevents duplicate refreshes
+- **Dev Notifications** — Visual change feedback
 
-```javascript
-// Automatic injection into HTML files
+**Injection & Endpoint:**
+
+```html
 <script src="/rss.js"></script>
-<link rel="stylesheet" href="/.rss/global-reset.css">
+<link rel="stylesheet" href="/.rss/global-reset.css" />
+```
 
-// WebSocket endpoint
+```code
 ws://127.0.0.1:8080/ws/hot-reload
+```
 
-// Real-time file change events
+**Event Example:**
+
+```json
 {
   "event_type": "modified",
   "file_path": "www/myserver-[8080]/index.html",
@@ -121,38 +168,42 @@ ws://127.0.0.1:8080/ws/hot-reload
 }
 ```
 
-### **📊 Professional Dashboard Interface**
+---
+
+## 📊 Professional Dashboard Interface
 
 **Comprehensive Management UI:**
 
-- **Live Server Overview** - Real-time status, metrics, and performance data
-- **Interactive API Testing** - Built-in endpoint testing with response visualization
-- **Live Log Viewer** - Real-time log streaming with filtering and search
-- **TLS Certificate Manager** - Certificate status, validity, and renewal information
-- **Hot Reload Monitor** - File change tracking with WebSocket connection status
-- **Performance Metrics** - Response times, request counts, error rates, and traffic analysis
+- **Live Overview** — Status, metrics, performance
+- **Interactive API Testing** — Inline request/response
+- **Live Log Viewer** — Streaming with filters
+- **TLS Manager** — Certificate status and renewal info
+- **Hot Reload Monitor** — WebSocket status & file changes
+- **Performance Metrics** — Response times, error rates, traffic
 
-**Dashboard Endpoints:**
+**Endpoints:**
 
 ```bash
 http://127.0.0.1:8080/.rss/         # Main dashboard
 http://127.0.0.1:8080/api/status    # Server status API
 http://127.0.0.1:8080/api/metrics   # Performance metrics
-http://127.0.0.1:8080/api/logs/raw  # Live log streaming
+http://127.0.0.1:8080/api/logs/raw  # Live log stream
 http://127.0.0.1:8080/ws/hot-reload # WebSocket hot reload
 ```
 
-### **🛡️ Enterprise Security Suite**
+---
 
-**Advanced Security Monitoring:**
+## 🛡️ Enterprise Security Suite
 
-- **Intrusion Detection** - Automatic detection of path traversal, XSS, and SQL injection attempts
-- **Request Size Limiting** - Configurable maximum request size to prevent DoS attacks
-- **Suspicious Pattern Detection** - Real-time analysis of request patterns and headers
-- **Security Audit Logging** - Detailed logging of all security events with IP tracking
-- **Rate Limiting** - Per-IP request rate limiting with configurable thresholds
+**Monitoring & Protections:**
 
-**Security Event Types:**
+- **Intrusion Detection** — Detects traversal, XSS, SSRF patterns
+- **Request Size Limits** — Prevent simple DoS via large bodies
+- **Suspicious Pattern Detection** — Header/path analysis
+- **Security Audit Logging** — Detailed, structured logs
+- **Rate Limiting** — Per-IP throttling with thresholds
+
+**Security Event Format:**
 
 ```json
 {
@@ -168,21 +219,21 @@ http://127.0.0.1:8080/ws/hot-reload # WebSocket hot reload
 }
 ```
 
-### **🎯 Performance Optimizations**
+---
 
-**40% Performance Improvement:**
+## 🎯 Performance Optimizations
 
-- **Optimized Middleware Pipeline** - Streamlined request processing with reduced overhead
-- **Efficient Memory Management** - Smart buffer reuse and reduced allocations
-- **Concurrent Request Handling** - Enhanced thread pool management for better throughput
-- **Intelligent Caching** - Static asset caching with proper cache headers
-- **Database Connection Pooling** - Optimized server registry access patterns
+- **Optimized Middleware** — Reduced overhead
+- **Efficient Memory** — Buffer reuse and allocation trims
+- **Concurrency** — Tuned worker pool
+- **Intelligent Caching** — Static asset cache headers
+- **DB Connection Pooling** — Efficient registry access
 
 ---
 
 ## 🚀 Installation & Usage
 
-### 📦 **As Binary - Version 0.3.5+**
+### 📦 **As Binary — Version 0.3.6+**
 
 ```bash
 # Install from crates.io
@@ -192,13 +243,13 @@ cargo install rush-sync-server
 rush-sync
 ```
 
-### 📚 **As Library - Version 0.3.5+**
+### 📚 **As Library — Version 0.3.6+**
 
 Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rush-sync-server = "0.3.5"
+rush-sync-server = "0.3.6"
 tokio = { version = "1.36", features = ["full"] }
 ```
 
@@ -233,46 +284,31 @@ async fn main() -> Result<()> {
 
 ---
 
-## 🌟 Enterprise Features (v0.3.5)
+## 🌟 Enterprise Features (v0.3.6)
+
+The configuration surface remains consistent with v0.3.5. The sections below summarize the production-related knobs and the new **terminal/UI** aspects of v0.3.6.
 
 ### **🔐 HTTPS/TLS Configuration**
 
-**Automatic Certificate Management:**
-
 ```toml
-# rush.toml configuration
+# rush.toml
 [server]
-enable_https = true              # Enable HTTPS support
-auto_cert = true                 # Auto-generate certificates
-cert_dir = ".rss/certs"         # Certificate storage directory
-cert_validity_days = 365         # Certificate validity period
-https_port_offset = 1000         # HTTPS port = HTTP port + offset
+enable_https = true
+auto_cert = true
+cert_dir = ".rss/certs"
+cert_validity_days = 365
+https_port_offset = 1000
 
 [proxy]
-enabled = true                   # Enable reverse proxy
-port = 8443                      # Proxy HTTPS port
-ssl_termination = true           # Handle SSL termination
-health_check_interval = 30       # Upstream health check interval
-```
-
-**Manual Certificate Operations:**
-
-```bash
-# View certificate information
-curl -k https://myserver.localhost:8443/api/info
-
-# Certificate files location
-ls -la .rss/certs/
-# myserver-8080.cert (Certificate)
-# myserver-8080.key  (Private Key, 600 permissions)
+enabled = true
+port = 8443
+ssl_termination = true
+health_check_interval = 30
 ```
 
 ### **🌍 Reverse Proxy System**
 
-**Production-Ready Proxy Features:**
-
-```bash
-# Proxy configuration in rush.toml
+```toml
 [proxy]
 enabled = true
 port = 8443
@@ -281,7 +317,6 @@ timeout_seconds = 30
 buffer_size_kb = 64
 worker_threads = 4
 
-# Health check configuration
 [proxy.health_check]
 enabled = true
 interval_seconds = 30
@@ -306,10 +341,7 @@ https://docs.localhost:8443   → 127.0.0.1:8082
 
 ### **⚡ Hot Reload Development**
 
-**Advanced Development Environment:**
-
 ```toml
-# Hot reload configuration
 [development]
 hot_reload = true
 watch_extensions = ["html", "css", "js", "json", "svg", "png", "jpg", "ico"]
@@ -323,26 +355,17 @@ duration_ms = 3000
 position = "top-right"
 ```
 
-**File Watching Capabilities:**
-
-- **Real-time Monitoring** - Uses notify crate for efficient file system watching
-- **Selective Watching** - Only monitors web-relevant file types
-- **Intelligent Filtering** - Automatically ignores temporary and hidden files
-- **WebSocket Communication** - Instant browser communication for seamless development
-
 ### **📊 Advanced Logging System**
-
-**Production-Grade Logging:**
 
 ```toml
 [logging]
 max_file_size_mb = 100          # Log rotation size
 max_archive_files = 9           # Number of compressed archives
-compress_archives = true        # GZIP compression for old logs
-log_requests = true             # HTTP request logging
-log_security_alerts = true     # Security event logging
-log_performance = true          # Performance metrics logging
-log_format = "json"             # JSON structured logging
+compress_archives = true        # GZIP compressed archives
+log_requests = true
+log_security_alerts = true
+log_performance = true
+log_format = "json"
 ```
 
 **Log Entry Structure:**
@@ -360,7 +383,6 @@ log_format = "json"             # JSON structured logging
   "response_time_ms": 15,
   "bytes_sent": 1024,
   "referer": "https://myserver.localhost:8443/",
-  "query_string": null,
   "headers": {
     "accept": "application/json",
     "host": "myserver.localhost:8443",
@@ -415,6 +437,13 @@ log_format = "json"             # JSON structured logging
 | `dev watch`    | Show file watching status | `dev watch`           |
 | `dev reload`   | Trigger manual reload     | `dev reload myserver` |
 
+### **🧰 New System Commands (v0.3.6)**
+
+| Command   | Description             | Examples                |
+| --------- | ----------------------- | ----------------------- |
+| `restart` | Restart the application | `restart`, `restart -f` |
+| `clear`   | Clear the screen        | `clear`, `cls`          |
+
 ---
 
 ## 📊 Advanced Server Examples
@@ -451,7 +480,6 @@ list
 ### **📊 Advanced Monitoring & Statistics**
 
 ```bash
-# Comprehensive server statistics
 curl https://api.localhost:8443/api/metrics
 {
   "server_info": {
@@ -460,7 +488,7 @@ curl https://api.localhost:8443/api/metrics
     "port": 8080,
     "status": "running",
     "uptime_seconds": 16320,
-    "version": "0.3.5"
+    "version": "0.3.6"
   },
   "security": {
     "tls_enabled": true,
@@ -535,14 +563,14 @@ cert info api
 #   - DNS: api.localhost
 #   - IP: 127.0.0.1
 # Certificate File: .rss/certs/api-8080.cert (1,247 bytes)
-# Private Key File: .rss/certs/api-8080.key (1,679 bytes, secure)
+# Private Key File: .rss/certs/api-8080.key (1,679 bytes, 0600)
 ```
 
 ---
 
 ## ⚙️ Production Configuration
 
-### 📁 **Enhanced File Structure**
+### 📁 File Structure
 
 ```bash
 .rss/
@@ -551,21 +579,21 @@ cert info api
 ├── rush.logs                    # Application logs
 ├── servers.list                 # Server registry
 ├── certs/                       # TLS certificates
-│   ├── api-8080.cert           # Server certificates
-│   ├── api-8080.key            # Private keys (600 permissions)
-│   ├── proxy-8443.cert         # Proxy wildcard certificate
-│   └── proxy-8443.key          # Proxy private key
+│   ├── api-8080.cert
+│   ├── api-8080.key             # Private keys (0600)
+│   ├── proxy-8443.cert
+│   └── proxy-8443.key
 ├── servers/                     # Individual server logs
-│   ├── api-[8080].log          # Current log file
-│   ├── api-[8080].1.log.gz     # Compressed archive
-│   └── api-[8080].2.log.gz     # Older archives
+│   ├── api-[8080].log           # Current log file
+│   ├── api-[8080].1.log.gz      # Compressed archive
+│   └── api-[8080].2.log.gz      # Older archives
 └── proxy/                       # Proxy configuration
     ├── routes.json              # Dynamic routing table
     ├── health_checks.json       # Health check results
     └── access.log               # Proxy access logs
 ```
 
-### 🛠 **Complete Configuration File (v0.3.5)**
+### 🛠 Complete Configuration (v0.3.6)
 
 ```toml
 [general]
@@ -580,7 +608,7 @@ current_theme = "dark"
 [language]
 current = "en"
 
-# Enhanced Server Configuration
+# Server Configuration
 [server]
 port_range_start = 8080
 port_range_end = 8180
@@ -606,7 +634,6 @@ buffer_size_kb = 64
 worker_threads = 4
 ssl_termination = true
 
-# Health Check Configuration
 [proxy.health_check]
 enabled = true
 interval_seconds = 30
@@ -614,7 +641,7 @@ timeout_seconds = 5
 unhealthy_threshold = 3
 healthy_threshold = 2
 
-# Advanced Logging Configuration
+# Advanced Logging
 [logging]
 max_file_size_mb = 100
 max_archive_files = 9
@@ -624,7 +651,7 @@ log_security_alerts = true
 log_performance = true
 log_format = "json"
 
-# Development Configuration
+# Development
 [development]
 hot_reload = true
 watch_extensions = ["html", "css", "js", "json", "svg", "png", "jpg", "ico"]
@@ -632,7 +659,12 @@ ignore_patterns = ["*.tmp", "*.swp", ".*", "*~"]
 debounce_ms = 250
 auto_refresh_browser = true
 
-# Security Configuration
+[development.notifications]
+enabled = true
+duration_ms = 3000
+position = "top-right"
+
+# Security
 [security]
 max_request_size_mb = 10
 rate_limit_requests_per_minute = 60
@@ -640,7 +672,7 @@ enable_intrusion_detection = true
 log_security_events = true
 block_suspicious_ips = false
 
-# Theme Configuration
+# Theme
 [theme.dark]
 output_bg = "Black"
 output_text = "White"
@@ -657,36 +689,35 @@ input_cursor_color = "Black"
 
 ## 🧪 Quality Assurance & Testing
 
-### 📈 **Performance Benchmarks (v0.3.5)**
+### 📈 Performance Benchmarks (v0.3.5 baseline)
 
 ```bash
-# Production performance metrics
 Server Creation: ~300ms (40% faster than v0.3.3)
 TLS Certificate Generation: ~150ms per certificate
 Proxy Route Registration: ~50ms per server
 Hot Reload WebSocket Setup: ~25ms
 
-# Load testing results
 Concurrent Users: 1000+ users per server
 Request Throughput: 5000+ requests/second
 Memory Usage: <50MB per server instance
 CPU Usage: <5% under normal load
 
-# TLS Performance
 HTTPS Handshake: ~15ms average
 Certificate Validation: ~2ms average
 SSL Termination Overhead: <5% vs HTTP
 ```
 
-### 🛡️ **Comprehensive Testing Suite**
+## _(v0.3.6 does not change these baseline numbers; focus was stability, UI/UX, and DX.)_
+
+### 🛡️ Testing Suite
 
 ```bash
 # Core functionality tests
-cargo test server_lifecycle_with_tls    # Server + TLS integration
-cargo test proxy_routing_and_ssl        # Proxy + SSL termination
-cargo test hot_reload_websocket         # Hot reload functionality
-cargo test security_monitoring          # Security alert system
-cargo test certificate_management       # TLS certificate operations
+cargo test server_lifecycle_with_tls
+cargo test proxy_routing_and_ssl
+cargo test hot_reload_websocket
+cargo test security_monitoring
+cargo test certificate_management
 
 # Load and stress testing
 cargo test --release concurrent_https_servers
@@ -705,136 +736,95 @@ cargo test suspicious_request_blocking
 
 ## 📊 Version History
 
-### **v0.3.5 (Current) - Production Infrastructure**
+### **v0.3.6 (Current) — UI/Terminal & DX Enhancements**
 
-**🚀 Major Production Features:**
+- **Anti-Flicker Color System** for display labels (zero-delay color mapping).
+- **TerminalManager** with raw-mode tracking, safe cleanup, emergency destructor.
+- **Safe Restart Flow** (`restart`, confirm prompts, re-init of terminal & UI).
+- **Widget/Input Unification** with viewported rendering & blinking cursor.
+- **Cursor Styling** (PIPE/BLOCK/UNDERSCORE + RGB across terminals/tmux).
+- **Dashboard UX**: minimal reset CSS, shutdown screen, improved monitoring.
+- **Logging**: Server logger API w/ rotation config; **i18n** keys expanded.
 
-- **Complete HTTPS/TLS System** - Automatic certificate generation with RSA-2048 encryption
-- **Enterprise Reverse Proxy** - Professional nginx-style proxy with SSL termination
-- **Advanced Hot Reload** - Real-time development with WebSocket-based browser refresh
-- **Security Monitoring Suite** - Intrusion detection, audit logging, and threat analysis
-- **Professional Dashboard** - Comprehensive web interface with live metrics and TLS management
+### **v0.3.5 — Production Infrastructure**
 
-**🔐 TLS/Certificate Features:**
+- Complete HTTPS/TLS system, enterprise reverse proxy with SSL termination, advanced hot reload, security monitoring suite, professional dashboard, and performance pipeline optimizations.
 
-- **Wildcard Certificate Support** - `*.localhost` certificates for seamless subdomain routing
-- **Automatic Certificate Management** - On-demand generation with secure key storage
-- **Multi-Domain Support** - Subject Alternative Names with localhost, 127.0.0.1, and custom domains
-- **Certificate Lifecycle Management** - Validation, renewal, and cleanup operations
+### **v0.3.3 — Optimized Architecture & Logging**
 
-**🌍 Reverse Proxy System:**
+- **35% Code Reduction** while preserving functionality
+- **Structured Logging** with rotation and compression
+- **Performance Improvements** (~40% faster request processing)
 
-- **Dynamic Routing** - Subdomain-based routing with automatic HTTPS
-- **Health Monitoring** - Upstream health checks with failover capabilities
-- **Load Balancing** - Round-robin distribution across server instances
-- **SSL Termination** - Professional HTTPS handling with certificate management
+### **v0.3.2 — Complete Server Management**
 
-**⚡ Hot Reload Development:**
-
-- **File System Watching** - Real-time monitoring of web assets with intelligent filtering
-- **WebSocket Integration** - Instant browser refresh with visual feedback
-- **Development Notifications** - User-friendly change notifications and reload status
-
-### **v0.3.3 - Optimized Architecture & Logging**
-
-- **35% Code Reduction** - Streamlined architecture with maintained functionality
-- **Professional Server Logging** - JSON structured logs with rotation and compression
-- **Performance Improvements** - 40% faster request processing
-
-### **v0.3.2 - Complete Server Management**
-
-- **Actix-Web Integration** - Professional web server creation and management
-- **Dynamic Server Lifecycle** - Full server orchestration capabilities
+- **Actix-Web Integration**: production web server creation and management
+- **Dynamic Server Lifecycle**: full orchestration capabilities
 
 ---
 
-## 🏆 Code Quality Metrics (v0.3.5)
+## 🏆 Code Quality Metrics (v0.3.6)
 
-**Rush Sync Server v0.3.5** maintains exceptional standards with production-ready features:
+- ✅ **Zero Cargo errors** on full feature set
+- ✅ **Hardened terminal lifecycle** (raw-mode detection, emergency cleanup)
+- ✅ **UI stability** via viewport checks & anti-flicker colors
+- ✅ **Thread/Memory Safety** (Rust guarantees; async-safe state)
+- ✅ **Enterprise Logging** (structured JSON + rotation)
+- ✅ **Performance-Optimized** (no regressions vs 0.3.5)
+- ✅ **Comprehensive Testing** (incl. TLS, proxy, security)
+- ✅ **Professional UI** (modern dashboard with live metrics & TLS status)
+- ✅ **Cross-Platform** (macOS, Linux, Windows)
 
-- ✅ **Zero Clippy Warnings** (all lints passing across 45+ modules)
-- ✅ **Zero Cargo Check Errors** (clean compilation with advanced features)
-- ✅ **Production Security** (TLS 1.3, certificate management, intrusion detection)
-- ✅ **Memory Safe** (Rust guarantees + comprehensive async safety)
-- ✅ **Thread Safe** (Arc/RwLock patterns with zero race conditions)
-- ✅ **Enterprise Logging** (structured JSON with compression and rotation)
-- ✅ **Performance Optimized** (40% faster than v0.3.3, <5% CPU overhead)
-- ✅ **Comprehensive Testing** (95% code coverage including security tests)
-- ✅ **Professional UI** (Modern dashboard with live metrics and TLS status)
-- ✅ **Production Ready** (HTTPS, reverse proxy, hot reload, security monitoring)
-- ✅ **Cross-Platform** (macOS, Linux, Windows with full feature parity)
-- ✅ **Developer Experience** (Hot reload, live dashboard, comprehensive docs)
+## **Security**
 
-**Security Certifications:**
-
-- **TLS 1.3 Support** with modern cipher suites
-- **Certificate Validation** with proper chain verification
-- **Intrusion Detection** with real-time threat analysis
-- **Security Audit Logging** with comprehensive event tracking
-- **Rate Limiting** with configurable thresholds
-- **Request Sanitization** with XSS and injection prevention
+- TLS 1.3 with modern cipher suites
+- Proper certificate validation
+- Intrusion detection & rate limiting
+- Security audit logging
 
 ---
 
 ## 📜 License
 
-### **Dual-Licensing Model**
+### Dual-Licensing Model
 
 1. **Community License (GPLv3)** — Free for private and non-commercial use
 2. **Commercial License** — Required for commercial applications and enterprise deployments
 
-**For commercial licensing inquiries:**
+**Commercial licensing inquiries:**
 📧 [l.ersen@icloud.com](mailto:l.ersen@icloud.com)
 
 ---
 
 ## 🤝 Contributing
 
-### **🎯 Areas Looking for Contributors (v0.3.5+):**
+**Phase 2 Targets:**
 
-**Phase 2 Development:**
-
-- Advanced load balancing algorithms with health-based routing
-- Container orchestration integration (Docker, Kubernetes)
-- Advanced analytics dashboard with real-time metrics
-- Centralized configuration management across server clusters
+- Advanced load balancing with health-aware routing
+- Docker/Kubernetes integration
+- Real-time analytics dashboard
+- Centralized configuration across clusters
 
 **Security Enhancements:**
 
-- Let's Encrypt integration for production certificates
-- Advanced rate limiting with sliding window algorithms
-- Web Application Firewall (WAF) integration
-- OAuth2/JWT authentication system
+- Let’s Encrypt integration
+- Sliding-window rate limiting
+- WAF integration
+- OAuth2/JWT auth
 
 **Performance & Scalability:**
 
-- Redis-based session management and caching
-- Database connection pooling for high-traffic scenarios
-- CDN integration for static asset delivery
-- Auto-scaling based on traffic patterns
+- Redis-based sessions/caching
+- DB connection pooling
+- CDN for static assets
+- Auto-scaling triggers
 
-### **📋 Development Guidelines (Updated for v0.3.5):**
+**Development Guidelines:**
 
-**Code Quality Standards:**
-
-- Maintain zero warnings with comprehensive clippy lints
-- Ensure all security features have corresponding tests
-- Follow async/await best practices for optimal performance
-- Use proper error handling with context preservation
-
-**Security Requirements:**
-
-- All TLS implementations must use modern cipher suites
-- Certificate operations must include proper validation
-- Security events must be logged with full context
-- Rate limiting must be configurable and effective
-
-**Testing Standards:**
-
-- Unit tests for all core functionality
-- Integration tests for TLS and proxy features
-- Load tests for performance validation
-- Security tests for vulnerability assessment
+- Keep **clippy** clean; comprehensive lints
+- Tests for every security-sensitive feature
+- Async/await best practices
+- Error handling with context (anyhow/thiserror)
 
 ---
 
@@ -842,10 +832,10 @@ cargo test suspicious_request_blocking
 
 - **Primary Contact:** 📧 [l.ersen@icloud.com](mailto:l.ersen@icloud.com)
 - **GitHub Repository:** [LEVOGNE/rush.sync.server](https://github.com/LEVOGNE/rush.sync.server)
-- **Issues & Bug Reports:** [GitHub Issues](https://github.com/LEVOGNE/rush.sync.server/issues)
-- **Feature Requests:** [GitHub Discussions](https://github.com/LEVOGNE/rush.sync.server/discussions)
+- **Issues & Bug Reports:** GitHub Issues
+- **Feature Requests:** GitHub Discussions
 - **Security Issues:** 📧 [security@rush-sync.dev](mailto:security@rush-sync.dev)
 
 ---
 
-_Rush Sync Server v0.3.5 - Production-ready web server orchestration with complete HTTPS/TLS infrastructure, enterprise reverse proxy, advanced hot reload development, and comprehensive security monitoring for professional deployment environments._
+_Rush Sync Server v0.3.6 — Production-grade orchestration with hardened terminal lifecycle, anti-flicker UI, safe restart flow, minimal CSS reset, live dashboard, and comprehensive security/monitoring._

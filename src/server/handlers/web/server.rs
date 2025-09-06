@@ -1,11 +1,9 @@
-// ===== src/server/handlers/web/server.rs =====
-use super::PROXY_PORT;
-use crate::server::types::ServerData;
+use super::ServerDataWithConfig;
 use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
 
 pub async fn serve_fallback_or_inject(
     req: HttpRequest,
-    data: web::Data<ServerData>,
+    data: web::Data<ServerDataWithConfig>,
 ) -> ActixResult<HttpResponse> {
     let path = req.path();
     log::info!("Requested path: {}", path);
@@ -14,7 +12,7 @@ pub async fn serve_fallback_or_inject(
     let base_dir = exe_path.parent().unwrap();
     let server_dir = base_dir
         .join("www")
-        .join(format!("{}-[{}]", data.name, data.port));
+        .join(format!("{}-[{}]", data.server.name, data.server.port));
 
     let file_path = if path == "/" {
         server_dir.join("index.html")
@@ -76,13 +74,14 @@ pub async fn serve_fallback_or_inject(
     }
 }
 
-async fn serve_system_fallback(data: web::Data<ServerData>) -> ActixResult<HttpResponse> {
+async fn serve_system_fallback(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
     let template = include_str!("../templates/rss/dashboard.html");
 
     let html_content = template
-        .replace("{{SERVER_NAME}}", &data.name)
-        .replace("{{PORT}}", &data.port.to_string())
-        .replace("{{PROXY_PORT}}", &PROXY_PORT.to_string())
+        .replace("{{SERVER_NAME}}", &data.server.name)
+        .replace("{{PORT}}", &data.server.port.to_string())
+        .replace("{{PROXY_PORT}}", &data.proxy_http_port.to_string()) // KORRIGIERT: HTTP Port
+        .replace("{{PROXY_HTTPS_PORT}}", &data.proxy_https_port.to_string()) // KORRIGIERT: HTTPS Port
         .replace("{{VERSION}}", crate::server::config::get_server_version())
         .replace("{{CREATION_TIME}}", &chrono::Local::now().to_rfc3339());
 
@@ -94,9 +93,11 @@ async fn serve_system_fallback(data: web::Data<ServerData>) -> ActixResult<HttpR
 }
 
 pub fn inject_rss_script(html: String) -> String {
-    let script_tag = r#"<script src="/rss.js"></script>"#;
-    let css_link = r#"<link rel="stylesheet" href="/.rss/global-reset.css">"#;
+    // ES6 Module statt normales Script
+    let script_tag = r#"<script type="module" src="/rss.js"></script>"#;
+    let css_link = r#"<link rel="stylesheet" href="/.rss/_reset.css">"#;
 
+    // ERST: CSS in <head> einfügen
     let html_with_css = if let Some(head_end) = html.find("</head>") {
         let (before, after) = html.split_at(head_end);
         format!("{}\n    {}\n{}", before, css_link, after)
@@ -104,6 +105,7 @@ pub fn inject_rss_script(html: String) -> String {
         format!("{}\n{}", css_link, html)
     };
 
+    // DANN: JavaScript Module ganz am Ende einfügen
     if let Some(body_end) = html_with_css.rfind("</body>") {
         let (before, after) = html_with_css.split_at(body_end);
         format!("{}\n    {}\n{}", before, script_tag, after)

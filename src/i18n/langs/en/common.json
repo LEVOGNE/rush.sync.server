@@ -1,0 +1,21 @@
+{
+  "debug.text": "Debug",
+  "debug.display_text": "DEBUG",
+  "debug.category": "debug",
+
+  "error.text": "Error",
+  "error.display_text": "ERROR",
+  "error.category": "error",
+
+  "info.text": "Information",
+  "info.display_text": "INFO",
+  "info.category": "info",
+
+  "trace.text": "Trace",
+  "trace.display_text": "TRACE",
+  "trace.category": "trace",
+
+  "warn.text": "Warning",
+  "warn.display_text": "WARN",
+  "warn.category": "warning"
+}

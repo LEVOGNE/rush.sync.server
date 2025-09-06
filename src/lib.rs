@@ -49,9 +49,9 @@ pub fn create_default_registry() -> CommandRegistry {
 fn build_registry() -> CommandRegistry {
     use commands::{
         cleanup::CleanupCommand, clear::ClearCommand, create::CreateCommand, exit::ExitCommand,
-        history::HistoryCommand, lang::LanguageCommand, list::ListCommand,
-        log_level::LogLevelCommand, restart::RestartCommand, start::StartCommand,
-        stop::StopCommand, theme::ThemeCommand, version::VersionCommand,
+        help::HelpCommand, history::HistoryCommand, lang::LanguageCommand, list::ListCommand,
+        log_level::LogLevelCommand, recovery::RecoveryCommand, restart::RestartCommand,
+        start::StartCommand, stop::StopCommand, theme::ThemeCommand, version::VersionCommand,
     };
 
     let mut registry = CommandRegistry::new();
@@ -59,6 +59,7 @@ fn build_registry() -> CommandRegistry {
     // ✅ OPTIMIERT: Functional-Style Chain für kompakteren Code
     registry
         // Core Commands
+        .register(HelpCommand::new())
         .register(VersionCommand)
         .register(ClearCommand)
         .register(ExitCommand)
@@ -69,6 +70,7 @@ fn build_registry() -> CommandRegistry {
         .register(ThemeCommand::new())
         // Utility Commands
         .register(HistoryCommand)
+        .register(RecoveryCommand::new())
         // Server Commands
         .register(CleanupCommand::new())
         .register(CreateCommand::new())

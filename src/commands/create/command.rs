@@ -1,4 +1,4 @@
-// Fixed src/commands/create/command.rs
+// Enhanced src/commands/create/command.rs - BULK CREATION SUPPORT
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 use crate::server::types::{ServerContext, ServerInfo, ServerStatus};
@@ -19,7 +19,7 @@ impl Command for CreateCommand {
         "create"
     }
     fn description(&self) -> &'static str {
-        "Create a new web server (persistent)"
+        "Create web server(s) - supports bulk creation"
     }
     fn matches(&self, command: &str) -> bool {
         command.trim().to_lowercase().starts_with("create")
@@ -27,23 +27,22 @@ impl Command for CreateCommand {
 
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
         let config = get_config()?;
-
         let ctx = crate::server::shared::get_shared_context();
 
-        match args.len() {
-            0 => self.create_server(&config, ctx, None, None),
-            1 => {
-                if let Ok(port) = args[0].parse::<u16>() {
-                    self.create_server(&config, ctx, None, Some(port))
-                } else {
-                    self.create_server(&config, ctx, Some(args[0].to_string()), None)
-                }
+        // Parse arguments for different creation modes
+        match self.parse_creation_args(args) {
+            CreationMode::Single { name, port } => {
+                self.create_single_server(&config, ctx, name, port)
             }
-            2 => match args[1].parse::<u16>() {
-                Ok(port) => self.create_server(&config, ctx, Some(args[0].to_string()), Some(port)),
-                Err(_) => Err(AppError::Validation("Invalid port".to_string())),
-            },
-            _ => Err(AppError::Validation("Too many parameters".to_string())),
+            CreationMode::BulkAuto { count } => {
+                self.create_bulk_servers(&config, ctx, count, None, None)
+            }
+            CreationMode::BulkWithBase {
+                base_name,
+                base_port,
+                count,
+            } => self.create_bulk_servers(&config, ctx, count, Some(base_name), Some(base_port)),
+            CreationMode::Invalid(error) => Err(AppError::Validation(error)),
         }
     }
 
@@ -52,17 +51,196 @@ impl Command for CreateCommand {
     }
 }
 
+#[derive(Debug)]
+enum CreationMode {
+    Single {
+        name: Option<String>,
+        port: Option<u16>,
+    },
+    BulkAuto {
+        count: u32,
+    },
+    BulkWithBase {
+        base_name: String,
+        base_port: u16,
+        count: u32,
+    },
+    Invalid(String),
+}
+
 impl CreateCommand {
-    fn create_server(
+    // Argument parsing logic
+    fn parse_creation_args(&self, args: &[&str]) -> CreationMode {
+        match args.len() {
+            0 => CreationMode::Single {
+                name: None,
+                port: None,
+            },
+
+            1 => {
+                // Erst auf Port prüfen (4-5 Stellen), dann auf Count (1-2 Stellen)
+                if let Ok(port) = args[0].parse::<u16>() {
+                    if port >= 1000 {
+                        // "create 8080" -> Single server with port
+                        CreationMode::Single {
+                            name: None,
+                            port: Some(port),
+                        }
+                    } else if port > 0 && port <= 50 {
+                        // "create 5" -> Bulk creation with count
+                        CreationMode::BulkAuto { count: port as u32 }
+                    } else {
+                        CreationMode::Invalid("Invalid port or count".to_string())
+                    }
+                } else {
+                    // "create myserver" -> Single server with name
+                    CreationMode::Single {
+                        name: Some(args[0].to_string()),
+                        port: None,
+                    }
+                }
+            }
+
+            2 => {
+                // "create myserver 8080" -> Single with name and port
+                if let Ok(port) = args[1].parse::<u16>() {
+                    CreationMode::Single {
+                        name: Some(args[0].to_string()),
+                        port: Some(port),
+                    }
+                } else {
+                    CreationMode::Invalid("Invalid port number".to_string())
+                }
+            }
+
+            3 => {
+                // "create myserver 8080 5" -> Bulk with base name, port, and count
+                if let (Ok(port), Ok(count)) = (args[1].parse::<u16>(), args[2].parse::<u32>()) {
+                    if count == 0 {
+                        return CreationMode::Invalid("Count must be > 0".to_string());
+                    }
+                    if count > 50 {
+                        return CreationMode::Invalid(
+                            "Maximum 50 servers per bulk operation".to_string(),
+                        );
+                    }
+                    CreationMode::BulkWithBase {
+                        base_name: args[0].to_string(),
+                        base_port: port,
+                        count,
+                    }
+                } else {
+                    CreationMode::Invalid("Invalid port or count".to_string())
+                }
+            }
+
+            _ => CreationMode::Invalid(
+                "Too many arguments. Usage: create [name] [port] [count]".to_string(),
+            ),
+        }
+    }
+
+    // Single server creation (existing logic)
+    fn create_single_server(
         &self,
         config: &Config,
         ctx: &ServerContext,
         custom_name: Option<String>,
         custom_port: Option<u16>,
     ) -> Result<String> {
+        let result = self.create_server_internal(config, ctx, custom_name, custom_port)?;
+        Ok(format!("Server created: {}", result.summary))
+    }
+
+    // Bulk server creation
+    fn create_bulk_servers(
+        &self,
+        config: &Config,
+        ctx: &ServerContext,
+        count: u32,
+        base_name: Option<String>,
+        base_port: Option<u16>,
+    ) -> Result<String> {
+        let initial_server_count = ctx.servers.read().unwrap().len();
+
+        // Check if bulk creation would exceed limits
+        if initial_server_count + (count as usize) > config.server.max_concurrent {
+            return Err(AppError::Validation(format!(
+                "Bulk creation would exceed server limit: {} + {} > {} (max_concurrent)",
+                initial_server_count, count, config.server.max_concurrent
+            )));
+        }
+
+        let mut created_servers = Vec::new();
+        let mut failed_servers = Vec::new();
+
+        for i in 0..count {
+            let (name, port) =
+                if let (Some(ref base_name), Some(base_port)) = (&base_name, base_port) {
+                    // Use base name with suffix and increment port
+                    let name = format!("{}-{:03}", base_name, i + 1);
+                    let port = base_port + (i as u16);
+                    (Some(name), Some(port))
+                } else {
+                    // Use automatic naming and port assignment (both None for auto)
+                    (None, None)
+                };
+
+            match self.create_server_internal(config, ctx, name, port) {
+                Ok(result) => {
+                    created_servers.push(result);
+                }
+                Err(e) => {
+                    failed_servers.push(format!("Server {}: {}", i + 1, e));
+
+                    // Stop on critical errors, continue on port conflicts
+                    if !e.to_string().contains("bereits") && !e.to_string().contains("occupied") {
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Format results
+        let mut result = format!(
+            "Bulk creation completed: {} of {} servers created",
+            created_servers.len(),
+            count
+        );
+
+        if !created_servers.is_empty() {
+            result.push_str("\n\nCreated servers:");
+            for server in &created_servers {
+                result.push_str(&format!("\n  {} - {}", server.name, server.summary));
+            }
+        }
+
+        if !failed_servers.is_empty() {
+            result.push_str("\n\nFailed:");
+            for failure in &failed_servers {
+                result.push_str(&format!("\n  {}", failure));
+            }
+        }
+
+        let final_count = ctx.servers.read().unwrap().len();
+        result.push_str(&format!(
+            "\n\nTotal servers: {}/{}",
+            final_count, config.server.max_concurrent
+        ));
+
+        Ok(result)
+    }
+
+    // Internal server creation logic (extracted from original)
+    fn create_server_internal(
+        &self,
+        config: &Config,
+        ctx: &ServerContext,
+        custom_name: Option<String>,
+        custom_port: Option<u16>,
+    ) -> Result<ServerCreationResult> {
         let id = Uuid::new_v4().to_string();
         let has_custom_name = custom_name.is_some();
-        let has_custom_port = custom_port.is_some();
 
         let name = if let Some(custom_name) = custom_name {
             validate_server_name(&custom_name)?;
@@ -80,7 +258,6 @@ impl CreateCommand {
         };
 
         let port = if let Some(custom_port) = custom_port {
-            // Use configurable minimum port from config
             let min_port = config.server.port_range_start.max(1024);
             if custom_port < min_port {
                 return Err(AppError::Validation(format!(
@@ -89,7 +266,6 @@ impl CreateCommand {
                 )));
             }
 
-            // Check if port is within configured range
             if custom_port > config.server.port_range_end {
                 return Err(AppError::Validation(format!(
                     "Port {} exceeds configured maximum: {}",
@@ -116,15 +292,6 @@ impl CreateCommand {
             self.find_next_available_port(config)?
         };
 
-        // Check server count limit
-        let current_server_count = ctx.servers.read().unwrap().len();
-        if current_server_count >= config.server.max_concurrent {
-            return Err(AppError::Validation(format!(
-                "Maximum server limit reached: {}/{}. Use 'cleanup' to remove stopped servers or increase max_concurrent in config.",
-                current_server_count, config.server.max_concurrent
-            )));
-        }
-
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -139,7 +306,7 @@ impl CreateCommand {
             created_timestamp: timestamp,
         };
 
-        // Verzeichnis sofort bei CREATE erstellen
+        // Create server directory and files
         if let Err(e) = crate::server::handlers::web::create_server_directory_and_files(&name, port)
         {
             return Err(AppError::Validation(format!(
@@ -165,30 +332,26 @@ impl CreateCommand {
             }
         });
 
-        let success_msg = if has_custom_name || has_custom_port {
+        let summary = if has_custom_name {
             format!(
-                "Custom Server created: '{}' (ID: {}) on port {} [PERSISTENT] ({}/{} servers)",
+                "'{}' (ID: {}) on port {} [PERSISTENT]",
                 name,
                 &id[0..8],
-                port,
-                current_server_count + 1,
-                config.server.max_concurrent
+                port
             )
         } else {
             format!(
-                "Server created: '{}' (ID: {}) on port {} [PERSISTENT] ({}/{} servers)",
+                "'{}' (ID: {}) on port {} [PERSISTENT]",
                 name,
                 &id[0..8],
-                port,
-                current_server_count + 1,
-                config.server.max_concurrent
+                port
             )
         };
 
-        Ok(success_msg)
+        Ok(ServerCreationResult { name, summary })
     }
 
-    // Updated to use config instead of context
+    // Existing helper methods (unchanged)
     fn find_next_available_port(&self, config: &Config) -> Result<u16> {
         let ctx = crate::server::shared::get_shared_context();
         let used_ports: std::collections::HashSet<u16> = {
@@ -202,7 +365,6 @@ impl CreateCommand {
         let start_port = config.server.port_range_start;
         let end_port = config.server.port_range_end;
 
-        // Sicherheitscheck für Port-Range
         if start_port >= end_port {
             return Err(AppError::Validation(format!(
                 "Invalid port range: {} >= {}. Check config.",
@@ -210,7 +372,6 @@ impl CreateCommand {
             )));
         }
 
-        // Effizienter: Nicht mehr als 1000 Ports testen
         let max_attempts = ((end_port - start_port + 1) as usize).min(1000);
 
         for i in 0..max_attempts {
@@ -256,4 +417,10 @@ impl CreateCommand {
         }
         next_number
     }
+}
+
+#[derive(Debug)]
+struct ServerCreationResult {
+    name: String,
+    summary: String,
 }

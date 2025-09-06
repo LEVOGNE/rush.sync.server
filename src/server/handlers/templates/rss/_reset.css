@@ -1,0 +1,91 @@
+/* Rush Sync Server - MINIMAL CSS Reset */
+/* Nur die absolut nötigsten Resets - NICHT aggressiv */
+
+/* ===== FONT DEFINITIONS ===== */
+@font-face {
+  font-family: 'Kenyan Coffee';
+  src: url('/.rss/fonts/Kenyan_Coffee_Rg.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kenyan Coffee';
+  src: url('/.rss/fonts/Kenyan_Coffee_Bd.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ===== MINIMAL RESET - NUR NOTWENDIGES ===== */
+
+/* Box-sizing für alle Elemente */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Nur kritische margin/padding resets */
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure,
+blockquote {
+  margin: 0;
+}
+
+/* HTML/Body Basis - SANFT */
+html {
+  font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+body {
+  font-family: inherit;
+  color: #333;
+  background: #fff;
+}
+
+/* ===== KEINE BUTTON RESETS ===== */
+/* Buttons behalten ihre Browser-Defaults komplett */
+
+/* Nur Font-Vererbung für Form-Elemente */
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+/* ===== BILDER ===== */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ===== FOCUS STYLES ===== */
+*:focus-visible {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+
+/* ===== UTILITIES ===== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

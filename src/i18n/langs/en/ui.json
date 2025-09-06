@@ -1,0 +1,125 @@
+{
+  "screen.performance_command_detected.text": "🔧 Performance command '{0}' detected",
+  "screen.performance_command_detected.display_text": "DEBUG",
+  "screen.performance_command_detected.category": "debug",
+
+  "screen.performance_command_viewport_reset_applied.text": "✅ Performance command: viewport reset applied",
+  "screen.performance_command_viewport_reset_applied.display_text": "DEBUG",
+  "screen.performance_command_viewport_reset_applied.category": "debug",
+
+  "screen.render.empty_buffer_error.text": "ERROR: Empty buffer",
+  "screen.render.empty_buffer_error.display_text": "RENDER",
+  "screen.render.empty_buffer_error.category": "error",
+
+  "screen.render.exceed_bounds_log.text": "Layout exceeds terminal bounds: {0}x{1}",
+  "screen.render.exceed_bounds_log.display_text": "ERROR",
+  "screen.render.exceed_bounds_log.category": "error",
+
+  "screen.render.invalid_layout.text": "⚠️ INVALID LAYOUT",
+  "screen.render.invalid_layout.display_text": "RENDER",
+  "screen.render.invalid_layout.category": "error",
+
+  "screen.render.invalid_layout_log.text": "Invalid layout: Output={0}x{1}+{2}+{3}, Input={4}x{5}+{6}+{7}",
+  "screen.render.invalid_layout_log.display_text": "ERROR",
+  "screen.render.invalid_layout_log.category": "error",
+
+  "screen.render.terminal_too_small.text": "Terminal too small!\nMinimum: 10x5",
+  "screen.render.terminal_too_small.display_text": "RENDER",
+  "screen.render.terminal_too_small.category": "error",
+
+  "screen.render.too_small.text": "Terminal too small!\nMinimum: 10x5",
+  "screen.render.too_small.display_text": "ERROR",
+  "screen.render.too_small.category": "error",
+
+  "screen.render.too_small_log.text": "Screen too small for safe rendering: {0}x{1}",
+  "screen.render.too_small_log.display_text": "ERROR",
+  "screen.render.too_small_log.category": "error",
+
+  "screen.render.viewport_error.text": "Viewport error!\nRestart terminal.",
+  "screen.render.viewport_error.display_text": "ERROR",
+  "screen.render.viewport_error.category": "error",
+
+  "screen.render.viewport_not_usable_log.text": "Viewport not usable",
+  "screen.render.viewport_not_usable_log.display_text": "ERROR",
+  "screen.render.viewport_not_usable_log.category": "error",
+
+  "screen.resize_completed.text": "✅ Resize completed: {0}",
+  "screen.resize_completed.display_text": "INFO",
+  "screen.resize_completed.category": "info",
+
+  "screen.resize_event.text": "🔄 RESIZE EVENT: {0}x{1} → {2}x{3}",
+  "screen.resize_event.display_text": "INFO",
+  "screen.resize_event.category": "info",
+
+  "screen.restart.done.text": "✅ Internal restart completed successfully",
+  "screen.restart.done.display_text": "INFO",
+  "screen.restart.done.category": "info",
+
+  "screen.restart.failed.text": "Restart failed: {0}",
+  "screen.restart.failed.display_text": "SYSTEM",
+  "screen.restart.failed.category": "error",
+
+  "screen.restart.start.text": "🔄 Performing internal restart...",
+  "screen.restart.start.display_text": "INFO",
+  "screen.restart.start.category": "info",
+
+  "screen.restart.success.text": "🔄 Restart completed successfully",
+  "screen.restart.success.display_text": "SYSTEM",
+  "screen.restart.success.category": "info",
+
+  "screen.theme.applied.text": "Theme '{0}' applied: Prompt='{1}', History={2} entries",
+  "screen.theme.applied.display_text": "INFO",
+  "screen.theme.applied.category": "info",
+
+  "screen.theme.invalid_format.text": "Invalid theme update format",
+  "screen.theme.invalid_format.display_text": "ERROR",
+  "screen.theme.invalid_format.category": "error",
+
+  "screen.theme.load_failed.text": "Theme system load failed: {0}",
+  "screen.theme.load_failed.display_text": "THEME",
+  "screen.theme.load_failed.category": "error",
+
+  "screen.theme.not_found.text": "Theme '{0}' not found",
+  "screen.theme.not_found.display_text": "THEME",
+  "screen.theme.not_found.category": "error",
+
+  "screen.theme.not_found_feedback.text": "⚫ Theme '{0}' not found",
+  "screen.theme.not_found_feedback.display_text": "ERROR",
+  "screen.theme.not_found_feedback.category": "error",
+
+  "screen.theme.processing.text": "🎨 Live theme update is being processed: {0}",
+  "screen.theme.processing.display_text": "DEBUG",
+  "screen.theme.processing.category": "debug",
+
+  "screen.theme.switched_success.text": "✅ Theme switched to: {0}",
+  "screen.theme.switched_success.display_text": "THEME",
+  "screen.theme.switched_success.category": "info",
+
+  "system.cleanup.i18n_cleared.text": "i18n cache cleared",
+  "system.cleanup.i18n_cleared.display_text": "DEBUG",
+  "system.cleanup.i18n_cleared.category": "debug",
+
+  "viewport.layout.broken.text": "🚨 Layout badly damaged, emergency mode activated",
+  "viewport.layout.broken.display_text": "ERROR",
+  "viewport.layout.broken.category": "error",
+
+  "viewport.layout.calculated.text": "Layout calculated: Terminal={0}x{1}, Output={2}x{3}+{4}+{5}, Input={6}x{7}+{8}+{9}, Window={10}",
+  "viewport.layout.calculated.display_text": "TRACE",
+  "viewport.layout.calculated.category": "trace",
+
+  "viewport.layout.failed.text": "Layout calculation failed: Input={0}, Output={1}, Available={2}",
+  "viewport.layout.failed.display_text": "ERROR",
+  "viewport.layout.failed.category": "error",
+
+  "viewport.layout.invalid.text": "🚨 Invalid layout areas created, using emergency layout",
+  "viewport.layout.invalid.display_text": "ERROR",
+  "viewport.layout.invalid.category": "error",
+
+  "viewport.layout.mismatch.text": "Layout sizes don't match: Terminal={0}, Used={1} (Output={2}, Input={3}, Margin={4})",
+  "viewport.layout.mismatch.display_text": "WARN",
+  "viewport.layout.mismatch.category": "warning",
+
+  "viewport.layout.too_small.text": "Viewport layout too small: {0}x{1}",
+  "viewport.layout.too_small.display_text": "ERROR",
+  "viewport.layout.too_small.category": "error"
+}

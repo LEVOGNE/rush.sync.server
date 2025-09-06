@@ -1,6 +1,5 @@
-// ===== src/server/handlers/web/logs.rs =====
-use super::PROXY_PORT;
-use crate::server::{logging::ServerLogger, types::ServerData};
+use super::ServerDataWithConfig;
+use crate::server::logging::ServerLogger;
 use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
 use serde_json::json;
 use std::path::PathBuf;
@@ -9,14 +8,14 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 
 pub async fn logs_raw_handler(
     req: HttpRequest,
-    data: web::Data<ServerData>,
+    data: web::Data<ServerDataWithConfig>,
 ) -> ActixResult<HttpResponse> {
     let exe_path = std::env::current_exe().unwrap();
     let base_dir = exe_path.parent().unwrap();
     let log_file_path = base_dir
         .join(".rss")
         .join("servers")
-        .join(format!("{}-[{}].log", data.name, data.port));
+        .join(format!("{}-[{}].log", data.server.name, data.server.port));
 
     if !log_file_path.exists() {
         return Ok(HttpResponse::Ok().json(json!({
@@ -76,11 +75,14 @@ pub async fn logs_raw_handler(
     })))
 }
 
-pub async fn logs_handler(data: web::Data<ServerData>) -> ActixResult<HttpResponse> {
-    let server_dir = format!("www/{}-[{}]", data.name, data.port);
-    let log_path = format!(".rss/servers/{}-[{}].log", data.name, data.port);
+pub async fn logs_handler(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
+    let server_dir = format!("www/{}-[{}]", data.server.name, data.server.port);
+    let log_path = format!(
+        ".rss/servers/{}-[{}].log",
+        data.server.name, data.server.port
+    );
 
-    let log_entries = if let Ok(logger) = ServerLogger::new(&data.name, data.port) {
+    let log_entries = if let Ok(logger) = ServerLogger::new(&data.server.name, data.server.port) {
         match logger.get_log_file_size_bytes() {
             Ok(size) if size > 0 => format!("Log file size: {} bytes", size),
             _ => "No log entries yet".to_string(),
@@ -179,20 +181,20 @@ pub async fn logs_handler(data: web::Data<ServerData>) -> ActixResult<HttpRespon
    </div>
 </body>
 </html>"#,
-        data.name,
-        data.name,
-        data.id,
-        data.port,
-        data.name,
-        PROXY_PORT,
+        data.server.name,
+        data.server.name,
+        data.server.id,
+        data.server.port,
+        data.server.name,
+        data.proxy_https_port, // FIXED: Verwende proxy_https_port aus data
         server_dir,
         log_path,
         server_dir,
-        data.port,
-        data.name,
-        PROXY_PORT,
-        data.name,
-        data.port,
+        data.server.port,
+        data.server.name,
+        data.proxy_https_port, // FIXED: Verwende proxy_https_port aus data
+        data.server.name,
+        data.server.port,
         log_entries
     );
 

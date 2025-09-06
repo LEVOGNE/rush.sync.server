@@ -89,8 +89,7 @@ impl ProxyManager {
 
         let proxy_server = ProxyServer::new(Arc::clone(&self));
 
-        // HTTPS-Port: immer 8443 (config.port + 443)
-        let https_port = 8443;
+        let https_port = self.config.port + self.config.https_port_offset;
 
         log::info!("Starting Reverse Proxy:");
         log::info!("  HTTP:  http://127.0.0.1:{}", self.config.port);
@@ -108,5 +107,23 @@ impl ProxyManager {
         );
 
         Ok(())
+    }
+
+    pub async fn debug_routes(&self) {
+        let routes = self.routes.read().await;
+        log::info!("=== ACTIVE PROXY ROUTES ===");
+        if routes.is_empty() {
+            log::warn!("No routes registered!");
+        } else {
+            for (subdomain, route) in routes.iter() {
+                log::info!(
+                    "  {} -> 127.0.0.1:{} (server_id: {})",
+                    subdomain,
+                    route.target_port,
+                    route.server_id
+                );
+            }
+        }
+        log::info!("=== END ROUTES ===");
     }
 }

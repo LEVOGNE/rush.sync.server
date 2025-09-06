@@ -50,7 +50,7 @@ impl ProxyServer {
     // NEU: HTTPS-Server hinzufügen
     pub async fn start_with_https(&self) -> crate::core::prelude::Result<()> {
         let config = self.manager.get_config();
-        let https_port = config.port + 443; // 8443
+        let https_port = config.port + config.https_port_offset;
 
         // Manager EINMAL clonen für beide Tasks
         let manager_for_http = Arc::clone(&self.manager);
@@ -166,12 +166,26 @@ pub async fn handle_proxy_request(
         host.clone()
     };
 
+    // DEBUG: Log every request
+    log::info!(
+        "Proxy Request: Host='{}' -> Subdomain='{}'",
+        host,
+        subdomain
+    );
+
     let path_and_query = req
         .uri()
         .path_and_query()
         .map(|pq| pq.as_str())
         .unwrap_or("/")
         .to_string();
+
+    // DEBUG: Check if route exists
+    let routes = manager.get_routes().await;
+    log::info!(
+        "Available routes: {:?}",
+        routes.iter().map(|r| &r.subdomain).collect::<Vec<_>>()
+    );
 
     if let Some(target_port) = manager.get_target_port(&subdomain).await {
         let target_uri = format!("http://127.0.0.1:{}{}", target_port, path_and_query);

@@ -168,6 +168,15 @@ body {
   background: rgba(0, 212, 255, 0.8);
 }
 
+.header-btn.is-active {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border-color: var(--accent-primary);
+}
+.header-btn.is-active:hover {
+  background: rgba(0, 212, 255, 0.8);
+}
+
 /* NEW: Hot Reload Badge */
 .hotreload-badge {
   background: var(--bg-tertiary);

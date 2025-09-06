@@ -1,0 +1,125 @@
+{
+  "screen.performance_command_detected.text": "🔧 Performance-Befehl '{0}' erkannt",
+  "screen.performance_command_detected.display_text": "DEBUG",
+  "screen.performance_command_detected.category": "debug",
+
+  "screen.performance_command_viewport_reset_applied.text": "✅ Performance-Befehl: Viewport-Reset angewendet",
+  "screen.performance_command_viewport_reset_applied.display_text": "DEBUG",
+  "screen.performance_command_viewport_reset_applied.category": "debug",
+
+  "screen.render.empty_buffer_error.text": "FEHLER: Leerer Puffer",
+  "screen.render.empty_buffer_error.display_text": "RENDER",
+  "screen.render.empty_buffer_error.category": "error",
+
+  "screen.render.exceed_bounds_log.text": "Layout überschreitet Terminal-Grenzen: {0}x{1}",
+  "screen.render.exceed_bounds_log.display_text": "FEHLER",
+  "screen.render.exceed_bounds_log.category": "error",
+
+  "screen.render.invalid_layout.text": "⚠️ UNGÜLTIGES LAYOUT",
+  "screen.render.invalid_layout.display_text": "RENDER",
+  "screen.render.invalid_layout.category": "error",
+
+  "screen.render.invalid_layout_log.text": "Ungültiges Layout: Output={0}x{1}+{2}+{3}, Input={4}x{5}+{6}+{7}",
+  "screen.render.invalid_layout_log.display_text": "FEHLER",
+  "screen.render.invalid_layout_log.category": "error",
+
+  "screen.render.terminal_too_small.text": "Terminal zu klein!\nMinimum: 10x5",
+  "screen.render.terminal_too_small.display_text": "RENDER",
+  "screen.render.terminal_too_small.category": "error",
+
+  "screen.render.too_small.text": "Terminal zu klein!\nMinimum: 10x5",
+  "screen.render.too_small.display_text": "FEHLER",
+  "screen.render.too_small.category": "error",
+
+  "screen.render.too_small_log.text": "Bildschirm zu klein für sicheres Rendering: {0}x{1}",
+  "screen.render.too_small_log.display_text": "FEHLER",
+  "screen.render.too_small_log.category": "error",
+
+  "screen.render.viewport_error.text": "Viewport-Fehler!\nTerminal neu starten.",
+  "screen.render.viewport_error.display_text": "RENDER",
+  "screen.render.viewport_error.category": "error",
+
+  "screen.render.viewport_not_usable_log.text": "Viewport nicht verwendbar",
+  "screen.render.viewport_not_usable_log.display_text": "FEHLER",
+  "screen.render.viewport_not_usable_log.category": "error",
+
+  "screen.resize_completed.text": "✅ Größenänderung abgeschlossen: {0}",
+  "screen.resize_completed.display_text": "INFO",
+  "screen.resize_completed.category": "info",
+
+  "screen.resize_event.text": "🔄 RESIZE EVENT: {0}x{1} → {2}x{3}",
+  "screen.resize_event.display_text": "INFO",
+  "screen.resize_event.category": "info",
+
+  "screen.restart.done.text": "✅ Interner Neustart erfolgreich abgeschlossen",
+  "screen.restart.done.display_text": "INFO",
+  "screen.restart.done.category": "info",
+
+  "screen.restart.failed.text": "Neustart fehlgeschlagen: {0}",
+  "screen.restart.failed.display_text": "SYSTEM",
+  "screen.restart.failed.category": "error",
+
+  "screen.restart.start.text": "🔄 Interner Neustart wird ausgeführt...",
+  "screen.restart.start.display_text": "INFO",
+  "screen.restart.start.category": "info",
+
+  "screen.restart.success.text": "🔄 Neustart erfolgreich abgeschlossen",
+  "screen.restart.success.display_text": "SYSTEM",
+  "screen.restart.success.category": "info",
+
+  "screen.theme.applied.text": "Theme '{0}' angewendet: Prompt='{1}', Historie={2} Einträge",
+  "screen.theme.applied.display_text": "INFO",
+  "screen.theme.applied.category": "info",
+
+  "screen.theme.failed.text": "Theme-Wechsel fehlgeschlagen: {0}",
+  "screen.theme.failed.display_text": "FEHLER",
+  "screen.theme.failed.category": "error",
+
+  "screen.theme.invalid_format.text": "Ungültiges Theme-Update-Format",
+  "screen.theme.invalid_format.display_text": "FEHLER",
+  "screen.theme.invalid_format.category": "error",
+
+  "screen.theme.load_failed.text": "Theme-System konnte nicht geladen werden: {0}",
+  "screen.theme.load_failed.display_text": "THEME",
+  "screen.theme.load_failed.category": "error",
+
+  "screen.theme.not_found.text": "Theme '{0}' nicht gefunden",
+  "screen.theme.not_found.display_text": "THEME",
+  "screen.theme.not_found.category": "error",
+
+  "screen.theme.not_found_feedback.text": "⚫ Theme '{0}' nicht gefunden",
+  "screen.theme.not_found_feedback.display_text": "FEHLER",
+  "screen.theme.not_found_feedback.category": "error",
+
+  "screen.theme.processing.text": "🎨 Live-Theme-Update wird verarbeitet: {0}",
+  "screen.theme.processing.display_text": "DEBUG",
+  "screen.theme.processing.category": "debug",
+
+  "screen.theme.switched_success.text": "✅ Theme gewechselt zu: {0}",
+  "screen.theme.switched_success.display_text": "THEME",
+  "screen.theme.switched_success.category": "theme",
+
+  "viewport.layout.broken.text": "🚨 Layout schwer beschädigt, Notfallmodus wird aktiviert",
+  "viewport.layout.broken.display_text": "FEHLER",
+  "viewport.layout.broken.category": "error",
+
+  "viewport.layout.calculated.text": "Layout berechnet: Terminal={0}x{1}, Output={2}x{3}+{4}+{5}, Input={6}x{7}+{8}+{9}, Fenster={10}",
+  "viewport.layout.calculated.display_text": "TRACE",
+  "viewport.layout.calculated.category": "trace",
+
+  "viewport.layout.failed.text": "Layout-Berechnung fehlgeschlagen: Input={0}, Output={1}, Verfügbar={2}",
+  "viewport.layout.failed.display_text": "FEHLER",
+  "viewport.layout.failed.category": "error",
+
+  "viewport.layout.invalid.text": "🚨 Ungültige Layoutbereiche erstellt, Notfall-Layout wird verwendet",
+  "viewport.layout.invalid.display_text": "FEHLER",
+  "viewport.layout.invalid.category": "error",
+
+  "viewport.layout.mismatch.text": "Layout-Größen stimmen nicht überein: Terminal={0}, Benutzt={1} (Output={2}, Input={3}, Margin={4})",
+  "viewport.layout.mismatch.display_text": "WARN",
+  "viewport.layout.mismatch.category": "warning",
+
+  "viewport.layout.too_small.text": "Viewport-Layout zu klein: {0}x{1}",
+  "viewport.layout.too_small.display_text": "FEHLER",
+  "viewport.layout.too_small.category": "error"
+}

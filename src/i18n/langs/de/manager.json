@@ -1,0 +1,133 @@
+{
+  "manager.cached_entries.text": "Cache-Einträge",
+  "manager.cached_entries.display_text": "INFO",
+  "manager.cached_entries.category": "info",
+
+  "manager.change_theme.text": "Theme wechseln",
+  "manager.change_theme.display_text": "INFO",
+  "manager.change_theme.category": "info",
+
+  "manager.comprehensive_report_header.text": "📊 UMFASSENDER PERFORMANCE-BERICHT",
+  "manager.comprehensive_report_header.display_text": "INFO",
+  "manager.comprehensive_report_header.category": "info",
+
+  "manager.current_language.text": "Aktuelle Sprache",
+  "manager.current_language.display_text": "INFO",
+  "manager.current_language.category": "info",
+
+  "manager.disabled.text": "DEAKTIVIERT",
+  "manager.disabled.display_text": "INFO",
+  "manager.disabled.category": "info",
+
+  "manager.enable_debug_logging.text": "Debug-Protokollierung aktivieren",
+  "manager.enable_debug_logging.display_text": "INFO",
+  "manager.enable_debug_logging.category": "info",
+
+  "manager.history_buffer.text": "Historie-Puffer",
+  "manager.history_buffer.display_text": "INFO",
+  "manager.history_buffer.category": "info",
+
+  "manager.i18n_cache.text": "i18n-Cache",
+  "manager.i18n_cache.display_text": "INFO",
+  "manager.i18n_cache.category": "info",
+
+  "manager.i18n_performance.text": "i18n-Performance",
+  "manager.i18n_performance.display_text": "INFO",
+  "manager.i18n_performance.category": "info",
+
+  "manager.memory_usage.text": "Speicherverbrauch",
+  "manager.memory_usage.display_text": "INFO",
+  "manager.memory_usage.category": "info",
+
+  "manager.message_buffer.text": "Nachrichten-Puffer",
+  "manager.message_buffer.display_text": "INFO",
+  "manager.message_buffer.category": "info",
+
+  "manager.no_config_found.text": "Keine Konfiguration gefunden",
+  "manager.no_config_found.display_text": "INFO",
+  "manager.no_config_found.category": "info",
+
+  "manager.poll_rate.text": "Polling-Rate",
+  "manager.poll_rate.display_text": "INFO",
+  "manager.poll_rate.category": "info",
+
+  "manager.recommendation.all_good.text": "✅ Alle Einstellungen optimal konfiguriert",
+  "manager.recommendation.all_good.display_text": "INFO",
+  "manager.recommendation.all_good.category": "info",
+
+  "manager.recommendation.poll_rate_too_fast.text": "⚡ poll_rate < 16ms: Sehr hohe CPU-Last - empfohlen: 16-33ms",
+  "manager.recommendation.poll_rate_too_fast.display_text": "WARN",
+  "manager.recommendation.poll_rate_too_fast.category": "warning",
+
+  "manager.recommendation.too_many_messages.text": "💾 Zu viele Nachrichten im Puffer - empfohlen: max 500",
+  "manager.recommendation.too_many_messages.display_text": "WARN",
+  "manager.recommendation.too_many_messages.category": "warning",
+
+  "manager.recommendation.typewriter_too_fast.text": "⌨️ typewriter_delay < 10ms: Sehr schnell - empfohlen: 30-100ms",
+  "manager.recommendation.typewriter_too_fast.display_text": "WARN",
+  "manager.recommendation.typewriter_too_fast.category": "warning",
+
+  "manager.recommendations.text": "Empfehlungen",
+  "manager.recommendations.display_text": "INFO",
+  "manager.recommendations.category": "info",
+
+  "manager.related_commands.text": "Verwandte Befehle",
+  "manager.related_commands.display_text": "INFO",
+  "manager.related_commands.category": "info",
+
+  "manager.show_i18n_report.text": "Zeige i18n-Bericht",
+  "manager.show_i18n_report.display_text": "INFO",
+  "manager.show_i18n_report.category": "info",
+
+  "manager.system_performance.text": "System-Performance",
+  "manager.system_performance.display_text": "INFO",
+  "manager.system_performance.category": "info",
+
+  "manager.total_estimated.text": "Geschätzt insgesamt",
+  "manager.total_estimated.display_text": "INFO",
+  "manager.total_estimated.category": "info",
+
+  "manager.total_keys.text": "Gesamt-Schlüssel",
+  "manager.total_keys.display_text": "INFO",
+  "manager.total_keys.category": "info",
+
+  "manager.typewriter_speed.text": "Schreibeffekt-Geschwindigkeit",
+  "manager.typewriter_speed.display_text": "INFO",
+  "manager.typewriter_speed.category": "info",
+
+  "utils.duration.hours_minutes.text": "{0}h {1}min",
+  "utils.duration.hours_minutes.display_text": "INFO",
+  "utils.duration.hours_minutes.category": "info",
+
+  "utils.duration.milliseconds.text": "{0}ms",
+  "utils.duration.milliseconds.display_text": "INFO",
+  "utils.duration.milliseconds.category": "info",
+
+  "utils.duration.minutes_seconds.text": "{0}min {1}s",
+  "utils.duration.minutes_seconds.display_text": "INFO",
+  "utils.duration.minutes_seconds.category": "info",
+
+  "utils.duration.seconds.text": "{0}s",
+  "utils.duration.seconds.display_text": "INFO",
+  "utils.duration.seconds.category": "info",
+
+  "utils.size.bytes.text": "Bytes",
+  "utils.size.bytes.display_text": "INFO",
+  "utils.size.bytes.category": "info",
+
+  "utils.size.GB.text": "GB",
+  "utils.size.GB.display_text": "INFO",
+  "utils.size.GB.category": "info",
+
+  "utils.size.KB.text": "KB",
+  "utils.size.KB.display_text": "INFO",
+  "utils.size.KB.category": "info",
+
+  "utils.size.MB.text": "MB",
+  "utils.size.MB.display_text": "INFO",
+  "utils.size.MB.category": "info",
+
+  "utils.size.TB.text": "TB",
+  "utils.size.TB.display_text": "INFO",
+  "utils.size.TB.category": "info"
+}

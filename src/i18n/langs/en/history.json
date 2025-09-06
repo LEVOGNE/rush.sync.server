@@ -1,0 +1,13 @@
+{
+  "history.manager.cleared.text": "📂 History cleared",
+  "history.manager.cleared.display_text": "HISTORY",
+  "history.manager.cleared.category": "info",
+
+  "history.manager.loaded_entries.text": "📂 Loaded {0} history entries",
+  "history.manager.loaded_entries.display_text": "HISTORY",
+  "history.manager.loaded_entries.category": "debug",
+
+  "history.manager.save_failed.text": "Failed to save history: {0}",
+  "history.manager.save_failed.display_text": "HISTORY",
+  "history.manager.save_failed.category": "error"
+}

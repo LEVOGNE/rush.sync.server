@@ -351,6 +351,90 @@
   "system.cleanup.i18n_cleared.display_text": "DEBUG",
   "system.cleanup.i18n_cleared.category": "debug",
 
+  "system.commands.cleanup.confirm_stopped.text": "Gestoppte Server löschen? Dies kann nicht rückgängig gemacht werden. (j/n)",
+  "system.commands.cleanup.confirm_stopped.display_text": "BESTÄTIGEN",
+  "system.commands.cleanup.confirm_stopped.category": "warning",
+
+  "system.commands.cleanup.confirm_failed.text": "Fehlgeschlagene Server löschen? Dies kann nicht rückgängig gemacht werden. (j/n)",
+  "system.commands.cleanup.confirm_failed.display_text": "BESTÄTIGEN",
+  "system.commands.cleanup.confirm_failed.category": "warning",
+
+  "system.commands.cleanup.confirm_logs.text": "Alle Server-Logs löschen? Dies kann nicht rückgängig gemacht werden. (j/n)",
+  "system.commands.cleanup.confirm_logs.display_text": "BESTÄTIGEN",
+  "system.commands.cleanup.confirm_logs.category": "warning",
+
+  "system.commands.cleanup.confirm_all.text": "Komplette Bereinigung (Server, Logs, WWW-Ordner)? Dies kann nicht rückgängig gemacht werden. (j/n)",
+  "system.commands.cleanup.confirm_all.display_text": "BESTÄTIGEN",
+  "system.commands.cleanup.confirm_all.category": "warning",
+
+  "system.commands.cleanup.confirm_www_server.text": "WWW-Ordner für Server '{0}' löschen? Dies kann nicht rückgängig gemacht werden. (j/n)",
+  "system.commands.cleanup.confirm_www_server.display_text": "BESTÄTIGEN",
+  "system.commands.cleanup.confirm_www_server.category": "warning",
+
+  "system.commands.cleanup.confirm_www_all.text": "Kompletten WWW-Ordner löschen? Dies kann nicht rückgängig gemacht werden. (j/n)",
+  "system.commands.cleanup.confirm_www_all.display_text": "BESTÄTIGEN",
+  "system.commands.cleanup.confirm_www_all.category": "warning",
+
+  "system.commands.cleanup.stopped_success.text": "{0} gestoppte Server entfernt (persistent gespeichert)",
+  "system.commands.cleanup.stopped_success.display_text": "CLEANUP",
+  "system.commands.cleanup.stopped_success.category": "info",
+
+  "system.commands.cleanup.no_stopped.text": "Keine gestoppten Server zum Entfernen gefunden",
+  "system.commands.cleanup.no_stopped.display_text": "CLEANUP",
+  "system.commands.cleanup.no_stopped.category": "info",
+
+  "system.commands.cleanup.failed_success.text": "{0} fehlgeschlagene Server entfernt (persistent gespeichert)",
+  "system.commands.cleanup.failed_success.display_text": "CLEANUP",
+  "system.commands.cleanup.failed_success.category": "info",
+
+  "system.commands.cleanup.no_failed.text": "Keine fehlgeschlagenen Server zum Entfernen gefunden",
+  "system.commands.cleanup.no_failed.display_text": "CLEANUP",
+  "system.commands.cleanup.no_failed.category": "info",
+
+  "system.commands.cleanup.logs_started.text": "Server-Log-Bereinigung gestartet...",
+  "system.commands.cleanup.logs_started.display_text": "CLEANUP",
+  "system.commands.cleanup.logs_started.category": "info",
+
+  "system.commands.cleanup.logs_success.text": "Server-Logs bereinigt: {0} Dateien gelöscht, {1}MB freigegeben",
+  "system.commands.cleanup.logs_success.display_text": "CLEANUP",
+  "system.commands.cleanup.logs_success.category": "info",
+
+  "system.commands.cleanup.no_logs_dir.text": "Kein servers/ Verzeichnis gefunden",
+  "system.commands.cleanup.no_logs_dir.display_text": "CLEANUP",
+  "system.commands.cleanup.no_logs_dir.category": "info",
+
+  "system.commands.cleanup.www_server_started.text": "WWW-Bereinigung für '{0}' gestartet...",
+  "system.commands.cleanup.www_server_started.display_text": "CLEANUP",
+  "system.commands.cleanup.www_server_started.category": "info",
+
+  "system.commands.cleanup.www_all_started.text": "Komplette WWW-Bereinigung gestartet...",
+  "system.commands.cleanup.www_all_started.display_text": "CLEANUP",
+  "system.commands.cleanup.www_all_started.category": "info",
+
+  "system.commands.cleanup.www_server_success.text": "WWW für Server '{0}' bereinigt: {1} Verzeichnisse gelöscht, {2}MB freigegeben",
+  "system.commands.cleanup.www_server_success.display_text": "CLEANUP",
+  "system.commands.cleanup.www_server_success.category": "info",
+
+  "system.commands.cleanup.www_all_success.text": "WWW-Verzeichnis komplett bereinigt: {0} Verzeichnisse, {1} Dateien gelöscht, {2}MB freigegeben",
+  "system.commands.cleanup.www_all_success.display_text": "CLEANUP",
+  "system.commands.cleanup.www_all_success.category": "info",
+
+  "system.commands.cleanup.no_www_dir.text": "Kein www/ Verzeichnis gefunden",
+  "system.commands.cleanup.no_www_dir.display_text": "CLEANUP",
+  "system.commands.cleanup.no_www_dir.category": "info",
+
+  "system.commands.cleanup.no_www_for_server.text": "Keine WWW-Verzeichnisse für Server '{0}' gefunden",
+  "system.commands.cleanup.no_www_for_server.display_text": "CLEANUP",
+  "system.commands.cleanup.no_www_for_server.category": "info",
+
+  "system.commands.cleanup.async_started.text": "Server-Logs und WWW-Dateien werden bereinigt...",
+  "system.commands.cleanup.async_started.display_text": "CLEANUP",
+  "system.commands.cleanup.async_started.category": "info",
+
+  "system.commands.cleanup.usage.text": "Verwendung: cleanup [stopped|failed|logs|www|all] [server_name] oder cleanup --force-[type]",
+  "system.commands.cleanup.usage.display_text": "CLEANUP",
+  "system.commands.cleanup.usage.category": "info",
+
   "system.commands.history.confirm_clear.text": "Möchten Sie wirklich die gesamte Befehlshistorie löschen? (j/n)",
   "system.commands.history.confirm_clear.display_text": "BESTÄTIGEN",
   "system.commands.history.confirm_clear.category": "warning",

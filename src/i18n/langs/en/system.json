@@ -1,0 +1,149 @@
+{
+  "system.config.dir_created.text": "Configuration directory created: {0}",
+  "system.config.dir_created.display_text": "DEBUG",
+  "system.config.dir_created.category": "debug",
+
+  "system.config.dir_error.text": "Could not determine program directory",
+  "system.config.dir_error.display_text": "ERROR",
+  "system.config.dir_error.category": "error",
+
+  "system.config.file_created.text": "Configuration file created: {0}",
+  "system.config.file_created.display_text": "INFO",
+  "system.config.file_created.category": "info",
+
+  "system.config.language_set_failed.text": "Failed to set language: {0}",
+  "system.config.language_set_failed.display_text": "WARN",
+  "system.config.language_set_failed.category": "warning",
+
+  "system.config.load_error.text": "Error loading new configuration: {0}",
+  "system.config.load_error.display_text": "ERROR",
+  "system.config.load_error.category": "error",
+
+  "system.config.new_default.text": "✅ New default configuration created: {0}",
+  "system.config.new_default.display_text": "INFO",
+  "system.config.new_default.category": "info",
+
+  "system.config.no_existing.text": "No existing configuration found, creating default",
+  "system.config.no_existing.display_text": "INFO",
+  "system.config.no_existing.category": "info",
+
+  "system.config.setup_failed.text": "Default configuration setup failed: {0}",
+  "system.config.setup_failed.display_text": "ERROR",
+  "system.config.setup_failed.category": "error",
+
+  "system.error.io.text": "IO error: {0}",
+  "system.error.io.display_text": "ERROR",
+  "system.error.io.category": "error",
+
+  "system.error.io_error.text": "IO error: {0}",
+  "system.error.io_error.display_text": "ERROR",
+  "system.error.io_error.category": "error",
+
+  "system.error.terminal.text": "Terminal error: {0}",
+  "system.error.terminal.display_text": "ERROR",
+  "system.error.terminal.category": "error",
+
+  "system.error.terminal_error.text": "Terminal error: {0}",
+  "system.error.terminal_error.display_text": "ERROR",
+  "system.error.terminal_error.category": "error",
+
+  "system.error.translation_error.text": "Translation error: {0}",
+  "system.error.translation_error.display_text": "ERROR",
+  "system.error.translation_error.category": "error",
+
+  "system.error.validation.text": "Validation error: {0}",
+  "system.error.validation.display_text": "ERROR",
+  "system.error.validation.category": "error",
+
+  "system.error.validation_error.text": "Validation error: {0}",
+  "system.error.validation_error.display_text": "ERROR",
+  "system.error.validation_error.category": "error",
+
+  "system.input.cancel.short.text": "n",
+  "system.input.cancel.short.display_text": "INFO",
+  "system.input.cancel.short.category": "info",
+
+  "system.input.cancelled.text": "Operation cancelled",
+  "system.input.cancelled.display_text": "INFO",
+  "system.input.cancelled.category": "info",
+
+  "system.input.clipboard.cleared.text": "Input cleared",
+  "system.input.clipboard.cleared.display_text": "INPUT",
+  "system.input.clipboard.cleared.category": "info",
+
+  "system.input.clipboard.copied.text": "📋 Copied: \"{0}\"",
+  "system.input.clipboard.copied.display_text": "CLIPBOARD",
+  "system.input.clipboard.copied.category": "info",
+
+  "system.input.clipboard.copy_failed.text": "⚪ Copy failed",
+  "system.input.clipboard.copy_failed.display_text": "CLIPBOARD",
+  "system.input.clipboard.copy_failed.category": "error",
+
+  "system.input.clipboard.cut.text": "📋 Cut: \"{0}\"",
+  "system.input.clipboard.cut.display_text": "CLIPBOARD",
+  "system.input.clipboard.cut.category": "info",
+
+  "system.input.clipboard.empty.text": "⚪ Clipboard empty",
+  "system.input.clipboard.empty.display_text": "CLIPBOARD",
+  "system.input.clipboard.empty.category": "warning",
+
+  "system.input.clipboard.nothing_to_copy.text": "⚪ Nothing to copy",
+  "system.input.clipboard.nothing_to_copy.display_text": "CLIPBOARD",
+  "system.input.clipboard.nothing_to_copy.category": "warning",
+
+  "system.input.clipboard.nothing_to_paste.text": "⚪ Nothing to paste",
+  "system.input.clipboard.nothing_to_paste.display_text": "CLIPBOARD",
+  "system.input.clipboard.nothing_to_paste.category": "warning",
+
+  "system.input.clipboard.pasted.text": "📋 Pasted {0} chars",
+  "system.input.clipboard.pasted.display_text": "CLIPBOARD",
+  "system.input.clipboard.pasted.category": "info",
+
+  "system.input.confirm.short.text": "y",
+  "system.input.confirm.short.display_text": "INFO",
+  "system.input.confirm.short.category": "info",
+
+  "system.input.confirm_exit.text": "Do you really want to exit the program? (y/n)",
+  "system.input.confirm_exit.display_text": "CONFIRM",
+  "system.input.confirm_exit.category": "warning",
+
+  "system.input.empty.text": "Input cannot be empty",
+  "system.input.empty.display_text": "WARN",
+  "system.input.empty.category": "warning",
+
+  "system.input.history_cleared.text": "History has been cleared",
+  "system.input.history_cleared.display_text": "INFO",
+  "system.input.history_cleared.category": "info",
+
+  "system.input.too_long.text": "Input too long (maximum: {0} characters)",
+  "system.input.too_long.display_text": "WARN",
+  "system.input.too_long.category": "warning",
+
+  "system.startup.i18n_initialized.text": "i18n system initialized for language: {0}",
+  "system.startup.i18n_initialized.display_text": "READY",
+  "system.startup.i18n_initialized.category": "info",
+
+  "system.startup.logger_init_failed.text": "Logger initialization failed: {0}",
+  "system.startup.logger_init_failed.display_text": "ERROR",
+  "system.startup.logger_init_failed.category": "error",
+
+  "system.startup.version.text": "Welcome to Rush Sync Version {0}",
+  "system.startup.version.display_text": "READY",
+  "system.startup.version.category": "startup",
+
+  "terminal.cleanup.done.text": "✅ Terminal reset correctly",
+  "terminal.cleanup.done.display_text": "READY",
+  "terminal.cleanup.done.category": "info",
+
+  "terminal.manager.emergency_cleanup.text": "🚨 Emergency terminal cleanup in destructor",
+  "terminal.manager.emergency_cleanup.display_text": "TERMINAL",
+  "terminal.manager.emergency_cleanup.category": "warning",
+
+  "terminal.manager.raw_mode_lost.text": "⚠ Raw mode was lost, re-enabling...",
+  "terminal.manager.raw_mode_lost.display_text": "TERMINAL",
+  "terminal.manager.raw_mode_lost.category": "warning",
+
+  "terminal.setup.done.text": "✅ Terminal initialized",
+  "terminal.setup.done.display_text": "READY",
+  "terminal.setup.done.category": "info"
+}

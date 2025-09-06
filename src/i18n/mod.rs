@@ -1,4 +1,3 @@
-// ## FILE: src/i18n/mod.rs - SUPER VEREINFACHT!
 use crate::core::prelude::*;
 use crate::ui::color::AppColor;
 use rust_embed::RustEmbed;
@@ -97,29 +96,63 @@ impl I18nService {
     }
 
     fn load_entries(lang: &str) -> Result<HashMap<String, Entry>> {
-        let filename = format!("{}.json", lang.to_lowercase());
-        let content = Langs::get(&filename).ok_or_else(|| {
-            AppError::Translation(TranslationError::LoadError(format!(
-                "File not found: {}",
-                filename
-            )))
-        })?;
+        let lang_lower = lang.to_lowercase();
+        let mut merged_raw: HashMap<String, String> = HashMap::new();
 
-        let content_str = std::str::from_utf8(content.data.as_ref())
-            .map_err(|e| AppError::Translation(TranslationError::LoadError(e.to_string())))?;
+        // Dynamisch alle Kategorien für diese Sprache finden
+        let category_files: Vec<String> = Langs::iter()
+            .filter_map(|file| {
+                let filename = file.as_ref();
+                let prefix = format!("{}/", lang_lower);
 
-        let raw: HashMap<String, String> = serde_json::from_str(content_str)
-            .map_err(|e| AppError::Translation(TranslationError::LoadError(e.to_string())))?;
+                if filename.starts_with(&prefix) && filename.ends_with(".json") {
+                    Some(filename.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
 
-        Ok(raw
+        // Lade alle gefundenen Kategorie-Dateien
+        let mut found_modular = false;
+        for filename in category_files {
+            if let Some(content) = Langs::get(&filename) {
+                if let Ok(content_str) = std::str::from_utf8(content.data.as_ref()) {
+                    if let Ok(raw) = serde_json::from_str::<HashMap<String, String>>(content_str) {
+                        merged_raw.extend(raw);
+                        found_modular = true;
+                    }
+                }
+            }
+        }
+
+        // Fallback: Alte Einzeldatei
+        if !found_modular {
+            let filename = format!("{}.json", lang_lower);
+            let content = Langs::get(&filename).ok_or_else(|| {
+                AppError::Translation(TranslationError::LoadError(format!(
+                    "File not found: {}",
+                    filename
+                )))
+            })?;
+
+            let content_str = std::str::from_utf8(content.data.as_ref())
+                .map_err(|e| AppError::Translation(TranslationError::LoadError(e.to_string())))?;
+
+            merged_raw = serde_json::from_str(content_str)
+                .map_err(|e| AppError::Translation(TranslationError::LoadError(e.to_string())))?;
+        }
+
+        // DEINE ORIGINALLOGIK - UNVERÄNDERT!
+        Ok(merged_raw
             .iter()
             .filter_map(|(key, value)| {
                 key.strip_suffix(".text").map(|base_key| {
-                    let display = raw
+                    let display = merged_raw
                         .get(&format!("{}.display_text", base_key))
                         .unwrap_or(&base_key.to_uppercase())
                         .clone();
-                    let category = raw
+                    let category = merged_raw
                         .get(&format!("{}.category", base_key))
                         .unwrap_or(&"info".to_string())
                         .clone();
@@ -170,15 +203,10 @@ impl I18nService {
         }
     }
 
-    // fn get_display_color(&self, display_text: &str) -> AppColor {
-    //     AppColor::from_display_text(display_text) // ← NUR EINE ZEILE!
-    // }
-
     fn get_display_color(&self, display_text: &str) -> AppColor {
         // Suche Entry mit matching display_text
         for entry in self.entries.values() {
             if entry.display.to_uppercase() == display_text.to_uppercase() {
-                // ✅ VERWENDE category für Farbe!
                 return AppColor::from_category(&entry.category);
             }
         }
@@ -187,13 +215,30 @@ impl I18nService {
         AppColor::from_any("info")
     }
 
+    // ✅ KORRIGIERTE FUNKTION: Erkennt beide Strukturen
     fn available_languages() -> Vec<String> {
-        Langs::iter()
-            .filter_map(|f| {
-                let filename = f.as_ref();
-                filename.strip_suffix(".json").map(|s| s.to_uppercase())
-            })
-            .collect()
+        let mut languages = std::collections::HashSet::new();
+
+        for file in Langs::iter() {
+            let filename = file.as_ref();
+
+            if filename.ends_with(".json") {
+                if let Some(lang) = filename.strip_suffix(".json") {
+                    // Alte Struktur: de.json -> de
+                    if !lang.contains('/') {
+                        languages.insert(lang.to_uppercase());
+                    }
+                }
+
+                if let Some(slash_pos) = filename.find('/') {
+                    // Neue Struktur: de/common.json -> de
+                    let lang = &filename[..slash_pos];
+                    languages.insert(lang.to_uppercase());
+                }
+            }
+        }
+
+        languages.into_iter().collect()
     }
 }
 
@@ -221,14 +266,11 @@ pub fn get_command_translation(key: &str, params: &[&str]) -> String {
         .get_command_translation(key, params)
 }
 
-// ✅ NEUE VEREINFACHTE FUNKTION: Direkte Farb-Zuordnung!
 pub fn get_color_for_display_text(display_text: &str) -> AppColor {
     SERVICE.read().unwrap().get_display_color(display_text)
 }
 
-// ✅ LEGACY SUPPORT (um bestehenden Code nicht zu brechen)
 pub fn get_color_category_for_display(display: &str) -> String {
-    // Gib einfach die Display-Text als Kategorie zurück für AppColor::from_any()
     match display.to_lowercase().as_str() {
         "theme" => "theme".to_string(),
         "lang" | "sprache" => "lang".to_string(),
@@ -253,7 +295,6 @@ pub fn clear_translation_cache() {
     SERVICE.write().unwrap().cache.clear();
 }
 
-// ✅ MACROS (unverändert)
 #[macro_export]
 macro_rules! t {
     ($key:expr) => { $crate::i18n::get_translation($key, &[]) };

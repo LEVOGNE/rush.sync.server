@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Message Sender (rss-001)</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background: #f0f0f0;
+      }
+      .container {
+        max-width: 500px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+      }
+      input,
+      button {
+        padding: 10px;
+        margin: 5px;
+      }
+      button {
+        background: #007cba;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #005a84;
+      }
+      .status {
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Message Sender (rss-001)</h1>
+      <p>Send messages to rss-002</p>
+
+      <input
+        type="text"
+        id="messageInput"
+        placeholder="Enter your message..."
+        style="width: 300px"
+      />
+      <button onclick="sendMessage()">Send Message</button>
+
+      <div id="status"></div>
+    </div>
+
+    <script>
+      function showStatus(message, isSuccess) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.className = `status ${isSuccess ? 'success' : 'error'}`;
+        statusDiv.textContent = message;
+      }
+
+      async function sendMessage() {
+        const message = document.getElementById('messageInput').value;
+        if (!message.trim()) {
+          showStatus('Please enter a message', false);
+          return;
+        }
+
+        try {
+          const response = await fetch('http://127.0.0.1:8081/api/message', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: message,
+              from: 'rss-001',
+              timestamp: new Date().toISOString(),
+            }),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            showStatus(`Message sent successfully!`, true);
+            document.getElementById('messageInput').value = '';
+          } else {
+            throw new Error(`HTTP ${response.status}`);
+          }
+        } catch (error) {
+          showStatus(`Failed to send: ${error.message}`, false);
+        }
+      }
+
+      // Send on Enter key
+      document.getElementById('messageInput').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+          sendMessage();
+        }
+      });
+    </script>
+  </body>
+</html>

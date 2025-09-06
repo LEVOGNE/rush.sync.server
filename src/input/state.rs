@@ -33,22 +33,23 @@ enum SystemAction {
     Exit,
     Restart,
     ClearHistory,
+    CleanupExecute(String),
 }
 
 impl SystemCommandProcessor {
-    /// ✅ HAUPTFUNKTION: Verarbeite ALLE System-Commands zentral
+    /// Verarbeite System-Commands und Cleanup-Confirms
     pub fn process_command(&mut self, input: &str) -> SystemCommandResult {
-        // 1️⃣ Prüfe auf System-Commands
+        // 1️⃣ Direkte System-Commands
         if let Some(result) = self.handle_system_commands(input) {
             return result;
         }
 
-        // 2️⃣ Prüfe auf Bestätigungs-Requests
+        // 2️⃣ System-Bestätigungs-Requests (inkl. Cleanup)
         if let Some(result) = self.handle_confirmation_requests(input) {
             return result;
         }
 
-        // 3️⃣ Verarbeite Bestätigungen (wenn pending)
+        // 3️⃣ Benutzer-Bestätigungen
         if self.pending_confirmation.is_some() {
             return self.handle_user_confirmation(input);
         }
@@ -57,7 +58,7 @@ impl SystemCommandProcessor {
         SystemCommandResult::NotSystemCommand
     }
 
-    /// ✅ DIREKTE System-Commands (sofort ausführen)
+    /// System-Commands (sofort ausführen)
     fn handle_system_commands(&mut self, input: &str) -> Option<SystemCommandResult> {
         match input.trim() {
             "__CLEAR__" => Some(SystemCommandResult::ClearScreen),
@@ -94,6 +95,16 @@ impl SystemCommandProcessor {
             return Some(SystemCommandResult::ShowPrompt(prompt.to_string()));
         }
 
+        // Cleanup-Bestätigungen (neues sauberes Pattern)
+        if let Some(rest) = input.strip_prefix("__CONFIRM:__CLEANUP__") {
+            if let Some((force_command, prompt)) = rest.split_once("__") {
+                self.pending_confirmation = Some(PendingConfirmation {
+                    action: SystemAction::CleanupExecute(force_command.to_string()),
+                });
+                return Some(SystemCommandResult::ShowPrompt(prompt.to_string()));
+            }
+        }
+
         None
     }
 
@@ -103,23 +114,25 @@ impl SystemCommandProcessor {
         let user_input = input.trim().to_lowercase();
 
         let result = if user_input == confirm_key {
-            // ✅ BESTÄTIGT - Führe Aktion aus
+            // Bestätigt - führe Aktion aus
             match &self.pending_confirmation.as_ref().unwrap().action {
                 SystemAction::Exit => SystemCommandResult::Exit,
                 SystemAction::Restart => SystemCommandResult::Restart,
                 SystemAction::ClearHistory => SystemCommandResult::ClearHistory,
+                SystemAction::CleanupExecute(force_command) => {
+                    SystemCommandResult::CleanupExecute(force_command.clone())
+                }
             }
         } else {
-            // ❌ ABGEBROCHEN
+            // Abgebrochen
             SystemCommandResult::Message(get_translation("system.input.cancelled", &[]))
         };
 
-        // Cleanup
         self.pending_confirmation = None;
         result
     }
 
-    /// ✅ HILFSFUNKTION: Ist ein Bestätigungs-Zeichen erlaubt?
+    // Helper-Methoden bleiben unverändert
     pub fn is_valid_confirmation_char(&self, c: char) -> bool {
         if self.pending_confirmation.is_none() {
             return false;
@@ -132,12 +145,10 @@ impl SystemCommandProcessor {
         [confirm_char, cancel_char].contains(&char_str)
     }
 
-    /// ✅ STATUS: Warten wir auf Bestätigung?
     pub fn is_waiting_for_confirmation(&self) -> bool {
         self.pending_confirmation.is_some()
     }
 
-    /// ✅ RESET bei Sprach-Wechsel
     pub fn reset_for_language_change(&mut self) {
         self.pending_confirmation = None;
     }
@@ -150,6 +161,7 @@ pub enum SystemCommandResult {
     Exit,
     Restart,
     ClearHistory,
+    CleanupExecute(String),
     ShowPrompt(String),
     Message(String),
 }
@@ -344,8 +356,13 @@ impl InputState {
             SystemCommandResult::Exit => Some("__EXIT__".to_string()),
             SystemCommandResult::Restart => Some("__RESTART__".to_string()),
             SystemCommandResult::ClearHistory => {
-                self.clear_history(); // ✅ ZENTRAL
+                self.clear_history();
                 Some(get_translation("system.input.history_cleared", &[]))
+            }
+            SystemCommandResult::CleanupExecute(force_command) => {
+                // Führe Force-Command direkt aus
+                let result = self.command_handler.handle_input(&force_command);
+                Some(result.message)
             }
             SystemCommandResult::ShowPrompt(prompt) => Some(prompt),
             SystemCommandResult::Message(msg) => Some(msg),

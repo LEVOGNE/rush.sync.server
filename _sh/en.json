@@ -347,6 +347,90 @@
   "system.cleanup.i18n_cleared.display_text": "DEBUG",
   "system.cleanup.i18n_cleared.category": "debug",
 
+  "system.commands.cleanup.confirm_stopped.text": "Delete stopped servers? This cannot be undone. (y/n)",
+  "system.commands.cleanup.confirm_stopped.display_text": "CONFIRM",
+  "system.commands.cleanup.confirm_stopped.category": "warning",
+
+  "system.commands.cleanup.confirm_failed.text": "Delete failed servers? This cannot be undone. (y/n)",
+  "system.commands.cleanup.confirm_failed.display_text": "CONFIRM",
+  "system.commands.cleanup.confirm_failed.category": "warning",
+
+  "system.commands.cleanup.confirm_logs.text": "Delete all server logs? This cannot be undone. (y/n)",
+  "system.commands.cleanup.confirm_logs.display_text": "CONFIRM",
+  "system.commands.cleanup.confirm_logs.category": "warning",
+
+  "system.commands.cleanup.confirm_all.text": "Complete cleanup (servers, logs, WWW folders)? This cannot be undone. (y/n)",
+  "system.commands.cleanup.confirm_all.display_text": "CONFIRM",
+  "system.commands.cleanup.confirm_all.category": "warning",
+
+  "system.commands.cleanup.confirm_www_server.text": "Delete WWW folder for server '{0}'? This cannot be undone. (y/n)",
+  "system.commands.cleanup.confirm_www_server.display_text": "CONFIRM",
+  "system.commands.cleanup.confirm_www_server.category": "warning",
+
+  "system.commands.cleanup.confirm_www_all.text": "Delete complete WWW folder? This cannot be undone. (y/n)",
+  "system.commands.cleanup.confirm_www_all.display_text": "CONFIRM",
+  "system.commands.cleanup.confirm_www_all.category": "warning",
+
+  "system.commands.cleanup.stopped_success.text": "{0} stopped servers removed (persistently saved)",
+  "system.commands.cleanup.stopped_success.display_text": "CLEANUP",
+  "system.commands.cleanup.stopped_success.category": "info",
+
+  "system.commands.cleanup.no_stopped.text": "No stopped servers found to remove",
+  "system.commands.cleanup.no_stopped.display_text": "CLEANUP",
+  "system.commands.cleanup.no_stopped.category": "info",
+
+  "system.commands.cleanup.failed_success.text": "{0} failed servers removed (persistently saved)",
+  "system.commands.cleanup.failed_success.display_text": "CLEANUP",
+  "system.commands.cleanup.failed_success.category": "info",
+
+  "system.commands.cleanup.no_failed.text": "No failed servers found to remove",
+  "system.commands.cleanup.no_failed.display_text": "CLEANUP",
+  "system.commands.cleanup.no_failed.category": "info",
+
+  "system.commands.cleanup.logs_started.text": "Server log cleanup started...",
+  "system.commands.cleanup.logs_started.display_text": "CLEANUP",
+  "system.commands.cleanup.logs_started.category": "info",
+
+  "system.commands.cleanup.logs_success.text": "Server logs cleaned: {0} files deleted, {1}MB freed",
+  "system.commands.cleanup.logs_success.display_text": "CLEANUP",
+  "system.commands.cleanup.logs_success.category": "info",
+
+  "system.commands.cleanup.no_logs_dir.text": "No servers/ directory found",
+  "system.commands.cleanup.no_logs_dir.display_text": "CLEANUP",
+  "system.commands.cleanup.no_logs_dir.category": "info",
+
+  "system.commands.cleanup.www_server_started.text": "WWW cleanup for '{0}' started...",
+  "system.commands.cleanup.www_server_started.display_text": "CLEANUP",
+  "system.commands.cleanup.www_server_started.category": "info",
+
+  "system.commands.cleanup.www_all_started.text": "Complete WWW cleanup started...",
+  "system.commands.cleanup.www_all_started.display_text": "CLEANUP",
+  "system.commands.cleanup.www_all_started.category": "info",
+
+  "system.commands.cleanup.www_server_success.text": "WWW for server '{0}' cleaned: {1} directories deleted, {2}MB freed",
+  "system.commands.cleanup.www_server_success.display_text": "CLEANUP",
+  "system.commands.cleanup.www_server_success.category": "info",
+
+  "system.commands.cleanup.www_all_success.text": "WWW directory completely cleaned: {0} directories, {1} files deleted, {2}MB freed",
+  "system.commands.cleanup.www_all_success.display_text": "CLEANUP",
+  "system.commands.cleanup.www_all_success.category": "info",
+
+  "system.commands.cleanup.no_www_dir.text": "No www/ directory found",
+  "system.commands.cleanup.no_www_dir.display_text": "CLEANUP",
+  "system.commands.cleanup.no_www_dir.category": "info",
+
+  "system.commands.cleanup.no_www_for_server.text": "No WWW directories found for server '{0}'",
+  "system.commands.cleanup.no_www_for_server.display_text": "CLEANUP",
+  "system.commands.cleanup.no_www_for_server.category": "info",
+
+  "system.commands.cleanup.async_started.text": "Server logs and WWW files are being cleaned...",
+  "system.commands.cleanup.async_started.display_text": "CLEANUP",
+  "system.commands.cleanup.async_started.category": "info",
+
+  "system.commands.cleanup.usage.text": "Usage: cleanup [stopped|failed|logs|www|all] [server_name] or cleanup --force-[type]",
+  "system.commands.cleanup.usage.display_text": "CLEANUP",
+  "system.commands.cleanup.usage.category": "info",
+
   "system.commands.history.confirm_clear.text": "Do you really want to clear the entire command history? (y/n)",
   "system.commands.history.confirm_clear.display_text": "CONFIRM",
   "system.commands.history.confirm_clear.category": "warning",

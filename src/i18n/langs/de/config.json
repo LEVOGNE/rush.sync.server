@@ -1,0 +1,121 @@
+{
+  "config.config_backup_created.text": "Config-Backup erstellt: {0}",
+  "config.config_backup_created.display_text": "DEBUG",
+  "config.config_backup_created.category": "debug",
+
+  "config.config_successfully_written_to.text": "Konfiguration erfolgreich geschrieben nach: {0}",
+  "config.config_successfully_written_to.display_text": "DEBUG",
+  "config.config_successfully_written_to.category": "debug",
+
+  "config.corrected.poll_rate.text": "poll_rate: {0}ms → {1}ms (korrigiert)",
+  "config.corrected.poll_rate.display_text": "WARN",
+  "config.corrected.poll_rate.category": "warning",
+
+  "config.corrected.typewriter.text": "typewriter_delay: {0}ms → {1}ms (korrigiert)",
+  "config.corrected.typewriter.display_text": "WARN",
+  "config.corrected.typewriter.category": "warning",
+
+  "config.corrected_values.text": "🔧 Ungültige Config-Werte korrigiert und gespeichert:",
+  "config.corrected_values.display_text": "WARN",
+  "config.corrected_values.category": "warning",
+
+  "config.could_not_create_backup.text": "Konnte Backup nicht erstellen: {0}",
+  "config.could_not_create_backup.display_text": "WARN",
+  "config.could_not_create_backup.category": "warning",
+
+  "config.creating_config_directory.text": "Erstelle Konfigurationsverzeichnis: {0}",
+  "config.creating_config_directory.display_text": "DEBUG",
+  "config.creating_config_directory.category": "debug",
+
+  "config.current_theme.text": "Aktuelles Theme: {0}",
+  "config.current_theme.display_text": "DEBUG",
+  "config.current_theme.category": "debug",
+
+  "config.failed_to_create_config_directory.text": "Fehler beim Erstellen des Konfigurationsverzeichnisses: {0}",
+  "config.failed_to_create_config_directory.display_text": "FEHLER",
+  "config.failed_to_create_config_directory.category": "error",
+
+  "config.failed_to_rename_temp_file.text": "Fehler beim Umbenennen der temporären Datei: {0}",
+  "config.failed_to_rename_temp_file.display_text": "FEHLER",
+  "config.failed_to_rename_temp_file.category": "error",
+
+  "config.failed_to_write_temp_config_file.text": "Fehler beim Schreiben der temporären Config-Datei: {0}",
+  "config.failed_to_write_temp_config_file.display_text": "FEHLER",
+  "config.failed_to_write_temp_config_file.category": "error",
+
+  "config.poll_rate.too_fast.text": "poll_rate {0}ms zu schnell, verwende Minimum: {1}ms",
+  "config.poll_rate.too_fast.display_text": "WARN",
+  "config.poll_rate.too_fast.category": "warning",
+
+  "config.poll_rate.too_slow.text": "poll_rate {0}ms zu langsam, verwende Maximum: {1}ms",
+  "config.poll_rate.too_slow.display_text": "WARN",
+  "config.poll_rate.too_slow.category": "warning",
+
+  "config.poll_rate.zero.text": "poll_rate = 0 nicht erlaubt, verwende Minimum: {0}ms",
+  "config.poll_rate.zero.display_text": "WARN",
+  "config.poll_rate.zero.category": "warning",
+
+  "config.save_failed.text": "Konnte korrigierte Config nicht speichern: {0}",
+  "config.save_failed.display_text": "FEHLER",
+  "config.save_failed.category": "error",
+
+  "config.save_success.text": "✅ Korrigierte Werte in Config-Datei gespeichert",
+  "config.save_success.display_text": "INFO",
+  "config.save_success.category": "info",
+
+  "config.saved_current_theme_to_config.text": "Aktuelles Theme in Config gespeichert: {0}",
+  "config.saved_current_theme_to_config.display_text": "INFO",
+  "config.saved_current_theme_to_config.category": "info",
+
+  "config.saving_config_to.text": "Speichere Konfiguration nach: {0}",
+  "config.saving_config_to.display_text": "DEBUG",
+  "config.saving_config_to.category": "debug",
+
+  "config.switch_theme_to.text": "Wechsle zu Theme: {0}",
+  "config.switch_theme_to.display_text": "DEBUG",
+  "config.switch_theme_to.category": "debug",
+
+  "config.toml_serialization_failed.text": "TOML-Serialisierung fehlgeschlagen: {0}",
+  "config.toml_serialization_failed.display_text": "FEHLER",
+  "config.toml_serialization_failed.category": "error",
+
+  "config.typewriter.off.text": "typewriter_delay = 0 → Typewriter-Effekt deaktiviert",
+  "config.typewriter.off.display_text": "INFO",
+  "config.typewriter.off.category": "info",
+
+  "config.typewriter.too_slow.text": "typewriter_delay {0}ms zu langsam, verwende Maximum: {1}ms",
+  "config.typewriter.too_slow.display_text": "WARN",
+  "config.typewriter.too_slow.category": "warning",
+
+  "config.validation.invalid_color.text": "Ungültige Farbe: {0}",
+  "config.validation.invalid_color.display_text": "CONFIG",
+  "config.validation.invalid_color.category": "error",
+
+  "config.validation.invalid_log_level.text": "Ungültige Log-Stufe in Konfiguration: '{0}', verwende INFO",
+  "config.validation.invalid_log_level.display_text": "CONFIG",
+  "config.validation.invalid_log_level.category": "warning",
+
+  "config.validation.theme_load_failed.text": "Theme konnte nicht geladen werden: {0}",
+  "config.validation.theme_load_failed.display_text": "CONFIG",
+  "config.validation.theme_load_failed.category": "error",
+
+  "config.validation.theme_not_found.text": "Theme '{0}' nicht gefunden",
+  "config.validation.theme_not_found.display_text": "CONFIG",
+  "config.validation.theme_not_found.category": "error",
+
+  "config.validation.toml_error.text": "TOML-Fehler: {0}",
+  "config.validation.toml_error.display_text": "CONFIG",
+  "config.validation.toml_error.category": "error",
+
+  "language.service.config_load_error.text": "Konfiguration-Ladefehler: {0}",
+  "language.service.config_load_error.display_text": "LANG",
+  "language.service.config_load_error.category": "error",
+
+  "language.service.config_save_error.text": "Konfiguration-Speicherfehler: {0}",
+  "language.service.config_save_error.display_text": "LANG",
+  "language.service.config_save_error.category": "error",
+
+  "language.service.save_failed.text": "Sprach-Konfiguration konnte nicht gespeichert werden: {0}",
+  "language.service.save_failed.display_text": "LANG",
+  "language.service.save_failed.category": "error"
+}

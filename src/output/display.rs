@@ -284,6 +284,11 @@ impl MessageDisplay {
         self.cache_dirty = true;
         self.rebuild_line_cache();
 
+        // ✅ HIER EINFÜGEN - nach rebuild_line_cache():
+        if force_instant || !use_typewriter {
+            self.viewport.enable_auto_scroll_silent();
+        }
+
         if self.viewport.is_auto_scroll_enabled() {
             let content_height = self.line_cache.len();
             let window_height = self.viewport.window_height();

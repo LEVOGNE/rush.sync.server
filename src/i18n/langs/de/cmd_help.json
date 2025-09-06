@@ -1,0 +1,139 @@
+{
+  "system.commands.help.header.text": "Verfügbare Commands",
+  "system.commands.help.header.display_text": "HELP",
+  "system.commands.help.header.category": "info",
+
+  "system.commands.help.footer.text": "Verwende 'help <command>' für detaillierte Hilfe zu einem Command.",
+  "system.commands.help.footer.display_text": "HELP",
+  "system.commands.help.footer.category": "info",
+
+  "system.commands.help.no_commands.text": "Keine Commands verfügbar.",
+  "system.commands.help.no_commands.display_text": "HELP",
+  "system.commands.help.no_commands.category": "warning",
+
+  "system.commands.help.category.server_control.text": "Server-Steuerung",
+  "system.commands.help.category.server_control.display_text": "HELP",
+  "system.commands.help.category.server_control.category": "info",
+
+  "system.commands.help.category.server_management.text": "Server-Verwaltung",
+  "system.commands.help.category.server_management.display_text": "HELP",
+  "system.commands.help.category.server_management.category": "info",
+
+  "system.commands.help.category.maintenance.text": "Wartung",
+  "system.commands.help.category.maintenance.display_text": "HELP",
+  "system.commands.help.category.maintenance.category": "info",
+
+  "system.commands.help.category.configuration.text": "Konfiguration",
+  "system.commands.help.category.configuration.display_text": "HELP",
+  "system.commands.help.category.configuration.category": "info",
+
+  "system.commands.help.category.information.text": "Information",
+  "system.commands.help.category.information.display_text": "HELP",
+  "system.commands.help.category.information.category": "info",
+
+  "system.commands.help.category.system.text": "System",
+  "system.commands.help.category.system.display_text": "HELP",
+  "system.commands.help.category.system.category": "info",
+
+  "system.commands.help.category.other.text": "Sonstige",
+  "system.commands.help.category.other.display_text": "HELP",
+  "system.commands.help.category.other.category": "info",
+
+  "system.commands.help.simple_list.text": "Verfügbare Commands: {0}",
+  "system.commands.help.simple_list.display_text": "HELP",
+  "system.commands.help.simple_list.category": "info",
+
+  "system.commands.help.detailed_header.text": "Alle verfügbaren Commands (Detailliert):",
+  "system.commands.help.detailed_header.display_text": "HELP",
+  "system.commands.help.detailed_header.category": "info",
+
+  "system.commands.help.detailed_separator.text": "=====================================",
+  "system.commands.help.detailed_separator.display_text": "HELP",
+  "system.commands.help.detailed_separator.category": "info",
+
+  "system.commands.help.command_label.text": "Command:",
+  "system.commands.help.command_label.display_text": "HELP",
+  "system.commands.help.command_label.category": "info",
+
+  "system.commands.help.description_label.text": "Beschreibung:",
+  "system.commands.help.description_label.display_text": "HELP",
+  "system.commands.help.description_label.category": "info",
+
+  "system.commands.help.usage_label.text": "Verwendung:",
+  "system.commands.help.usage_label.display_text": "HELP",
+  "system.commands.help.usage_label.category": "info",
+
+  "system.commands.help.command_separator.text": "-------------------------------------",
+  "system.commands.help.command_separator.display_text": "HELP",
+  "system.commands.help.command_separator.category": "info",
+
+  "system.commands.help.specific_help_template.text": "Hilfe für Command '{0}':\n\nBeschreibung: {1}\n\nVerwendung: {2} [optionen]\n\nFür weitere Details versuche: {3} --help",
+  "system.commands.help.specific_help_template.display_text": "HELP",
+  "system.commands.help.specific_help_template.category": "info",
+
+  "system.commands.help.command_not_found.text": "Command '{0}' nicht gefunden. Verwende 'help' um alle verfügbaren Commands zu sehen.",
+  "system.commands.help.command_not_found.display_text": "HELP",
+  "system.commands.help.command_not_found.category": "warning",
+
+  "_comment": "=== COMMAND DESCRIPTIONS ===",
+
+  "system.commands.log_level.description.text": "Log-Stufe der Anwendung ändern",
+  "system.commands.log_level.description.display_text": "HELP",
+  "system.commands.log_level.description.category": "info",
+
+  "system.commands.language.description.text": "Anwendungssprache ändern",
+  "system.commands.language.description.display_text": "HELP",
+  "system.commands.language.description.category": "info",
+
+  "system.commands.theme.description.text": "Anwendungsdesign ändern (Live-Update ohne Neustart, aus TOML geladen)",
+  "system.commands.theme.description.display_text": "HELP",
+  "system.commands.theme.description.category": "info",
+
+  "system.commands.help.description.text": "Alle verfügbaren Commands anzeigen",
+  "system.commands.help.description.display_text": "HELP",
+  "system.commands.help.description.category": "info",
+
+  "system.commands.version.description.text": "Anwendungsversion anzeigen",
+  "system.commands.version.description.display_text": "HELP",
+  "system.commands.version.description.category": "info",
+
+  "system.commands.history.description.text": "Befehlshistorie verwalten",
+  "system.commands.history.description.display_text": "HELP",
+  "system.commands.history.description.category": "info",
+
+  "system.commands.recover.description.text": "Server-Status-Inkonsistenzen beheben und reparieren",
+  "system.commands.recover.description.display_text": "HELP",
+  "system.commands.recover.description.category": "info",
+
+  "system.commands.cleanup.description.text": "Server, Logs und WWW-Dateien bereinigen - unterstützt Bestätigung und Force-Flags",
+  "system.commands.cleanup.description.display_text": "HELP",
+  "system.commands.cleanup.description.category": "info",
+
+  "system.commands.restart.description.text": "Anwendung neu starten",
+  "system.commands.restart.description.display_text": "HELP",
+  "system.commands.restart.description.category": "info",
+
+  "system.commands.start.description.text": "Server starten - unterstützt Bereiche und Massenoperationen",
+  "system.commands.start.description.display_text": "HELP",
+  "system.commands.start.description.category": "info",
+
+  "system.commands.stop.description.text": "Server stoppen - unterstützt Bereiche und Massenoperationen",
+  "system.commands.stop.description.display_text": "HELP",
+  "system.commands.stop.description.category": "info",
+
+  "system.commands.create.description.text": "Web-Server erstellen - unterstützt Massenerstellung",
+  "system.commands.create.description.display_text": "HELP",
+  "system.commands.create.description.category": "info",
+
+  "system.commands.list.description.text": "Alle Web-Server auflisten (persistent)",
+  "system.commands.list.description.display_text": "HELP",
+  "system.commands.list.description.category": "info",
+
+  "system.commands.clear.description.text": "Bildschirm leeren",
+  "system.commands.clear.description.display_text": "HELP",
+  "system.commands.clear.description.category": "info",
+
+  "system.commands.exit.description.text": "Anwendung beenden",
+  "system.commands.exit.description.display_text": "HELP",
+  "system.commands.exit.description.category": "info"
+}

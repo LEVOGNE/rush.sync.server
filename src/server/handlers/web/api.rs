@@ -1,23 +1,33 @@
-// ===== src/server/handlers/web/api.rs =====
-use super::PROXY_PORT;
-use crate::server::{config, logging::ServerLogger, types::ServerData};
+use super::ServerDataWithConfig;
+use crate::server::{config, logging::ServerLogger};
 use actix_web::{web, HttpResponse, Result as ActixResult};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub async fn status_handler(data: web::Data<ServerData>) -> ActixResult<HttpResponse> {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Message {
+    message: String,
+    from: String,
+    timestamp: String,
+    id: u32,
+}
+
+pub async fn status_handler(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
     let uptime = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    let server_dir = format!("www/{}-[{}]", data.name, data.port);
+    let server_dir = format!("www/{}-[{}]", data.server.name, data.server.port);
 
     Ok(HttpResponse::Ok().json(json!({
         "status": "running",
-        "server_id": data.id,
-        "server_name": data.name,
-        "port": data.port,
-        "proxy_port": PROXY_PORT,
+        "server_id": data.server.id,
+        "server_name": data.server.name,
+        "port": data.server.port,
+        "proxy_port": data.proxy_https_port, // Verwende https proxy port
         "server": config::get_server_name(),
         "version": config::get_server_version(),
         "uptime_seconds": uptime,
@@ -26,40 +36,40 @@ pub async fn status_handler(data: web::Data<ServerData>) -> ActixResult<HttpResp
         "hot_reload": true,
         "websocket_endpoint": "/ws/hot-reload",
         "server_directory": server_dir,
-        "log_file": format!(".rss/servers/{}-[{}].log", data.name, data.port),
-        "certificate_file": format!(".rss/certs/{}-{}.cert", data.name, data.port),
-        "private_key_file": format!(".rss/certs/{}-{}.key", data.name, data.port),
+        "log_file": format!(".rss/servers/{}-[{}].log", data.server.name, data.server.port),
+        "certificate_file": format!(".rss/certs/{}-{}.cert", data.server.name, data.server.port),
+        "private_key_file": format!(".rss/certs/{}-{}.key", data.server.name, data.server.port),
         "urls": {
-            "http": format!("http://127.0.0.1:{}", data.port),
-            "proxy": format!("https://{}.localhost:{}", data.name, PROXY_PORT)
+            "http": format!("http://127.0.0.1:{}", data.server.port),
+            "proxy": format!("https://{}.localhost:{}", data.server.name, data.proxy_https_port)
         }
     })))
 }
 
-pub async fn info_handler(data: web::Data<ServerData>) -> ActixResult<HttpResponse> {
-    let server_dir = format!("www/{}-[{}]", data.name, data.port);
+pub async fn info_handler(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
+    let server_dir = format!("www/{}-[{}]", data.server.name, data.server.port);
 
     Ok(HttpResponse::Ok().json(json!({
         "name": "Rush Sync Server",
         "version": config::get_server_version(),
-        "server_id": data.id,
-        "server_name": data.name,
-        "port": data.port,
-        "proxy_port": PROXY_PORT,
+        "server_id": data.server.id,
+        "server_name": data.server.name,
+        "port": data.server.port,
+        "proxy_port": data.proxy_https_port, // Verwende https proxy port
         "static_files_enabled": true,
         "template_system": "enabled",
         "hot_reload_enabled": true,
-        "websocket_url": format!("ws://127.0.0.1:{}/ws/hot-reload", data.port),
+        "websocket_url": format!("ws://127.0.0.1:{}/ws/hot-reload", data.server.port),
         "server_directory": server_dir,
         "certificate": {
-            "cert_file": format!(".rss/certs/{}-{}.cert", data.name, data.port),
-            "key_file": format!(".rss/certs/{}-{}.key", data.name, data.port),
-            "common_name": format!("{}.localhost", data.name)
+            "cert_file": format!(".rss/certs/{}-{}.cert", data.server.name, data.server.port),
+            "key_file": format!(".rss/certs/{}-{}.key", data.server.name, data.server.port),
+            "common_name": format!("{}.localhost", data.server.name)
         },
         "urls": {
-            "http": format!("http://127.0.0.1:{}", data.port),
-            "proxy": format!("https://{}.localhost:{}", data.name, PROXY_PORT),
-            "websocket": format!("ws://127.0.0.1:{}/ws/hot-reload", data.port)
+            "http": format!("http://127.0.0.1:{}", data.server.port),
+            "proxy": format!("https://{}.localhost:{}", data.server.name, data.proxy_https_port),
+            "websocket": format!("ws://127.0.0.1:{}/ws/hot-reload", data.server.port)
         },
         "endpoints": [
             { "path": "/", "method": "GET", "description": "Static files from server directory", "type": "static" },
@@ -76,13 +86,13 @@ pub async fn info_handler(data: web::Data<ServerData>) -> ActixResult<HttpRespon
     })))
 }
 
-pub async fn metrics_handler(data: web::Data<ServerData>) -> ActixResult<HttpResponse> {
+pub async fn metrics_handler(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
     let uptime = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    let server_dir = format!("www/{}-[{}]", data.name, data.port);
-    let log_file_size = if let Ok(logger) = ServerLogger::new(&data.name, data.port) {
+    let server_dir = format!("www/{}-[{}]", data.server.name, data.server.port);
+    let log_file_size = if let Ok(logger) = ServerLogger::new(&data.server.name, data.server.port) {
         logger.get_log_file_size_bytes().unwrap_or(0)
     } else {
         0
@@ -93,14 +103,14 @@ pub async fn metrics_handler(data: web::Data<ServerData>) -> ActixResult<HttpRes
         .unwrap_or(0);
 
     Ok(HttpResponse::Ok().json(json!({
-        "server_id": data.id,
-        "server_name": data.name,
-        "port": data.port,
+        "server_id": data.server.id,
+        "server_name": data.server.name,
+        "port": data.server.port,
         "uptime_seconds": uptime,
         "status": "running",
         "hot_reload": {
             "enabled": true,
-            "websocket_url": format!("ws://127.0.0.1:{}/ws/hot-reload", data.port),
+            "websocket_url": format!("ws://127.0.0.1:{}/ws/hot-reload", data.server.port),
             "watching_directory": server_dir,
             "file_watcher": "active"
         },
@@ -119,18 +129,18 @@ pub async fn metrics_handler(data: web::Data<ServerData>) -> ActixResult<HttpRes
     })))
 }
 
-pub async fn stats_handler(data: web::Data<ServerData>) -> ActixResult<HttpResponse> {
-    let server_dir = format!("www/{}-[{}]", data.name, data.port);
+pub async fn stats_handler(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
+    let server_dir = format!("www/{}-[{}]", data.server.name, data.server.port);
 
-    let stats = if let Ok(logger) = ServerLogger::new(&data.name, data.port) {
+    let stats = if let Ok(logger) = ServerLogger::new(&data.server.name, data.server.port) {
         logger.get_request_stats().await.unwrap_or_default()
     } else {
         Default::default()
     };
 
     Ok(HttpResponse::Ok().json(json!({
-        "server_id": data.id,
-        "server_name": data.name,
+        "server_id": data.server.id,
+        "server_name": data.server.name,
         "server_directory": server_dir,
         "total_requests": stats.total_requests,
         "unique_ips": stats.unique_ips,
@@ -145,7 +155,7 @@ pub async fn stats_handler(data: web::Data<ServerData>) -> ActixResult<HttpRespo
     })))
 }
 
-pub async fn health_handler(_data: web::Data<ServerData>) -> ActixResult<HttpResponse> {
+pub async fn health_handler(_data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -161,6 +171,89 @@ pub async fn health_handler(_data: web::Data<ServerData>) -> ActixResult<HttpRes
         "hot_reload": "active",
         "file_watcher": "monitoring",
         "config": "loaded from TOML"
+    })))
+}
+
+pub async fn ping_handler() -> ActixResult<HttpResponse> {
+    Ok(HttpResponse::Ok().json(json!({
+        "status": "pong",
+        "timestamp": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+        "server": "rush-sync-server",
+        "message": "Ping received successfully"
+    })))
+}
+
+// Static Message Store (In-Memory für Demo)
+lazy_static::lazy_static! {
+    static ref MESSAGES: Arc<Mutex<VecDeque<Message>>> = Arc::new(Mutex::new(VecDeque::new()));
+    static ref MESSAGE_COUNTER: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
+}
+
+// POST /api/message - Nachricht empfangen
+pub async fn message_handler(body: web::Json<serde_json::Value>) -> ActixResult<HttpResponse> {
+    let message_text = body
+        .get("message")
+        .and_then(|v| v.as_str())
+        .unwrap_or("No message");
+
+    let from = body
+        .get("from")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Unknown");
+
+    let timestamp = body
+        .get("timestamp")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| chrono::Local::now().to_rfc3339());
+
+    // Message speichern
+    {
+        let mut messages = MESSAGES.lock().unwrap();
+        let mut counter = MESSAGE_COUNTER.lock().unwrap();
+        *counter += 1;
+
+        let message = Message {
+            message: message_text.to_string(),
+            from: from.to_string(),
+            timestamp: timestamp.to_string(),
+            id: *counter,
+        };
+
+        messages.push_back(message);
+
+        // Max 100 Messages behalten
+        if messages.len() > 100 {
+            messages.pop_front();
+        }
+    }
+
+    // Message ID für Response merken
+    let message_id = {
+        let counter = MESSAGE_COUNTER.lock().unwrap();
+        *counter
+    };
+
+    log::info!("Message received from {}: {}", from, message_text);
+
+    Ok(HttpResponse::Ok().json(json!({
+        "status": "received",
+        "timestamp": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+        "message_id": message_id
+    })))
+}
+
+// GET /api/messages - Alle Nachrichten abrufen
+pub async fn messages_handler() -> ActixResult<HttpResponse> {
+    let messages = {
+        let messages_lock = MESSAGES.lock().unwrap();
+        messages_lock.iter().cloned().collect::<Vec<_>>()
+    };
+
+    Ok(HttpResponse::Ok().json(json!({
+        "messages": messages,
+        "count": messages.len(),
+        "status": "success"
     })))
 }
 

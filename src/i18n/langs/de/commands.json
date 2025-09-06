@@ -1,0 +1,273 @@
+{
+  "system.commands.cleanup.confirm_stopped.text": "Gestoppte Server löschen? Dies kann nicht rückgängig gemacht werden. (j/n)",
+  "system.commands.cleanup.confirm_stopped.display_text": "BESTÄTIGEN",
+  "system.commands.cleanup.confirm_stopped.category": "warning",
+
+  "system.commands.cleanup.confirm_failed.text": "Fehlgeschlagene Server löschen? Dies kann nicht rückgängig gemacht werden. (j/n)",
+  "system.commands.cleanup.confirm_failed.display_text": "BESTÄTIGEN",
+  "system.commands.cleanup.confirm_failed.category": "warning",
+
+  "system.commands.cleanup.confirm_logs.text": "Alle Server-Logs löschen? Dies kann nicht rückgängig gemacht werden. (j/n)",
+  "system.commands.cleanup.confirm_logs.display_text": "BESTÄTIGEN",
+  "system.commands.cleanup.confirm_logs.category": "warning",
+
+  "system.commands.cleanup.confirm_all.text": "Komplette Bereinigung (Server, Logs, WWW-Ordner)? Dies kann nicht rückgängig gemacht werden. (j/n)",
+  "system.commands.cleanup.confirm_all.display_text": "BESTÄTIGEN",
+  "system.commands.cleanup.confirm_all.category": "warning",
+
+  "system.commands.cleanup.confirm_www_server.text": "WWW-Ordner für Server '{0}' löschen? Dies kann nicht rückgängig gemacht werden. (j/n)",
+  "system.commands.cleanup.confirm_www_server.display_text": "BESTÄTIGEN",
+  "system.commands.cleanup.confirm_www_server.category": "warning",
+
+  "system.commands.cleanup.confirm_www_all.text": "Kompletten WWW-Ordner löschen? Dies kann nicht rückgängig gemacht werden. (j/n)",
+  "system.commands.cleanup.confirm_www_all.display_text": "BESTÄTIGEN",
+  "system.commands.cleanup.confirm_www_all.category": "warning",
+
+  "system.commands.cleanup.stopped_success.text": "{0} gestoppte Server entfernt (persistent gespeichert)",
+  "system.commands.cleanup.stopped_success.display_text": "CLEANUP",
+  "system.commands.cleanup.stopped_success.category": "info",
+
+  "system.commands.cleanup.no_stopped.text": "Keine gestoppten Server zum Entfernen gefunden",
+  "system.commands.cleanup.no_stopped.display_text": "CLEANUP",
+  "system.commands.cleanup.no_stopped.category": "info",
+
+  "system.commands.cleanup.failed_success.text": "{0} fehlgeschlagene Server entfernt (persistent gespeichert)",
+  "system.commands.cleanup.failed_success.display_text": "CLEANUP",
+  "system.commands.cleanup.failed_success.category": "info",
+
+  "system.commands.cleanup.no_failed.text": "Keine fehlgeschlagenen Server zum Entfernen gefunden",
+  "system.commands.cleanup.no_failed.display_text": "CLEANUP",
+  "system.commands.cleanup.no_failed.category": "info",
+
+  "system.commands.cleanup.logs_started.text": "Server-Log-Bereinigung gestartet...",
+  "system.commands.cleanup.logs_started.display_text": "CLEANUP",
+  "system.commands.cleanup.logs_started.category": "info",
+
+  "system.commands.cleanup.logs_success.text": "Server-Logs bereinigt: {0} Dateien gelöscht, {1}MB freigegeben",
+  "system.commands.cleanup.logs_success.display_text": "CLEANUP",
+  "system.commands.cleanup.logs_success.category": "info",
+
+  "system.commands.cleanup.no_logs_dir.text": "Kein servers/ Verzeichnis gefunden",
+  "system.commands.cleanup.no_logs_dir.display_text": "CLEANUP",
+  "system.commands.cleanup.no_logs_dir.category": "info",
+
+  "system.commands.cleanup.www_server_started.text": "WWW-Bereinigung für '{0}' gestartet...",
+  "system.commands.cleanup.www_server_started.display_text": "CLEANUP",
+  "system.commands.cleanup.www_server_started.category": "info",
+
+  "system.commands.cleanup.www_all_started.text": "Komplette WWW-Bereinigung gestartet...",
+  "system.commands.cleanup.www_all_started.display_text": "CLEANUP",
+  "system.commands.cleanup.www_all_started.category": "info",
+
+  "system.commands.cleanup.www_server_success.text": "WWW für Server '{0}' bereinigt: {1} Verzeichnisse gelöscht, {2}MB freigegeben",
+  "system.commands.cleanup.www_server_success.display_text": "CLEANUP",
+  "system.commands.cleanup.www_server_success.category": "info",
+
+  "system.commands.cleanup.www_all_success.text": "WWW-Verzeichnis komplett bereinigt: {0} Verzeichnisse, {1} Dateien gelöscht, {2}MB freigegeben",
+  "system.commands.cleanup.www_all_success.display_text": "CLEANUP",
+  "system.commands.cleanup.www_all_success.category": "info",
+
+  "system.commands.cleanup.no_www_dir.text": "Kein www/ Verzeichnis gefunden",
+  "system.commands.cleanup.no_www_dir.display_text": "CLEANUP",
+  "system.commands.cleanup.no_www_dir.category": "info",
+
+  "system.commands.cleanup.no_www_for_server.text": "Keine WWW-Verzeichnisse für Server '{0}' gefunden",
+  "system.commands.cleanup.no_www_for_server.display_text": "CLEANUP",
+  "system.commands.cleanup.no_www_for_server.category": "info",
+
+  "system.commands.cleanup.async_started.text": "Server-Logs und WWW-Dateien werden bereinigt...",
+  "system.commands.cleanup.async_started.display_text": "CLEANUP",
+  "system.commands.cleanup.async_started.category": "info",
+
+  "system.commands.cleanup.usage.text": "Verwendung: cleanup [stopped|failed|logs|www|all] [server_name] oder cleanup --force-[type]",
+  "system.commands.cleanup.usage.display_text": "CLEANUP",
+  "system.commands.cleanup.usage.category": "info",
+
+  "system.commands.history.confirm_clear.text": "Möchten Sie wirklich die gesamte Befehlshistorie löschen? (j/n)",
+  "system.commands.history.confirm_clear.display_text": "BESTÄTIGEN",
+  "system.commands.history.confirm_clear.category": "warning",
+
+  "system.commands.history.help.text": "📂 Historie-Befehle:\n  history        Zeige diese Hilfe\n  history -c     Lösche Historie\n  ↑ ↓           Navigiere durch Historie\n\n  Datei: ~/.rss/rush.history",
+  "system.commands.history.help.display_text": "HISTORIE",
+  "system.commands.history.help.category": "info",
+
+  "system.commands.history.usage.text": "📂 Verwende ↑↓ Pfeiltasten zur Navigation, 'history -c' zum Löschen",
+  "system.commands.history.usage.display_text": "HISTORIE",
+  "system.commands.history.usage.category": "info",
+
+  "system.commands.language.available.text": "Verfügbare Sprachen: {0}",
+  "system.commands.language.available.display_text": "SPRACHE",
+  "system.commands.language.available.category": "lang",
+
+  "system.commands.language.changed.text": "✅ Sprache gewechselt zu: {0}",
+  "system.commands.language.changed.display_text": "SPRACHE",
+  "system.commands.language.changed.category": "lang",
+
+  "system.commands.language.current.text": "Aktuelle Sprache: {0}",
+  "system.commands.language.current.display_text": "SPRACHE",
+  "system.commands.language.current.category": "lang",
+
+  "system.commands.language.invalid.text": "⚫ Ungültige Sprache: {0}",
+  "system.commands.language.invalid.display_text": "FEHLER",
+  "system.commands.language.invalid.category": "error",
+
+  "system.commands.log_level.changed_persistent.text": "✅ Log-Stufe geändert zu: {0} ({1}) - Persistent gespeichert",
+  "system.commands.log_level.changed_persistent.display_text": "INFO",
+  "system.commands.log_level.changed_persistent.category": "info",
+
+  "system.commands.log_level.changed_success.text": "✅ Log-Stufe geändert zu: {0} ({1}) - Persistent gespeichert",
+  "system.commands.log_level.changed_success.display_text": "LOG_LEVEL",
+  "system.commands.log_level.changed_success.category": "info",
+
+  "system.commands.log_level.current.text": "Aktuelle Log-Stufe: {0} ({1})",
+  "system.commands.log_level.current.display_text": "INFO",
+  "system.commands.log_level.current.category": "info",
+
+  "system.commands.log_level.current_status.text": "Aktuelle Log-Stufe: {0} ({1})",
+  "system.commands.log_level.current_status.display_text": "LOG_LEVEL",
+  "system.commands.log_level.current_status.category": "info",
+
+  "system.commands.log_level.help.text": "Verfügbare Log-Stufen:\n  1 = ERROR   (Nur kritische Fehler)\n  2 = WARN    (Warnungen und Fehler)\n  3 = INFO    (Allgemeine Informationen) [STANDARD]\n  4 = DEBUG   (Debug-Informationen)\n  5 = TRACE   (Sehr detaillierte Verfolgung)\n\nVerwendung:\n  log-level           Zeige aktuelle Stufe\n  log-level 3         Setze auf INFO-Stufe\n  log-level DEBUG     Setze auf DEBUG-Stufe\n  log-level -h        Zeige diese Hilfe",
+  "system.commands.log_level.help.display_text": "INFO",
+  "system.commands.log_level.help.category": "info",
+
+  "system.commands.log_level.help_text.text": "Verfügbare Log-Stufen:\n  1 = ERROR   (Nur kritische Fehler)\n  2 = WARN    (Warnungen und Fehler)\n  3 = INFO    (Allgemeine Informationen) [STANDARD]\n  4 = DEBUG   (Debug-Informationen)\n  5 = TRACE   (Sehr detaillierte Verfolgung)\n\nVerwendung:\n  log-level           Zeige aktuelle Stufe\n  log-level 3         Setze auf INFO-Stufe\n  log-level DEBUG     Setze auf DEBUG-Stufe\n  log-level -h        Zeige diese Hilfe",
+  "system.commands.log_level.help_text.display_text": "LOG_LEVEL",
+  "system.commands.log_level.help_text.category": "info",
+
+  "system.commands.log_level.invalid.text": "⚫ Ungültige Log-Stufe: {0}. Verfügbar: 1-5, error, warn, info, debug, trace",
+  "system.commands.log_level.invalid.display_text": "FEHLER",
+  "system.commands.log_level.invalid.category": "error",
+
+  "system.commands.log_level.invalid_level.text": "⚫ Ungültige Log-Stufe: {0}. Verfügbar: 1-5, error, warn, info, debug, trace",
+  "system.commands.log_level.invalid_level.display_text": "LOG_LEVEL",
+  "system.commands.log_level.invalid_level.category": "error",
+
+  "system.commands.performance.help.text": "Performance-Befehl Hilfe:\n  perf                   Zeige Performance-Status\n  performance           Gleich wie perf\n  stats                 Gleich wie perf\n  perf -h               Zeige diese Hilfe",
+  "system.commands.performance.help.display_text": "INFO",
+  "system.commands.performance.help.category": "info",
+
+  "system.commands.performance.unknown.text": "Unbekannter Performance-Parameter. Verwende 'perf -h' für Hilfe.",
+  "system.commands.performance.unknown.display_text": "FEHLER",
+  "system.commands.performance.unknown.category": "error",
+
+  "system.commands.restart.confirm.text": "Möchten Sie wirklich einen Neustart durchführen? (j/n)",
+  "system.commands.restart.confirm.display_text": "BESTÄTIGEN",
+  "system.commands.restart.confirm.category": "warning",
+
+  "system.commands.restart.help.text": "Verfügbare Neustart-Befehle:\n  restart           Neustart mit Bestätigung\n  restart --force   Sofortiger Neustart",
+  "system.commands.restart.help.display_text": "INFO",
+  "system.commands.restart.help.category": "info",
+
+  "system.commands.restart.success.text": "🔄 Neustart erfolgreich abgeschlossen",
+  "system.commands.restart.success.display_text": "INFO",
+  "system.commands.restart.success.category": "info",
+
+  "system.commands.restart.unknown.text": "Unbekannter Neustart-Parameter. Verwende 'restart -h' für Hilfe.",
+  "system.commands.restart.unknown.display_text": "FEHLER",
+  "system.commands.restart.unknown.category": "error",
+
+  "system.commands.theme.add_sections_hint.text": "💡 Füge [theme.xyz] Sektionen zur rush.toml hinzu",
+  "system.commands.theme.add_sections_hint.display_text": "THEME",
+  "system.commands.theme.add_sections_hint.category": "info",
+
+  "system.commands.theme.changed_success.text": "🎨 Theme gewechselt zu: {0} ✨",
+  "system.commands.theme.changed_success.display_text": "THEME",
+  "system.commands.theme.changed_success.category": "theme",
+
+  "system.commands.theme.current_status.text": "Aktuelles Theme: {0} (aus TOML)\nVerfügbar: {1}",
+  "system.commands.theme.current_status.display_text": "THEME",
+  "system.commands.theme.current_status.category": "info",
+
+  "system.commands.theme.debug_details.text": "📂 Theme '{0}':\ninput_text: '{1}'\ninput_bg: '{2}'\noutput_text: '{3}'\noutput_bg: '{4}'\ninput_cursor_prefix: '{5}'\ninput_cursor_color: '{6}'\ninput_cursor: '{7}'\noutput_cursor: '{8}'\noutput_cursor_color: '{9}'",
+  "system.commands.theme.debug_details.display_text": "THEME",
+  "system.commands.theme.debug_details.category": "info",
+
+  "system.commands.theme.debug_missing_name.text": "⚫ Theme-Name fehlt. Verwendung: theme debug <name>",
+  "system.commands.theme.debug_missing_name.display_text": "THEME",
+  "system.commands.theme.debug_missing_name.category": "error",
+
+  "system.commands.theme.debug_not_found.text": "⚫ Theme '{0}' nicht gefunden!",
+  "system.commands.theme.debug_not_found.display_text": "THEME",
+  "system.commands.theme.debug_not_found.category": "error",
+
+  "system.commands.theme.help.add_sections.text": "📂 Füge beliebige [theme.dein_name] Sektionen für neue Themes hinzu",
+  "system.commands.theme.help.add_sections.display_text": "THEME",
+  "system.commands.theme.help.add_sections.category": "info",
+
+  "system.commands.theme.help.cursor_config.text": "🎯 NEU: Cursor-Konfiguration über output_cursor + output_color!",
+  "system.commands.theme.help.cursor_config.display_text": "THEME",
+  "system.commands.theme.help.cursor_config.category": "info",
+
+  "system.commands.theme.help.cursor_options.text": "🎛️ Cursor-Optionen:\n• output_cursor: BLOCK, PIPE, UNDERSCORE\n• output_color: Jede unterstützte Farbe (White, Green, etc.)",
+  "system.commands.theme.help.cursor_options.display_text": "THEME",
+  "system.commands.theme.help.cursor_options.category": "info",
+
+  "system.commands.theme.help.header.text": "🎨 TOML-Theme Befehle (Live Update - Geladen aus rush.toml!):",
+  "system.commands.theme.help.header.display_text": "THEME",
+  "system.commands.theme.help.header.category": "info",
+
+  "system.commands.theme.help.live_changes.text": "🔄 Änderungen werden sofort angewendet (kein Neustart nötig)",
+  "system.commands.theme.help.live_changes.display_text": "THEME",
+  "system.commands.theme.help.live_changes.category": "info",
+
+  "system.commands.theme.help.live_loaded.text": "✨ Alle Themes werden LIVE aus [theme.*] Sektionen der rush.toml geladen!",
+  "system.commands.theme.help.live_loaded.display_text": "THEME",
+  "system.commands.theme.help.live_loaded.category": "info",
+
+  "system.commands.theme.help.preview_theme.text": "theme preview <name> Vorschau der Theme-Farben + Cursor-Config ✅ NEU!",
+  "system.commands.theme.help.preview_theme.display_text": "THEME",
+  "system.commands.theme.help.preview_theme.category": "info",
+
+  "system.commands.theme.help.select_theme.text": "theme <name>         Wähle Theme: {0}",
+  "system.commands.theme.help.select_theme.display_text": "THEME",
+  "system.commands.theme.help.select_theme.category": "info",
+
+  "system.commands.theme.help.show_help.text": "theme -h             Zeige diese Hilfe",
+  "system.commands.theme.help.show_help.display_text": "THEME",
+  "system.commands.theme.help.show_help.category": "info",
+
+  "system.commands.theme.help.show_themes.text": "theme                Zeige verfügbare TOML-Themes",
+  "system.commands.theme.help.show_themes.display_text": "THEME",
+  "system.commands.theme.help.show_themes.category": "info",
+
+  "system.commands.theme.how_to_add_themes.text": "📂 Füge [theme.mein_theme] Sektionen zur rush.toml hinzu:\n\n[theme.mein_theme]\ninput_text = \"White\"\ninput_bg = \"Black\"\ncursor = \"Green\"\noutput_text = \"Gray\"\noutput_bg = \"Black\"\nprompt_text = \">> \"\nprompt_color = \"Cyan\"\noutput_cursor = \"BLOCK\"\noutput_color = \"LightGreen\"",
+  "system.commands.theme.how_to_add_themes.display_text": "THEME",
+  "system.commands.theme.how_to_add_themes.category": "info",
+
+  "system.commands.theme.load_failed.text": "⚫ Theme-System konnte nicht geladen werden: {0}",
+  "system.commands.theme.load_failed.display_text": "THEME",
+  "system.commands.theme.load_failed.category": "error",
+
+  "system.commands.theme.no_themes_available.text": "⚫ Keine Themes verfügbar!",
+  "system.commands.theme.no_themes_available.display_text": "THEME",
+  "system.commands.theme.no_themes_available.category": "error",
+
+  "system.commands.theme.no_themes_found.text": "⚫ Keine Themes verfügbar! Füge [theme.xyz] Sektionen zur rush.toml hinzu.",
+  "system.commands.theme.no_themes_found.display_text": "THEME",
+  "system.commands.theme.no_themes_found.category": "error",
+
+  "system.commands.theme.no_themes_hint.text": "Keine Themes in der Konfiguration gefunden.",
+  "system.commands.theme.no_themes_hint.display_text": "THEME",
+  "system.commands.theme.no_themes_hint.category": "warning",
+
+  "system.commands.theme.not_found.text": "⚫ Theme '{0}' nicht gefunden. Verfügbar: {1}",
+  "system.commands.theme.not_found.display_text": "THEME",
+  "system.commands.theme.not_found.category": "error",
+
+  "system.commands.theme.preview_details.text": "🎨 Theme '{0}' Vorschau:\nEingabe: {1} auf {2}\nAusgabe: {3} auf {4}\nCursor-Präfix: '{5}' in {6}\nEingabe-Cursor: {7}\nAusgabe-Cursor: {8} in {9}\n\n📂 Quelle: [theme.{10}] in rush.toml",
+  "system.commands.theme.preview_details.display_text": "THEME",
+  "system.commands.theme.preview_details.category": "info",
+
+  "system.commands.theme.preview_missing_name.text": "⚫ Theme-Name fehlt. Verwendung: theme preview <name>",
+  "system.commands.theme.preview_missing_name.display_text": "THEME",
+  "system.commands.theme.preview_missing_name.category": "error",
+
+  "system.commands.unknown.text": "Befehl unbekannt: {0}",
+  "system.commands.unknown.display_text": "FEHLER",
+  "system.commands.unknown.category": "error",
+
+  "system.commands.version.text": "Rush Sync Server Version {0}",
+  "system.commands.version.display_text": "VERSION",
+  "system.commands.version.category": "version"
+}

@@ -33,8 +33,68 @@ pub fn get_proxy_manager() -> &'static Arc<ProxyManager> {
     })
 }
 
+// NEU: Proxy System starten
+async fn start_proxy_system(config: &Config) -> crate::core::error::Result<()> {
+    if !config.proxy.enabled {
+        log::info!("Proxy system disabled in config");
+        return Ok(());
+    }
+
+    let proxy_manager = get_proxy_manager();
+
+    // Proxy Server starten (HTTP auf 8000 + HTTPS auf 8443)
+    Arc::clone(proxy_manager).start_proxy_server().await?;
+
+    log::info!("Proxy system started:");
+    log::info!("  HTTP:  http://{{name}}.localhost:{}", config.proxy.port);
+
+    let https_port = config.proxy.port + config.proxy.https_port_offset;
+    log::info!("HTTPS: https://{{name}}.localhost:{}", https_port);
+
+    Ok(())
+}
+
+// NEU: HTTP Redirect Server starten
+// async fn start_http_redirect(config: &Config) -> crate::core::error::Result<()> {
+//     if !config.proxy.enabled {
+//         return Ok(());
+//     }
+
+//     // Port 80 nur wenn verfügbar
+//     if !is_port_available(80) {
+//         log::warn!("Port 80 already in use - HTTP redirect disabled");
+//         log::info!("Tip: Use 'sudo lsof -i :80' to check what's using it");
+//         return Ok(());
+//     }
+
+//     // Import aus server::redirect
+//     use crate::server::redirect::HttpRedirectServer;
+
+//     let redirect = HttpRedirectServer::new(80, 8443); // Redirect zu HTTPS Proxy
+
+//     std::thread::spawn(move || {
+//         // Single-thread Tokio-Runtime (keine Send-Anforderung für Futures)
+//         let rt = tokio::runtime::Builder::new_current_thread()
+//             .enable_all()
+//             .build()
+//             .expect("failed to build single-thread runtime");
+
+//         rt.block_on(async move {
+//             if let Err(e) = redirect.run().await {
+//                 log::error!("HTTP redirect server failed: {}", e);
+//             }
+//         });
+//     });
+
+//     log::info!("HTTP→HTTPS redirect active on port 80");
+//     Ok(())
+// }
+
 pub async fn initialize_server_system() -> crate::core::error::Result<()> {
     let config = Config::load().await?;
+
+    crate::server::handlers::web::set_global_config(config.clone());
+
     let registry = get_persistent_registry();
     let context = get_shared_context();
 
@@ -114,51 +174,52 @@ pub async fn initialize_server_system() -> crate::core::error::Result<()> {
         }
     }
 
-    // NEU: Proxy Manager initialisieren und starten
+    // ÜBERARBEITET: Proxy Manager mit verbesserter Struktur
     if config.proxy.enabled {
-        let proxy_manager = get_proxy_manager();
-
-        // Proxy-Server starten
-        if let Err(e) = Arc::clone(proxy_manager).start_proxy_server().await {
-            log::error!("Failed to start proxy server: {}", e);
+        // 1. Proxy System starten (HTTP + HTTPS)
+        if let Err(e) = start_proxy_system(&config).await {
+            log::error!("Failed to start proxy system: {}", e);
+            // Proxy ist optional - wir laufen trotzdem weiter
         } else {
-            log::info!("Reverse Proxy started on port {}", config.proxy.port);
-        }
+            // 2. HTTP Redirect starten (optional, braucht sudo für Port 80)
+            if let Err(e) = start_http_redirect_server(&config).await {
+                log::warn!("Failed to start HTTP redirect: {}", e);
+                // Nicht fatal - läuft auch ohne
+            }
 
-        // Bereits laufende Server beim Proxy registrieren
-        for (_id, persistent_info) in persistent_servers.iter() {
-            if persistent_info.status == ServerStatus::Running {
-                if let Err(e) = proxy_manager
-                    .add_route(
-                        &persistent_info.name,
-                        &persistent_info.id,
-                        persistent_info.port,
-                    )
-                    .await
-                {
-                    log::error!(
-                        "Failed to register server {} with proxy: {}",
-                        persistent_info.name,
-                        e
-                    );
+            // 3. Bereits laufende Server beim Proxy registrieren
+            let proxy_manager = get_proxy_manager();
+            for (_id, persistent_info) in persistent_servers.iter() {
+                if persistent_info.status == ServerStatus::Running {
+                    if let Err(e) = proxy_manager
+                        .add_route(
+                            &persistent_info.name,
+                            &persistent_info.id,
+                            persistent_info.port,
+                        )
+                        .await
+                    {
+                        log::error!(
+                            "Failed to register server {} with proxy: {}",
+                            persistent_info.name,
+                            e
+                        );
+                    } else {
+                        log::info!(
+                            "Registered existing server {} with proxy",
+                            persistent_info.name
+                        );
+                    }
                 }
             }
         }
+
+        if is_port_available(80) {
+            log::info!("  With sudo: http://{{name}}.localhost → redirects to HTTPS");
+        }
+        log::info!("  Add to /etc/hosts: 127.0.0.1 {{name}}.localhost");
     } else {
         log::info!("Reverse Proxy disabled in configuration");
-    }
-
-    log::info!(
-        "Server system initialized with {} persistent servers",
-        persistent_servers.len()
-    );
-
-    // Log-Beispiele für Nutzung
-    if config.proxy.enabled {
-        log::info!("Proxy Usage:");
-        log::info!("  1. Start a server: cargo run server create myapp --port 8080");
-        log::info!("  2. Access via:     http://myapp.localhost");
-        log::info!("  3. Add to /etc/hosts: 127.0.0.1 myapp.localhost");
     }
 
     Ok(())
@@ -268,6 +329,12 @@ pub async fn get_server_system_stats() -> serde_json::Value {
         "utilization_percent": (servers.len() as f64 / config.server.max_concurrent as f64 * 100.0),
         "port_range": format!("{}-{}", config.server.port_range_start, config.server.port_range_end),
         "available_ports": config.server.port_range_end - config.server.port_range_start + 1,
+        "proxy": {
+            "enabled": config.proxy.enabled,
+            "http_port": config.proxy.port,
+            "https_port": 8443,
+            "redirect_port": if is_port_available(80) { None } else { Some(80) }
+        },
         "config": {
             "workers_per_server": config.server.workers,
             "shutdown_timeout_sec": config.server.shutdown_timeout,
@@ -317,4 +384,53 @@ pub async fn auto_start_servers() -> crate::core::error::Result<Vec<String>> {
     }
 
     Ok(started_servers)
+}
+
+// Füge das ganz am Ende der Datei ein, nach der letzten Funktion
+// Ersetze die start_http_redirect_server Funktion in src/server/shared.rs
+
+async fn start_http_redirect_server(_config: &Config) -> crate::core::error::Result<()> {
+    let redirect_port = 80;
+    let target_https_port = 8443;
+
+    if !crate::server::utils::port::is_port_available(redirect_port) {
+        log::warn!(
+            "Port {} already in use - HTTP redirect disabled",
+            redirect_port
+        );
+        return Ok(());
+    }
+
+    log::info!(
+        "Starting HTTP→HTTPS redirect server on port {}",
+        redirect_port
+    );
+
+    // LÖSUNG: std::thread::spawn statt tokio::spawn verwenden
+    std::thread::spawn(move || {
+        // Single-thread Tokio-Runtime (keine Send-Anforderung für Futures)
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("Failed to build single-thread runtime for redirect server");
+
+        rt.block_on(async move {
+            let redirect_server =
+                crate::server::redirect::HttpRedirectServer::new(redirect_port, target_https_port);
+
+            if let Err(e) = redirect_server.run().await {
+                log::error!("HTTP redirect server error: {}", e);
+            }
+        });
+    });
+
+    // Kurz warten für Startup
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+    log::info!(
+        "HTTP redirect active: Port {} → HTTPS Port {}",
+        redirect_port,
+        target_https_port
+    );
+
+    Ok(())
 }

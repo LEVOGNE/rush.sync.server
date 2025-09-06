@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Message Receiver (rss-002)</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background: #e8f5e8;
+      }
+      .container {
+        max-width: 500px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+      }
+      .message {
+        background: #d1ecf1;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 4px;
+        border-left: 4px solid #0c5460;
+      }
+      .message-meta {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 5px;
+      }
+      .message-content {
+        font-size: 16px;
+        font-weight: bold;
+      }
+      button {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #218838;
+      }
+      .stats {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Message Receiver (rss-002)</h1>
+      <p>Receiving messages from rss-001</p>
+
+      <div class="stats"><strong>Messages received:</strong> <span id="messageCount">0</span></div>
+
+      <button onclick="clearMessages()">Clear All</button>
+      <button onclick="refreshMessages()">Refresh</button>
+
+      <div id="messages">
+        <h3>Messages:</h3>
+      </div>
+    </div>
+
+    <script>
+      let messageCount = 0;
+      let messages = [];
+
+      function addMessage(data) {
+        const messagesDiv = document.getElementById('messages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message';
+
+        messageDiv.innerHTML = `
+                <div class="message-meta">
+                    From: ${data.from || 'Unknown'} |
+                    Time: ${new Date(data.timestamp || Date.now()).toLocaleTimeString()}
+                </div>
+                <div class="message-content">${data.message || 'No message'}</div>
+            `;
+
+        messagesDiv.appendChild(messageDiv);
+        messages.push(data);
+        messageCount++;
+        document.getElementById('messageCount').textContent = messageCount;
+
+        messageDiv.scrollIntoView({ behavior: 'smooth' });
+      }
+
+      function clearMessages() {
+        document.getElementById('messages').innerHTML = '<h3>Messages:</h3>';
+        messages = [];
+        messageCount = 0;
+        document.getElementById('messageCount').textContent = messageCount;
+      }
+
+      async function refreshMessages() {
+        try {
+          const response = await fetch('/api/messages');
+          if (response.ok) {
+            const data = await response.json();
+
+            // Nachrichten anzeigen
+            if (data.messages && data.messages.length > 0) {
+              // Neue Nachrichten hinzufügen
+              data.messages.forEach((message) => {
+                // Prüfen ob bereits angezeigt
+                if (!messages.find((m) => m.id === message.id)) {
+                  addMessage(message);
+                }
+              });
+            }
+
+            console.log('Messages loaded:', data.messages?.length || 0);
+          }
+        } catch (error) {
+          console.log('Refresh failed:', error);
+        }
+      }
+
+      // Auto-refresh every 3 seconds to check for new messages
+      setInterval(refreshMessages, 3000);
+
+      window.onload = function () {
+        addMessage({
+          message: 'rss-002 ready to receive messages',
+          from: 'system',
+          timestamp: new Date().toISOString(),
+        });
+      };
+    </script>
+  </body>
+</html>

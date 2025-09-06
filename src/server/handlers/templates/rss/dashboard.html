@@ -28,7 +28,9 @@
         <!-- Kompakte Quick Actions im Header -->
         <div class="header-actions">
           <button class="header-btn primary" data-action="view-http" title="Open HTTP">HTTP</button>
-          <button class="header-btn" data-action="view-proxy" title="Open via Proxy">PROXY</button>
+          <button class="header-btn" data-action="view-proxy" title="Open via Proxy HTTPS">
+            HTTPS
+          </button>
           <button class="header-btn" data-action="test-apis" title="Test APIs">TEST</button>
           <button class="header-btn" data-action="refresh-stats" title="Refresh Stats">
             REFRESH
@@ -41,8 +43,12 @@
             <span class="stat-value">{{PORT}}</span>
           </div>
           <div class="stat">
-            <span class="stat-label">Proxy</span>
-            <span class="stat-value">8443</span>
+            <span class="stat-label">Proxy HTTP</span>
+            <span class="stat-value">{{PROXY_PORT}}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Proxy HTTPS</span>
+            <span class="stat-value">{{PROXY_HTTPS_PORT}}</span>
           </div>
           <div class="stat">
             <span class="stat-label">Uptime</span>
@@ -73,7 +79,7 @@
 
         <!-- Tab Content -->
         <div class="tab-content">
-          <!-- Overview Tab - VOLLSTÄNDIG WIEDERHERGESTELLT -->
+          <!-- Overview Tab -->
           <div class="tab-panel active" id="tab-overview">
             <div class="overview-grid">
               <!-- Server Config -->
@@ -93,9 +99,15 @@
                     <a href="http://127.0.0.1:{{PORT}}" target="_blank">127.0.0.1:{{PORT}}</a>
                   </div>
                   <div class="config-item">
-                    <span>Proxy HTTPS URL</span>
-                    <a href="https://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}" target="_blank"
+                    <span>Proxy HTTP URL</span>
+                    <a href="http://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}" target="_blank"
                       >{{SERVER_NAME}}.localhost:{{PROXY_PORT}}</a
+                    >
+                  </div>
+                  <div class="config-item">
+                    <span>Proxy HTTPS URL</span>
+                    <a href="https://{{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}" target="_blank"
+                      >{{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}</a
                     >
                   </div>
                   <div class="config-item">
@@ -169,7 +181,7 @@
             </div>
           </div>
 
-          <!-- Endpoints Tab - VOLLSTÄNDIG -->
+          <!-- Endpoints Tab -->
           <div class="tab-panel" id="tab-endpoints">
             <div class="endpoint-groups">
               <div class="endpoint-group">
@@ -240,7 +252,7 @@
             </div>
           </div>
 
-          <!-- Live Logs Tab - VOLLSTÄNDIG -->
+          <!-- Live Logs Tab -->
           <div class="tab-panel" id="tab-logs">
             <div class="terminal-container">
               <div class="terminal-header">
@@ -282,21 +294,22 @@
                 <div class="log-line system">
                   <span class="log-time">{{CREATION_TIME}}</span>
                   <span class="log-level INFO">INFO</span>
-                  <span class="log-message">HTTPS listening on 127.0.0.1:{{HTTPS_PORT}}</span>
+                  <span class="log-message"
+                    >Proxy HTTP on {{SERVER_NAME}}.localhost:{{PROXY_PORT}}</span
+                  >
                 </div>
                 <div class="log-line system">
                   <span class="log-time">{{CREATION_TIME}}</span>
                   <span class="log-level INFO">INFO</span>
                   <span class="log-message"
-                    >Proxy route: {{SERVER_NAME}}.localhost:{{PROXY_PORT}} ->
-                    127.0.0.1:{{PORT}}</span
+                    >Proxy HTTPS on {{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}</span
                   >
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Metrics Tab - VOLLSTÄNDIG WIEDERHERGESTELLT -->
+          <!-- Metrics Tab -->
           <div class="tab-panel" id="tab-metrics">
             <div class="metrics-grid">
               <div class="metric-card">
@@ -349,7 +362,7 @@
             </div>
           </div>
 
-          <!-- TLS Certificate Tab - VOLLSTÄNDIG WIEDERHERGESTELLT -->
+          <!-- TLS Certificate Tab -->
           <div class="tab-panel" id="tab-certificates">
             <div class="overview-grid">
               <!-- Certificate Details -->
@@ -389,11 +402,11 @@
                 <div class="config-items">
                   <div class="config-item">
                     <span>Certificate File</span>
-                    <code>.rss/certs/proxy-{{PROXY_PORT}}.cert</code>
+                    <code>.rss/certs/proxy-{{PROXY_HTTPS_PORT}}.cert</code>
                   </div>
                   <div class="config-item">
                     <span>Private Key</span>
-                    <code>.rss/certs/proxy-{{PROXY_PORT}}.key</code>
+                    <code>.rss/certs/proxy-{{PROXY_HTTPS_PORT}}.key</code>
                   </div>
                   <div class="config-item">
                     <span>Common Name</span>
@@ -414,7 +427,7 @@
                 </div>
               </div>
 
-              <!-- URL Testing -->
+              <!-- URL Testing - KORREKTE PORTS -->
               <div class="card full-width">
                 <h3>URL Testing</h3>
                 <div class="endpoint-list compact">
@@ -425,12 +438,23 @@
                     <button class="test-btn" data-url="http://127.0.0.1:{{PORT}}">Test</button>
                   </div>
                   <div class="endpoint">
-                    <span class="method get">PROXY</span>
-                    <code>https://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}</code>
-                    <span class="desc">Via reverse proxy</span>
+                    <span class="method get">PROXY-HTTP</span>
+                    <code>http://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}</code>
+                    <span class="desc">Via HTTP proxy</span>
                     <button
                       class="test-btn"
-                      data-url="https://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}"
+                      data-url="http://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}"
+                    >
+                      Test
+                    </button>
+                  </div>
+                  <div class="endpoint">
+                    <span class="method get">PROXY-HTTPS</span>
+                    <code>https://{{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}</code>
+                    <span class="desc">Via HTTPS proxy</span>
+                    <button
+                      class="test-btn"
+                      data-url="https://{{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}"
                     >
                       Test
                     </button>
@@ -440,7 +464,7 @@
             </div>
           </div>
 
-          <!-- Hot Reload Tab - VOLLSTÄNDIG WIEDERHERGESTELLT -->
+          <!-- Hot Reload Tab -->
           <div class="tab-panel" id="tab-hotreload">
             <div class="hotreload-grid">
               <!-- WebSocket Status -->

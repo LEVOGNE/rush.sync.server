@@ -1,4 +1,4 @@
-// Fixed src/commands/stop/command.rs - MIT BROWSER CLOSE
+// Enhanced src/commands/stop/command.rs - RANGE & BULK SUPPORT
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 use crate::server::types::{ServerContext, ServerStatus};
@@ -20,7 +20,7 @@ impl Command for StopCommand {
     }
 
     fn description(&self) -> &'static str {
-        "Stop a web server (persistent)"
+        "Stop server(s) - supports ranges and bulk operations"
     }
 
     fn matches(&self, command: &str) -> bool {
@@ -30,14 +30,19 @@ impl Command for StopCommand {
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
         if args.is_empty() {
             return Err(AppError::Validation(
-                "Server-ID/Name fehlt! Verwende 'stop <ID>'".to_string(),
+                "Server-ID/Name fehlt! Verwende 'stop <ID>', 'stop 1-3', 'stop all'".to_string(),
             ));
         }
 
         let config = get_config()?;
-
         let ctx = crate::server::shared::get_shared_context();
-        self.stop_server(&config, ctx, args[0])
+
+        match self.parse_stop_args(args) {
+            StopMode::Single(identifier) => self.stop_single_server(&config, ctx, &identifier),
+            StopMode::Range(start, end) => self.stop_range_servers(&config, ctx, start, end),
+            StopMode::All => self.stop_all_servers(&config, ctx),
+            StopMode::Invalid(error) => Err(AppError::Validation(error)),
+        }
     }
 
     fn priority(&self) -> u8 {
@@ -45,14 +50,60 @@ impl Command for StopCommand {
     }
 }
 
+#[derive(Debug)]
+enum StopMode {
+    Single(String),
+    Range(u32, u32),
+    All,
+    Invalid(String),
+}
+
 impl StopCommand {
-    fn stop_server(
+    // Parse different stop argument patterns
+    fn parse_stop_args(&self, args: &[&str]) -> StopMode {
+        if args.len() != 1 {
+            return StopMode::Invalid("Too many arguments".to_string());
+        }
+
+        let arg = args[0];
+
+        // "stop all"
+        if arg.eq_ignore_ascii_case("all") {
+            return StopMode::All;
+        }
+
+        // "stop 1-3" or "stop 001-005"
+        if let Some((start_str, end_str)) = arg.split_once('-') {
+            match (start_str.parse::<u32>(), end_str.parse::<u32>()) {
+                (Ok(start), Ok(end)) => {
+                    if start == 0 || end == 0 {
+                        return StopMode::Invalid("Range indices must be > 0".to_string());
+                    }
+                    if start > end {
+                        return StopMode::Invalid("Start must be <= end in range".to_string());
+                    }
+                    if end - start > 20 {
+                        return StopMode::Invalid(
+                            "Maximum 20 servers in range operation".to_string(),
+                        );
+                    }
+                    StopMode::Range(start, end)
+                }
+                _ => StopMode::Single(arg.to_string()),
+            }
+        } else {
+            // Single server by ID/name/number
+            StopMode::Single(arg.to_string())
+        }
+    }
+
+    // Stop single server (enhanced from original)
+    fn stop_single_server(
         &self,
         config: &Config,
         ctx: &ServerContext,
         identifier: &str,
     ) -> Result<String> {
-        // Atomare Operationen für Race-Condition-Schutz
         let (server_info, handle) = {
             let servers_guard = ctx
                 .servers
@@ -85,7 +136,7 @@ impl StopCommand {
             server_info.port
         );
 
-        // Status sofort auf "Stopping" setzen um Race Conditions zu vermeiden
+        // Status sofort auf "Stopped" setzen
         self.update_server_status(ctx, &server_info.id, ServerStatus::Stopped);
 
         // Browser-Benachrichtigung
@@ -137,11 +188,112 @@ impl StopCommand {
         }
     }
 
+    // Stop servers by range (e.g., "stop 1-3")
+    fn stop_range_servers(
+        &self,
+        config: &Config,
+        ctx: &ServerContext,
+        start: u32,
+        end: u32,
+    ) -> Result<String> {
+        let mut results = Vec::new();
+        let mut stopped_count = 0;
+        let mut failed_count = 0;
+
+        for i in start..=end {
+            let identifier = format!("{}", i);
+
+            match self.stop_single_server(config, ctx, &identifier) {
+                Ok(message) => {
+                    if message.contains("stopped [PERSISTENT]") {
+                        stopped_count += 1;
+                        results.push(format!("Server {}: Stopped", i));
+                    } else {
+                        results.push(format!("Server {}: {}", i, message));
+                    }
+                }
+                Err(e) => {
+                    failed_count += 1;
+                    results.push(format!("Server {}: Failed - {}", i, e));
+                }
+            }
+        }
+
+        let summary = format!(
+            "Range stop completed: {} stopped, {} failed (Range: {}-{})",
+            stopped_count, failed_count, start, end
+        );
+
+        if results.is_empty() {
+            Ok(summary)
+        } else {
+            Ok(format!("{}\n\nResults:\n{}", summary, results.join("\n")))
+        }
+    }
+
+    // Stop all running servers
+    fn stop_all_servers(&self, config: &Config, ctx: &ServerContext) -> Result<String> {
+        let running_servers: Vec<_> = {
+            let servers = ctx.servers.read().unwrap();
+            servers
+                .values()
+                .filter(|s| s.status == ServerStatus::Running)
+                .map(|s| (s.id.clone(), s.name.clone()))
+                .collect()
+        };
+
+        if running_servers.is_empty() {
+            return Ok("No running servers to stop".to_string());
+        }
+
+        if running_servers.len() > 20 {
+            return Err(AppError::Validation(
+                "Too many servers to stop at once (max 20). Use ranges instead.".to_string(),
+            ));
+        }
+
+        let mut results = Vec::new();
+        let mut stopped_count = 0;
+        let mut failed_count = 0;
+
+        // Stop servers in parallel for better performance
+        let server_stops: Vec<_> = running_servers
+            .into_iter()
+            .map(|(server_id, server_name)| {
+                match self.stop_single_server(config, ctx, &server_id) {
+                    Ok(message) => {
+                        if message.contains("stopped [PERSISTENT]") {
+                            stopped_count += 1;
+                            (server_name, "Stopped".to_string())
+                        } else {
+                            (server_name, message)
+                        }
+                    }
+                    Err(e) => {
+                        failed_count += 1;
+                        (server_name, format!("Failed - {}", e))
+                    }
+                }
+            })
+            .collect();
+
+        for (server_name, result) in server_stops {
+            results.push(format!("{}: {}", server_name, result));
+        }
+
+        let summary = format!(
+            "Stop all completed: {} stopped, {} failed",
+            stopped_count, failed_count
+        );
+
+        Ok(format!("{}\n\nResults:\n{}", summary, results.join("\n")))
+    }
+
+    // Browser notification (from original)
     fn notify_browser_shutdown(&self, server_info: &crate::server::types::ServerInfo) {
         let server_port = server_info.port;
         let server_name = server_info.name.clone();
 
-        // Keine eigene Runtime: einfach task spawnen
         tokio::spawn(async move {
             let server_url = format!("http://127.0.0.1:{}", server_port);
             log::info!(
@@ -151,7 +303,7 @@ impl StopCommand {
 
             let client = reqwest::Client::new();
             if let Err(e) = client
-                .get(format!("{}/api/close-browser", server_url)) // <- ohne &
+                .get(format!("{}/api/close-browser", server_url))
                 .timeout(std::time::Duration::from_millis(300))
                 .send()
                 .await
@@ -159,11 +311,11 @@ impl StopCommand {
                 log::warn!("Failed to notify browser: {}", e);
             }
 
-            // Mini-Pause, damit Browser reagieren kann
             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         });
     }
 
+    // Graceful shutdown (from original)
     fn shutdown_server_gracefully(
         &self,
         handle: actix_web::dev::ServerHandle,
@@ -189,6 +341,7 @@ impl StopCommand {
         });
     }
 
+    // Status update helper
     fn update_server_status(&self, ctx: &ServerContext, server_id: &str, status: ServerStatus) {
         if let Ok(mut servers) = ctx.servers.write() {
             if let Some(server) = servers.get_mut(server_id) {

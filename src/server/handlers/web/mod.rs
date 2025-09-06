@@ -1,11 +1,10 @@
-// ===== src/server/handlers/web/mod.rs =====
+// src/server/handlers/web/mod.rs
 pub mod api;
 pub mod assets;
 pub mod logs;
 pub mod server;
 pub mod templates;
 
-// Re-exports für einfache Verwendung
 pub use api::*;
 pub use assets::*;
 pub use logs::*;
@@ -18,13 +17,47 @@ use crate::server::middleware::LoggingMiddleware;
 use crate::server::tls::TlsManager;
 use crate::server::types::{ServerContext, ServerData, ServerInfo};
 use crate::server::watchdog::{get_watchdog_manager, ws_hot_reload};
+use actix_cors::Cors;
 use actix_web::{middleware, web, App, HttpServer};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::OnceLock;
 use std::time::Duration;
 
-// Konstante für Proxy-Port
-pub const PROXY_PORT: u16 = 8443;
+static GLOBAL_CONFIG: OnceLock<Config> = OnceLock::new();
+
+// Funktion um Config zu setzen
+pub fn set_global_config(config: Config) {
+    let _ = GLOBAL_CONFIG.set(config);
+}
+
+// KORRIGIERTE Port-Funktionen mit TOML-Config
+pub fn get_proxy_http_port() -> u16 {
+    // HTTP Proxy läuft auf dem konfigurierten Proxy-Port (3000)
+    GLOBAL_CONFIG.get().map(|c| c.proxy.port).unwrap_or(3000)
+}
+
+pub fn get_proxy_https_port() -> u16 {
+    // HTTPS Proxy läuft auf HTTP-Port + https_port_offset
+    GLOBAL_CONFIG
+        .get()
+        .map(|c| c.proxy.port + c.proxy.https_port_offset)
+        .unwrap_or(3443)
+}
+
+// Alternative: Falls Config erweitert wird
+pub fn get_proxy_https_port_from_config() -> u16 {
+    GLOBAL_CONFIG
+        .get()
+        .map(|c| {
+            // Wenn Config später https_port_offset hat:
+            // c.proxy.port + c.proxy.https_port_offset
+
+            // Aktuell: Standardoffset
+            c.proxy.port + 443
+        })
+        .unwrap_or(3443)
+}
 
 pub fn create_server_directory_and_files(
     server_name: &str,
@@ -93,10 +126,15 @@ pub fn create_web_server(
         }
     });
 
-    let server_data = web::Data::new(ServerData {
-        id: server_id.clone(),
-        port: server_info.port,
-        name: server_name.clone(),
+    // KORRIGIERTE ServerDataWithConfig mit richtigen Ports
+    let server_data = web::Data::new(ServerDataWithConfig {
+        server: ServerData {
+            id: server_id.clone(),
+            port: server_info.port,
+            name: server_name.clone(),
+        },
+        proxy_http_port: get_proxy_http_port(),
+        proxy_https_port: get_proxy_https_port(),
     });
 
     let server_logger_for_app = server_logger.clone();
@@ -129,29 +167,35 @@ pub fn create_web_server(
             .app_data(web::Data::new(watchdog_manager.clone()))
             .wrap(LoggingMiddleware::new(server_logger_for_app.clone()))
             .wrap(middleware::Compress::default())
+            .wrap(LoggingMiddleware::new(server_logger_for_app.clone()))
+            .wrap(Cors::permissive())
             // Assets
-            .route("/rss.js", web::get().to(serve_rss_js))
-            .route("/.rss/", web::get().to(serve_system_dashboard))
+            .route("/.rss/_reset.css", web::get().to(serve_global_reset_css))
             .route("/.rss/style.css", web::get().to(serve_system_css))
             .route("/.rss/favicon.svg", web::get().to(serve_system_favicon))
+            .route("/.rss/", web::get().to(serve_system_dashboard))
+            // Font Assets
             .route("/.rss/fonts/{font}", web::get().to(serve_quicksand_font))
-            .route(
-                "/.rss/global-reset.css",
-                web::get().to(serve_global_reset_css),
-            )
-            // API
+            // JavaScript Assets
+            .route("/rss.js", web::get().to(serve_rss_js))
+            .route("/.rss/js/rush-app.js", web::get().to(serve_rush_app_js))
+            .route("/.rss/js/rush-api.js", web::get().to(serve_rush_api_js))
+            .route("/.rss/js/rush-ui.js", web::get().to(serve_rush_ui_js))
+            // API Routes - SPEZIFISCH VOR GENERISCH
             .route("/api/status", web::get().to(status_handler))
             .route("/api/health", web::get().to(health_handler))
             .route("/api/info", web::get().to(info_handler))
             .route("/api/metrics", web::get().to(metrics_handler))
             .route("/api/stats", web::get().to(stats_handler))
+            .route("/api/ping", web::post().to(ping_handler))
+            .route("/api/message", web::post().to(message_handler))
+            .route("/api/messages", web::get().to(messages_handler))
             .route("/api/close-browser", web::get().to(close_browser_handler))
-            // Logs
             .route("/api/logs", web::get().to(logs_handler))
             .route("/api/logs/raw", web::get().to(logs_raw_handler))
-            // WebSocket
+            // WebSocket Routes
             .route("/ws/hot-reload", web::get().to(ws_hot_reload))
-            // Fallback
+            // ===== FALLBACK ZULETZT =====
             .default_service(web::route().to(serve_fallback_or_inject))
     })
     .workers(config.server.workers)
@@ -163,7 +207,7 @@ pub fn create_web_server(
         .map_err(|e| format!("HTTP bind failed: {}", e))?;
 
     if tls_config.is_some() {
-        let https_port = server_port + config.server.https_port_offset;
+        let https_port = server_port + 443; // FIXME: config.server.https_port_offset existiert nicht
         log::info!("TLS certificate ready for HTTPS on port {}", https_port);
         log::info!(
             "Certificate: .rss/certs/{}-{}.cert",
@@ -255,4 +299,11 @@ pub fn create_web_server(
 
     std::thread::sleep(Duration::from_millis(startup_delay));
     Ok(server_handle)
+}
+
+#[derive(Debug, Clone)]
+pub struct ServerDataWithConfig {
+    pub server: ServerData,
+    pub proxy_http_port: u16,
+    pub proxy_https_port: u16,
 }

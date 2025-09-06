@@ -1,0 +1,153 @@
+{
+  "system.cleanup.i18n_cleared.text": "i18n-Cache geleert",
+  "system.cleanup.i18n_cleared.display_text": "DEBUG",
+  "system.cleanup.i18n_cleared.category": "debug",
+
+  "system.config.dir_created.text": "Konfigurationsverzeichnis erstellt: {0}",
+  "system.config.dir_created.display_text": "DEBUG",
+  "system.config.dir_created.category": "debug",
+
+  "system.config.dir_error.text": "Konnte Programmverzeichnis nicht ermitteln",
+  "system.config.dir_error.display_text": "FEHLER",
+  "system.config.dir_error.category": "error",
+
+  "system.config.file_created.text": "Konfigurationsdatei erstellt: {0}",
+  "system.config.file_created.display_text": "INFO",
+  "system.config.file_created.category": "info",
+
+  "system.config.language_set_failed.text": "Sprache konnte nicht gesetzt werden: {0}",
+  "system.config.language_set_failed.display_text": "WARN",
+  "system.config.language_set_failed.category": "warning",
+
+  "system.config.load_error.text": "Fehler beim Laden neuer Konfiguration: {0}",
+  "system.config.load_error.display_text": "FEHLER",
+  "system.config.load_error.category": "error",
+
+  "system.config.new_default.text": "✅ Neue Standard-Konfiguration erstellt: {0}",
+  "system.config.new_default.display_text": "INFO",
+  "system.config.new_default.category": "info",
+
+  "system.config.no_existing.text": "Keine existierende Konfiguration, erstelle Standard",
+  "system.config.no_existing.display_text": "INFO",
+  "system.config.no_existing.category": "info",
+
+  "system.config.setup_failed.text": "Standard-Konfiguration fehlgeschlagen: {0}",
+  "system.config.setup_failed.display_text": "FEHLER",
+  "system.config.setup_failed.category": "error",
+
+  "system.error.io.text": "IO-Fehler: {0}",
+  "system.error.io.display_text": "FEHLER",
+  "system.error.io.category": "error",
+
+  "system.error.io_error.text": "IO-Fehler: {0}",
+  "system.error.io_error.display_text": "ERROR",
+  "system.error.io_error.category": "error",
+
+  "system.error.terminal.text": "Terminal-Fehler: {0}",
+  "system.error.terminal.display_text": "FEHLER",
+  "system.error.terminal.category": "error",
+
+  "system.error.terminal_error.text": "Terminal-Fehler: {0}",
+  "system.error.terminal_error.display_text": "ERROR",
+  "system.error.terminal_error.category": "error",
+
+  "system.error.translation_error.text": "Übersetzungsfehler: {0}",
+  "system.error.translation_error.display_text": "ERROR",
+  "system.error.translation_error.category": "error",
+
+  "system.error.validation.text": "Validierungsfehler: {0}",
+  "system.error.validation.display_text": "FEHLER",
+  "system.error.validation.category": "error",
+
+  "system.error.validation_error.text": "Validierungsfehler: {0}",
+  "system.error.validation_error.display_text": "ERROR",
+  "system.error.validation_error.category": "error",
+
+  "system.input.cancel.short.text": "n",
+  "system.input.cancel.short.display_text": "INFO",
+  "system.input.cancel.short.category": "info",
+
+  "system.input.cancelled.text": "Vorgang abgebrochen",
+  "system.input.cancelled.display_text": "INFO",
+  "system.input.cancelled.category": "info",
+
+  "system.input.clipboard.cleared.text": "Eingabe gelöscht",
+  "system.input.clipboard.cleared.display_text": "INPUT",
+  "system.input.clipboard.cleared.category": "info",
+
+  "system.input.clipboard.copied.text": "📋 Kopiert: \"{0}\"",
+  "system.input.clipboard.copied.display_text": "CLIPBOARD",
+  "system.input.clipboard.copied.category": "info",
+
+  "system.input.clipboard.copy_failed.text": "⚪ Kopieren fehlgeschlagen",
+  "system.input.clipboard.copy_failed.display_text": "CLIPBOARD",
+  "system.input.clipboard.copy_failed.category": "error",
+
+  "system.input.clipboard.cut.text": "📋 Ausgeschnitten: \"{0}\"",
+  "system.input.clipboard.cut.display_text": "CLIPBOARD",
+  "system.input.clipboard.cut.category": "info",
+
+  "system.input.clipboard.empty.text": "⚪ Zwischenablage leer",
+  "system.input.clipboard.empty.display_text": "CLIPBOARD",
+  "system.input.clipboard.empty.category": "warning",
+
+  "system.input.clipboard.nothing_to_copy.text": "⚪ Nichts zum Kopieren",
+  "system.input.clipboard.nothing_to_copy.display_text": "CLIPBOARD",
+  "system.input.clipboard.nothing_to_copy.category": "warning",
+
+  "system.input.clipboard.nothing_to_paste.text": "⚪ Nichts zum Einfügen",
+  "system.input.clipboard.nothing_to_paste.display_text": "CLIPBOARD",
+  "system.input.clipboard.nothing_to_paste.category": "warning",
+
+  "system.input.clipboard.pasted.text": "📋 Eingefügt: {0} Zeichen",
+  "system.input.clipboard.pasted.display_text": "CLIPBOARD",
+  "system.input.clipboard.pasted.category": "info",
+
+  "system.input.confirm.short.text": "j",
+  "system.input.confirm.short.display_text": "INFO",
+  "system.input.confirm.short.category": "info",
+
+  "system.input.confirm_exit.text": "Möchten Sie das Programm wirklich beenden? (j/n)",
+  "system.input.confirm_exit.display_text": "BESTÄTIGEN",
+  "system.input.confirm_exit.category": "warning",
+
+  "system.input.empty.text": "Eingabe darf nicht leer sein",
+  "system.input.empty.display_text": "WARN",
+  "system.input.empty.category": "warning",
+
+  "system.input.history_cleared.text": "Historie wurde gelöscht",
+  "system.input.history_cleared.display_text": "INFO",
+  "system.input.history_cleared.category": "info",
+
+  "system.input.too_long.text": "Eingabe zu lang (Maximum: {0} Zeichen)",
+  "system.input.too_long.display_text": "WARN",
+  "system.input.too_long.category": "warning",
+
+  "system.startup.i18n_initialized.text": "i18n-System initialisiert für Sprache: {0}",
+  "system.startup.i18n_initialized.display_text": "BEREIT",
+  "system.startup.i18n_initialized.category": "info",
+
+  "system.startup.logger_init_failed.text": "Logger-Initialisierung fehlgeschlagen: {0}",
+  "system.startup.logger_init_failed.display_text": "FEHLER",
+  "system.startup.logger_init_failed.category": "error",
+
+  "system.startup.version.text": "Willkommen zu Rush Sync Version {0}",
+  "system.startup.version.display_text": "BEREIT",
+  "system.startup.version.category": "startup",
+
+  "terminal.cleanup.done.text": "✅ Terminal wurde korrekt zurückgesetzt",
+  "terminal.cleanup.done.display_text": "BEREIT",
+  "terminal.cleanup.done.category": "info",
+
+  "terminal.manager.emergency_cleanup.text": "🚨 Notfall-Terminal-Bereinigung im Destruktor",
+  "terminal.manager.emergency_cleanup.display_text": "TERMINAL",
+  "terminal.manager.emergency_cleanup.category": "warning",
+
+  "terminal.manager.raw_mode_lost.text": "⚠ Raw-Modus verloren, wird wieder aktiviert...",
+  "terminal.manager.raw_mode_lost.display_text": "TERMINAL",
+  "terminal.manager.raw_mode_lost.category": "warning",
+
+  "terminal.setup.done.text": "✅ Terminal initialisiert",
+  "terminal.setup.done.display_text": "BEREIT",
+  "terminal.setup.done.category": "info"
+}

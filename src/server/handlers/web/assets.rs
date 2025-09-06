@@ -1,17 +1,57 @@
-// ===== src/server/handlers/web/assets.rs =====
-use super::PROXY_PORT;
-use crate::server::types::ServerData;
+// src/server/handlers/web/assets.rs
+use super::ServerDataWithConfig;
 use actix_web::{web, HttpResponse, Result as ActixResult};
 
-pub async fn serve_rss_js(data: web::Data<ServerData>) -> ActixResult<HttpResponse> {
+pub async fn serve_rss_js(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
     let js_content = include_str!("../templates/rss/rss.js")
-        .replace("{{SERVER_NAME}}", &data.name)
-        .replace("{{PORT}}", &data.port.to_string())
-        .replace("{{PROXY_PORT}}", &PROXY_PORT.to_string());
+        .replace("{{SERVER_NAME}}", &data.server.name)
+        .replace("{{PORT}}", &data.server.port.to_string())
+        .replace("{{PROXY_PORT}}", &data.proxy_http_port.to_string())
+        .replace("{{PROXY_HTTPS_PORT}}", &data.proxy_https_port.to_string());
 
     Ok(HttpResponse::Ok()
         .content_type("application/javascript; charset=utf-8")
         .insert_header(("Cache-Control", "no-cache"))
+        .body(js_content))
+}
+
+// App Controller Module
+pub async fn serve_rush_app_js(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
+    let js_content = include_str!("../templates/rss/js/rush-app.js")
+        .replace("{{SERVER_NAME}}", &data.server.name)
+        .replace("{{PORT}}", &data.server.port.to_string())
+        .replace("{{PROXY_PORT}}", &data.proxy_http_port.to_string())
+        .replace("{{PROXY_HTTPS_PORT}}", &data.proxy_https_port.to_string());
+    Ok(HttpResponse::Ok()
+        .content_type("application/javascript; charset=utf-8")
+        .insert_header(("Cache-Control", "no-cache"))
+        .body(js_content))
+}
+
+pub async fn serve_rush_api_js(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
+    let js_content = include_str!("../templates/rss/js/rush-api.js")
+        .replace("{{SERVER_NAME}}", &data.server.name)
+        .replace("{{PORT}}", &data.server.port.to_string())
+        .replace("{{PROXY_PORT}}", &data.proxy_http_port.to_string())
+        .replace("{{PROXY_HTTPS_PORT}}", &data.proxy_https_port.to_string());
+
+    Ok(HttpResponse::Ok()
+        .content_type("application/javascript; charset=utf-8")
+        .insert_header(("Cache-Control", "no-cache"))
+        .body(js_content))
+}
+
+pub async fn serve_rush_ui_js(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
+    let js_content = include_str!("../templates/rss/js/rush-ui.js")
+        .replace("{{SERVER_NAME}}", &data.server.name)
+        .replace("{{PORT}}", &data.server.port.to_string())
+        .replace("{{PROXY_PORT}}", &data.proxy_http_port.to_string())
+        .replace("{{PROXY_HTTPS_PORT}}", &data.proxy_https_port.to_string());
+
+    Ok(HttpResponse::Ok()
+        .content_type("application/javascript; charset=utf-8")
+        .insert_header(("Cache-Control", "no-cache"))
+        .insert_header(("X-Content-Type-Options", "nosniff"))
         .body(js_content))
 }
 
@@ -73,7 +113,7 @@ pub async fn serve_quicksand_font(req: actix_web::HttpRequest) -> ActixResult<Ht
 }
 
 pub async fn serve_global_reset_css() -> ActixResult<HttpResponse> {
-    let reset_css = include_str!("../templates/rss/global-reset.css");
+    let reset_css = include_str!("../templates/rss/_reset.css");
 
     Ok(HttpResponse::Ok()
         .content_type("text/css; charset=utf-8")
