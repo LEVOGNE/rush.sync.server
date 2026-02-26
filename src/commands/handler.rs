@@ -171,14 +171,15 @@ impl CommandHandler {
     fn log_command_success(&self, msg: &str) {
         let char_count = msg.chars().count();
 
-        let preview = if char_count <= 100 {
-            msg
-        } else {
-            // ✅ PERFORMANCE: Lazy evaluation
-            &format!("{}...", msg.chars().take(97).collect::<String>())
-        };
+        // Nur die Länge loggen – kein Preview-Text
+        log::debug!("Command returned {} chars", char_count);
 
-        log::debug!("Command returned {} chars: '{}'", char_count, preview);
+        // Vollausgabe nur bei "großen" Outputs wie mem info oder JSON
+        if char_count > 500
+            && (msg.starts_with("MEMORY SNAPSHOT") || msg.trim_start().starts_with('{'))
+        {
+            log::debug!("FULL COMMAND OUTPUT:\n{}", msg);
+        }
     }
 }
 

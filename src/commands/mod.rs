@@ -13,6 +13,7 @@ pub mod history;
 pub mod lang;
 pub mod list;
 pub mod log_level;
+pub mod memory;
 pub mod recovery;
 pub mod registry;
 pub mod restart;

@@ -1,35 +1,65 @@
 use rush_sync_server::core::config::Config;
+use rush_sync_server::embedded;
 use rush_sync_server::ui::screen::ScreenManager;
 use rush_sync_server::{i18n, Result};
 use std::io::Write;
 use std::path::PathBuf;
 
+use rush_sync_server::memory;
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Setup
-    setup_panic_handler();
-    setup_logger();
+    // 0) Bootstrap
+    {
+        let _s = memory::begin_scope("phase:bootstrap@v1");
+        embedded::register_all_src(); // oder register_all_src_filtered()
+        rush_sync_server::core::constants::register_constants_to_memory();
+    }
 
-    // Initialize systems
-    i18n::init()
-        .await
-        .map_err(|e| log::error!("i18n failed: {}", e))
-        .ok();
+    // 1) Logger
+    {
+        let _s = memory::begin_scope("phase:logger_setup@v1");
+        setup_panic_handler();
+        setup_logger();
+    }
 
-    log::info!("Initializing server system...");
-    rush_sync_server::server::shared::initialize_server_system().await?;
+    // 2) i18n
+    {
+        let _s = memory::begin_scope("phase:i18n_init@v1");
+        i18n::init()
+            .await
+            .map_err(|e| log::error!("i18n failed: {e}"))
+            .ok();
+    }
 
-    // Run application
-    let config = Config::load_with_messages(false).await?;
-    let mut screen = ScreenManager::new(&config).await?;
+    // 3) Server-System
+    {
+        let _s = memory::begin_scope("phase:server_init@v1");
+        log::info!("Initializing server system...");
+        rush_sync_server::server::shared::initialize_server_system().await?;
+    }
 
+    // 4) TUI
+    let config = {
+        let _s = memory::begin_scope("phase:config_load@v1");
+        Config::load_with_messages(false).await?
+    };
+    let mut screen = {
+        let _s = memory::begin_scope("phase:tui_init@v1");
+        ScreenManager::new(&config).await?
+    };
+
+    // 5) Run
     log::info!("Starting application...");
     let result = screen.run().await;
 
-    // Cleanup
-    log::info!("Shutting down...");
-    if let Err(e) = rush_sync_server::server::shared::shutdown_all_servers_on_exit().await {
-        log::error!("Cleanup error: {}", e);
+    // 6) Shutdown (einmal!)
+    {
+        let _s = memory::begin_scope("phase:server_shutdown@v1");
+        log::info!("Shutting down...");
+        if let Err(e) = rush_sync_server::server::shared::shutdown_all_servers_on_exit().await {
+            log::error!("Cleanup error: {e}");
+        }
     }
 
     result

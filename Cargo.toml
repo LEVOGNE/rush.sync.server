@@ -68,6 +68,10 @@ time = { version = "0.3", features = ["macros"] }
 hyper = { version = "0.14", features = ["full"] }
 
 tokio-rustls = "0.24"
+include_dir = "0.7"
+sysinfo = { version = "0.30", features = ["multithread"] }
+libc = "0.2"
+
 
 # =====================================================
 # OPTIONAL FEATURES (für später)

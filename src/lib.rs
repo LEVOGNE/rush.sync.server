@@ -23,8 +23,10 @@ macro_rules! matches_exact {
 // Module definitions
 pub mod commands;
 pub mod core;
+pub mod embedded;
 pub mod i18n;
 pub mod input;
+pub mod memory;
 pub mod output;
 pub mod proxy;
 pub mod server;
@@ -50,8 +52,9 @@ fn build_registry() -> CommandRegistry {
     use commands::{
         cleanup::CleanupCommand, clear::ClearCommand, create::CreateCommand, exit::ExitCommand,
         help::HelpCommand, history::HistoryCommand, lang::LanguageCommand, list::ListCommand,
-        log_level::LogLevelCommand, recovery::RecoveryCommand, restart::RestartCommand,
-        start::StartCommand, stop::StopCommand, theme::ThemeCommand, version::VersionCommand,
+        log_level::LogLevelCommand, memory::command::MemoryCommand, recovery::RecoveryCommand,
+        restart::RestartCommand, start::StartCommand, stop::StopCommand, theme::ThemeCommand,
+        version::VersionCommand,
     };
 
     let mut registry = CommandRegistry::new();
@@ -71,6 +74,7 @@ fn build_registry() -> CommandRegistry {
         // Utility Commands
         .register(HistoryCommand)
         .register(RecoveryCommand::new())
+        .register(MemoryCommand::new())
         // Server Commands
         .register(CleanupCommand::new())
         .register(CreateCommand::new())
