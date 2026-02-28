@@ -1,8 +1,7 @@
 use crate::core::constants::DOUBLE_ESC_THRESHOLD;
 use crate::core::prelude::*;
 use crossterm::event::KeyModifiers;
-use lazy_static::lazy_static;
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum KeyAction {
@@ -26,10 +25,9 @@ pub enum KeyAction {
     PageDown,
 }
 
-lazy_static! {
-    static ref LAST_ESC_PRESS: Mutex<Option<Instant>> = Mutex::new(None);
-    static ref ESCAPE_SEQUENCE_BUFFER: Mutex<Vec<char>> = Mutex::new(Vec::new());
-}
+static LAST_ESC_PRESS: LazyLock<Mutex<Option<Instant>>> = LazyLock::new(|| Mutex::new(None));
+static ESCAPE_SEQUENCE_BUFFER: LazyLock<Mutex<Vec<char>>> =
+    LazyLock::new(|| Mutex::new(Vec::new()));
 
 pub struct KeyboardManager {
     double_press_threshold: Duration,
@@ -269,7 +267,7 @@ mod tests {
 
     #[test]
     fn test_double_escape() {
-        let mut manager = KeyboardManager::new(); // ✅ FIX: mut hinzugefügt
+        let mut manager = KeyboardManager::new();
         let esc_key = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
 
         // First ESC should return NoAction

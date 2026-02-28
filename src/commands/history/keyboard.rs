@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: commands/history/keyboard.rs - FINAL VERSION (ohne Debug)
-// =====================================================
-
 use crate::core::prelude::*;
 
 #[derive(Debug, Clone, PartialEq)]

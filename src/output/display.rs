@@ -284,7 +284,6 @@ impl MessageDisplay {
         self.cache_dirty = true;
         self.rebuild_line_cache();
 
-        // ✅ HIER EINFÜGEN - nach rebuild_line_cache():
         if force_instant || !use_typewriter {
             self.viewport.enable_auto_scroll_silent();
         }
@@ -406,7 +405,6 @@ impl MessageDisplay {
         }
     }
 
-    // Getters
     pub fn viewport(&self) -> &Viewport {
         &self.viewport
     }
@@ -509,9 +507,10 @@ fn clean_ansi_codes(message: &str) -> String {
 }
 
 fn clean_message_for_display(message: &str) -> String {
+    use crate::core::constants::*;
     clean_ansi_codes(message)
-        .replace("__CONFIRM_EXIT__", "")
-        .replace("__CLEAR__", "")
+        .replace(SIG_CONFIRM_EXIT, "")
+        .replace(SIG_CLEAR, "")
         .trim()
         .to_string()
 }
@@ -563,7 +562,7 @@ fn parse_message_parts(message: &str) -> Vec<(String, bool)> {
 
 fn get_marker_color(marker: &str) -> AppColor {
     let display_text = marker.trim_start_matches('[').trim_end_matches(']');
-    AppColor::from_display_text(display_text) // ← NUR EINE ZEILE!
+    AppColor::from_display_text(display_text)
 }
 
 pub fn create_output_widget<'a>(

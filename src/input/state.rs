@@ -1,7 +1,4 @@
-// =====================================================
-// SCHRITT 2: DIESER CODE KOMMT IN src/input/state.rs
-// LÖSCHE DEN KOMPLETTEN ALTEN INHALT UND FÜGE DAS HIER EIN:
-// =====================================================
+// src/input/state.rs
 
 use crate::commands::handler::CommandHandler;
 use crate::commands::history::{
@@ -17,7 +14,7 @@ use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-// ✅ ZENTRALER SYSTEM COMMAND PROCESSOR
+// Central system command processor
 #[derive(Default)]
 pub struct SystemCommandProcessor {
     pending_confirmation: Option<PendingConfirmation>,
@@ -37,66 +34,67 @@ enum SystemAction {
 }
 
 impl SystemCommandProcessor {
-    /// Verarbeite System-Commands und Cleanup-Confirms
+    /// Process system commands and cleanup confirmations.
     pub fn process_command(&mut self, input: &str) -> SystemCommandResult {
-        // 1️⃣ Direkte System-Commands
+        // Direct system commands
         if let Some(result) = self.handle_system_commands(input) {
             return result;
         }
 
-        // 2️⃣ System-Bestätigungs-Requests (inkl. Cleanup)
+        // Confirmation requests (including cleanup)
         if let Some(result) = self.handle_confirmation_requests(input) {
             return result;
         }
 
-        // 3️⃣ Benutzer-Bestätigungen
+        // User confirmations
         if self.pending_confirmation.is_some() {
             return self.handle_user_confirmation(input);
         }
 
-        // 4️⃣ Kein System-Command
         SystemCommandResult::NotSystemCommand
     }
 
-    /// System-Commands (sofort ausführen)
     fn handle_system_commands(&mut self, input: &str) -> Option<SystemCommandResult> {
+        use crate::core::constants::*;
         match input.trim() {
-            "__CLEAR__" => Some(SystemCommandResult::ClearScreen),
-            "__EXIT__" => Some(SystemCommandResult::Exit),
-            "__RESTART__" | "__RESTART_FORCE__" => Some(SystemCommandResult::Restart),
-            "__CLEAR_HISTORY__" => Some(SystemCommandResult::ClearHistory),
+            s if s == SIG_CLEAR => Some(SystemCommandResult::ClearScreen),
+            s if s == SIG_EXIT => Some(SystemCommandResult::Exit),
+            s if s == SIG_RESTART || s == SIG_RESTART_FORCE => Some(SystemCommandResult::Restart),
+            s if s == SIG_CLEAR_HISTORY => Some(SystemCommandResult::ClearHistory),
             _ => None,
         }
     }
 
-    /// ✅ Bestätigungs-Requests (zeige Prompt)
     fn handle_confirmation_requests(&mut self, input: &str) -> Option<SystemCommandResult> {
-        // Exit-Bestätigung
-        if let Some(prompt) = input.strip_prefix("__CONFIRM:__EXIT__") {
+        use crate::core::constants::*;
+
+        let confirm_exit = format!("{}{}", SIG_CONFIRM_PREFIX, SIG_EXIT);
+        let confirm_restart = format!("{}{}", SIG_CONFIRM_PREFIX, SIG_RESTART);
+        let confirm_history = format!("{}{}", SIG_CONFIRM_PREFIX, SIG_CLEAR_HISTORY);
+        let confirm_cleanup = format!("{}{}", SIG_CONFIRM_PREFIX, SIG_CONFIRM_CLEANUP);
+
+        if let Some(prompt) = input.strip_prefix(&confirm_exit) {
             self.pending_confirmation = Some(PendingConfirmation {
                 action: SystemAction::Exit,
             });
             return Some(SystemCommandResult::ShowPrompt(prompt.to_string()));
         }
 
-        // Restart-Bestätigung
-        if let Some(prompt) = input.strip_prefix("__CONFIRM:__RESTART__") {
+        if let Some(prompt) = input.strip_prefix(&confirm_restart) {
             self.pending_confirmation = Some(PendingConfirmation {
                 action: SystemAction::Restart,
             });
             return Some(SystemCommandResult::ShowPrompt(prompt.to_string()));
         }
 
-        // History-Clear-Bestätigung
-        if let Some(prompt) = input.strip_prefix("__CONFIRM:__CLEAR_HISTORY__") {
+        if let Some(prompt) = input.strip_prefix(&confirm_history) {
             self.pending_confirmation = Some(PendingConfirmation {
                 action: SystemAction::ClearHistory,
             });
             return Some(SystemCommandResult::ShowPrompt(prompt.to_string()));
         }
 
-        // Cleanup-Bestätigungen (neues sauberes Pattern)
-        if let Some(rest) = input.strip_prefix("__CONFIRM:__CLEANUP__") {
+        if let Some(rest) = input.strip_prefix(&confirm_cleanup) {
             if let Some((force_command, prompt)) = rest.split_once("__") {
                 self.pending_confirmation = Some(PendingConfirmation {
                     action: SystemAction::CleanupExecute(force_command.to_string()),
@@ -108,14 +106,17 @@ impl SystemCommandProcessor {
         None
     }
 
-    /// ✅ Benutzer-Bestätigung verarbeiten (j/n)
+    /// Handle user confirmation input (y/n).
     fn handle_user_confirmation(&mut self, input: &str) -> SystemCommandResult {
         let confirm_key = t!("system.input.confirm.short").to_lowercase();
         let user_input = input.trim().to_lowercase();
 
+        let Some(pending) = self.pending_confirmation.as_ref() else {
+            return SystemCommandResult::NotSystemCommand;
+        };
+
         let result = if user_input == confirm_key {
-            // Bestätigt - führe Aktion aus
-            match &self.pending_confirmation.as_ref().unwrap().action {
+            match &pending.action {
                 SystemAction::Exit => SystemCommandResult::Exit,
                 SystemAction::Restart => SystemCommandResult::Restart,
                 SystemAction::ClearHistory => SystemCommandResult::ClearHistory,
@@ -124,7 +125,6 @@ impl SystemCommandProcessor {
                 }
             }
         } else {
-            // Abgebrochen
             SystemCommandResult::Message(get_translation("system.input.cancelled", &[]))
         };
 
@@ -132,7 +132,6 @@ impl SystemCommandProcessor {
         result
     }
 
-    // Helper-Methoden bleiben unverändert
     pub fn is_valid_confirmation_char(&self, c: char) -> bool {
         if self.pending_confirmation.is_none() {
             return false;
@@ -166,10 +165,6 @@ pub enum SystemCommandResult {
     Message(String),
 }
 
-// =====================================================
-// ERWEITERTE InputState MIT ZENTRALER VERARBEITUNG
-// =====================================================
-
 pub struct InputState {
     content: String,
     cursor: UiCursor,
@@ -178,7 +173,7 @@ pub struct InputState {
     config: Config,
     command_handler: CommandHandler,
     keyboard_manager: KeyboardManager,
-    system_processor: SystemCommandProcessor, // ✅ NEU: Zentrale Verarbeitung
+    system_processor: SystemCommandProcessor,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -210,18 +205,13 @@ impl InputState {
     }
 
     pub fn reset_for_language_change(&mut self) {
-        self.system_processor.reset_for_language_change(); // ✅ ZENTRAL
+        self.system_processor.reset_for_language_change();
         self.clear_input();
     }
 
-    // ✅ NEUE ZENTRALE FUNKTION: History-Clear
     pub fn clear_history(&mut self) {
         self.history_manager.clear();
     }
-
-    // =====================================================
-    // HAUPTFUNKTION: INPUT HANDLING
-    // =====================================================
 
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Option<String> {
         // History navigation
@@ -235,12 +225,12 @@ impl InputState {
 
         let action = self.keyboard_manager.get_action(&key);
 
-        // ✅ BESTÄTIGUNGS-MODUS: Nur bestimmte Zeichen erlauben
+        // Confirmation mode: only allow confirmation characters
         if self.system_processor.is_waiting_for_confirmation() {
             return self.handle_confirmation_input(action);
         }
 
-        // ✅ NORMALER MODUS: Alle Aktionen
+        // Normal mode
         match action {
             KeyAction::Submit => self.handle_submit(),
             KeyAction::PasteBuffer => self.handle_paste(),
@@ -278,7 +268,7 @@ impl InputState {
         }
     }
 
-    /// ✅ BESTÄTIGUNGS-INPUT (nur j/n erlaubt)
+    /// Handle input while waiting for confirmation (only y/n allowed).
     fn handle_confirmation_input(&mut self, action: KeyAction) -> Option<String> {
         match action {
             KeyAction::Submit => {
@@ -303,7 +293,6 @@ impl InputState {
         }
     }
 
-    /// ✅ SUBMIT: Zentrale Verarbeitung
     fn handle_submit(&mut self) -> Option<String> {
         if self.content.is_empty() || self.content.trim().is_empty() {
             return None;
@@ -315,52 +304,55 @@ impl InputState {
 
         let input = self.content.trim().to_string();
 
-        // 1️⃣ SYSTEM-COMMAND VERARBEITUNG (zentral!)
+        // System command processing
         let system_result = self.system_processor.process_command(&input);
         if system_result != SystemCommandResult::NotSystemCommand {
             self.clear_input();
             return self.convert_system_result(system_result);
         }
 
-        // 2️⃣ NORMALE COMMAND VERARBEITUNG
+        // Normal command processing
         let content = std::mem::take(&mut self.content);
         self.cursor.reset_for_empty_text();
         self.history_manager.add_entry(content.clone());
 
         let result = self.command_handler.handle_input(&content);
 
-        // 3️⃣ HANDLE SPECIAL RESPONSES
+        // Handle special responses (e.g. history events)
         if let Some(event) = HistoryEventHandler::handle_command_result(&result.message) {
             return Some(self.handle_history_event(event));
         }
 
-        // 4️⃣ PRÜFE AUF SYSTEM-RESPONSES
+        // Check for system responses
         let system_result = self.system_processor.process_command(&result.message);
         if system_result != SystemCommandResult::NotSystemCommand {
             return self.convert_system_result(system_result);
         }
 
-        // 5️⃣ STANDARD RESPONSE
+        // Standard response
         if result.should_exit {
-            Some(format!("__EXIT__{}", result.message))
+            Some(format!(
+                "{}{}",
+                crate::core::constants::SIG_EXIT,
+                result.message
+            ))
         } else {
             Some(result.message)
         }
     }
 
-    /// ✅ KONVERTIERE System-Result zu String
     fn convert_system_result(&mut self, result: SystemCommandResult) -> Option<String> {
+        use crate::core::constants::*;
         match result {
             SystemCommandResult::NotSystemCommand => None,
-            SystemCommandResult::ClearScreen => Some("__CLEAR__".to_string()),
-            SystemCommandResult::Exit => Some("__EXIT__".to_string()),
-            SystemCommandResult::Restart => Some("__RESTART__".to_string()),
+            SystemCommandResult::ClearScreen => Some(SIG_CLEAR.to_string()),
+            SystemCommandResult::Exit => Some(SIG_EXIT.to_string()),
+            SystemCommandResult::Restart => Some(SIG_RESTART.to_string()),
             SystemCommandResult::ClearHistory => {
                 self.clear_history();
                 Some(get_translation("system.input.history_cleared", &[]))
             }
             SystemCommandResult::CleanupExecute(force_command) => {
-                // Führe Force-Command direkt aus
                 let result = self.command_handler.handle_input(&force_command);
                 Some(result.message)
             }
@@ -368,10 +360,6 @@ impl InputState {
             SystemCommandResult::Message(msg) => Some(msg),
         }
     }
-
-    // =====================================================
-    // BESTEHENDE FUNKTIONEN (unverändert)
-    // =====================================================
 
     fn handle_history(&mut self, action: HistoryAction) -> Option<String> {
         let entry = match action {
@@ -390,7 +378,7 @@ impl InputState {
     fn handle_history_event(&mut self, event: HistoryEvent) -> String {
         match event {
             HistoryEvent::Clear => {
-                self.clear_history(); // ✅ ZENTRAL
+                self.clear_history();
                 HistoryEventHandler::create_clear_response()
             }
             HistoryEvent::Add(entry) => {
@@ -401,7 +389,6 @@ impl InputState {
         }
     }
 
-    // ✅ CLIPBOARD OPERATIONS (unverändert von deinem Code)
     fn handle_paste(&mut self) -> Option<String> {
         let text = self.read_clipboard()?;
         let clean = text
@@ -482,7 +469,6 @@ impl InputState {
         Some(result)
     }
 
-    // ✅ CLIPBOARD SYSTEM (unverändert)
     fn read_clipboard(&self) -> Option<String> {
         let output = self.get_clipboard_cmd("read")?.output().ok()?;
         let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -546,7 +532,6 @@ impl InputState {
         None
     }
 
-    // ✅ TEXT EDITING (unverändert)
     fn insert_char(&mut self, c: char) {
         if self.content.graphemes(true).count() < self.config.input_max_length {
             let byte_pos = self.cursor.get_byte_position(&self.content);
@@ -600,7 +585,6 @@ impl InputState {
         self.cursor.move_to_start();
     }
 
-    // ✅ GETTERS
     pub fn get_content(&self) -> &str {
         &self.content
     }
@@ -610,7 +594,6 @@ impl InputState {
     }
 }
 
-// ✅ WIDGET TRAIT IMPLEMENTATIONS (unverändert)
 impl Widget for InputState {
     fn render(&self) -> Paragraph<'_> {
         self.render_with_cursor().0

@@ -10,8 +10,10 @@ pub async fn logs_raw_handler(
     req: HttpRequest,
     data: web::Data<ServerDataWithConfig>,
 ) -> ActixResult<HttpResponse> {
-    let exe_path = std::env::current_exe().unwrap();
-    let base_dir = exe_path.parent().unwrap();
+    let base_dir = crate::core::helpers::get_base_dir().map_err(|e| {
+        log::error!("Failed to get base directory: {}", e);
+        actix_web::error::ErrorInternalServerError("Internal server error")
+    })?;
     let log_file_path = base_dir
         .join(".rss")
         .join("servers")
@@ -93,7 +95,7 @@ pub async fn logs_handler(data: web::Data<ServerDataWithConfig>) -> ActixResult<
 
     let html = format!(
         r#"<!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
    <meta charset="UTF-8">
    <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -163,7 +165,7 @@ pub async fn logs_handler(data: web::Data<ServerDataWithConfig>) -> ActixResult<
            <p>ID: {} | HTTP: {} | Proxy: {}.localhost:{}</p>
            <p>Directory: {} | Log: {}</p>
            <p class="hot-reload-status">Hot Reload: ACTIVE (WebSocket on /ws/hot-reload)</p>
-           <p><a href="/" class="back-link">← Zurück zur Hauptseite</a></p>
+           <p><a href="/" class="back-link">← Back to main page</a></p>
        </div>
    </div>
    <div class="log-container">
@@ -186,13 +188,13 @@ pub async fn logs_handler(data: web::Data<ServerDataWithConfig>) -> ActixResult<
         data.server.id,
         data.server.port,
         data.server.name,
-        data.proxy_https_port, // FIXED: Verwende proxy_https_port aus data
+        data.proxy_https_port,
         server_dir,
         log_path,
         server_dir,
         data.server.port,
         data.server.name,
-        data.proxy_https_port, // FIXED: Verwende proxy_https_port aus data
+        data.proxy_https_port,
         data.server.name,
         data.server.port,
         log_entries

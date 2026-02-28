@@ -1,31 +1,31 @@
-// ## FILE: src/ui/widget.rs - KOMPRIMIERTE VERSION
+// src/ui/widget.rs
 use crate::core::prelude::*;
 use crate::input::state::InputStateBackup;
 use ratatui::widgets::Paragraph;
 
-/// Core Widget trait - essentielles Rendering
+/// Core widget trait for rendering
 pub trait Widget {
     fn render(&self) -> Paragraph<'_>;
     fn handle_input(&mut self, key: KeyEvent) -> Option<String>;
 }
 
-/// Cursor-fähige Widgets
+/// Widgets that support cursor rendering
 pub trait CursorWidget: Widget {
     fn render_with_cursor(&self) -> (Paragraph<'_>, Option<(u16, u16)>);
 }
 
-/// State-Management für Widgets
+/// State management for widgets
 pub trait StatefulWidget<T = InputStateBackup> {
     fn export_state(&self) -> T;
     fn import_state(&mut self, state: T);
 }
 
-/// Animierte Widgets (Blinken, etc.)
+/// Animated widgets (blinking, etc.)
 pub trait AnimatedWidget {
     fn tick(&mut self);
 }
 
-/// Vollständiges Input-Widget (kombiniert alle Traits)
+/// Full input widget (combines all traits)
 pub trait InputWidget: Widget + CursorWidget + StatefulWidget + AnimatedWidget {}
 
 // Blanket Implementation
@@ -50,7 +50,7 @@ pub mod utils {
     }
 }
 
-/// Beispiel-Implementierungen für Tests
+/// Example implementations for tests
 #[cfg(test)]
 mod examples {
     use super::*;
@@ -130,7 +130,7 @@ mod examples {
             visible: true,
         };
 
-        // Test alle Traits
+        // Test all traits
         let _para = full.render();
         let (_para, cursor) = full.render_with_cursor();
         assert_eq!(cursor, Some((5, 0)));
@@ -146,7 +146,7 @@ mod examples {
     }
 }
 
-/// Migration Helper für bestehenden Code
+/// Migration helper for existing code
 pub mod compat {
     pub use super::{
         AnimatedWidget as Tickable, CursorWidget as RenderWithCursor,

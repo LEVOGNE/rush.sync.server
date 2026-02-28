@@ -1,4 +1,4 @@
-// ## FILE: src/server/types.rs - KOMPLETT KORRIGIERT
+// src/server/types.rs
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -52,7 +52,7 @@ impl Default for ServerInfo {
     }
 }
 
-// WICHTIG: ServerData-Struktur hinzugefügt
+// Lightweight server identification for request handlers
 #[derive(Debug, Clone)]
 pub struct ServerData {
     pub id: String,

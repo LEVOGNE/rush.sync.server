@@ -1,4 +1,4 @@
-// Enhanced src/commands/create/command.rs - BULK CREATION SUPPORT
+// src/commands/create/command.rs
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 use crate::server::types::{ServerContext, ServerInfo, ServerStatus};
@@ -78,7 +78,7 @@ impl CreateCommand {
             },
 
             1 => {
-                // Erst auf Port prüfen (4-5 Stellen), dann auf Count (1-2 Stellen)
+                // Check for port (4-5 digits) first, then count (1-2 digits)
                 if let Ok(port) = args[0].parse::<u16>() {
                     if port >= 1000 {
                         // "create 8080" -> Single server with port
@@ -161,7 +161,7 @@ impl CreateCommand {
         base_name: Option<String>,
         base_port: Option<u16>,
     ) -> Result<String> {
-        let initial_server_count = ctx.servers.read().unwrap().len();
+        let initial_server_count = read_lock(&ctx.servers, "servers")?.len();
 
         // Check if bulk creation would exceed limits
         if initial_server_count + (count as usize) > config.server.max_concurrent {
@@ -222,7 +222,7 @@ impl CreateCommand {
             }
         }
 
-        let final_count = ctx.servers.read().unwrap().len();
+        let final_count = read_lock(&ctx.servers, "servers")?.len();
         result.push_str(&format!(
             "\n\nTotal servers: {}/{}",
             final_count, config.server.max_concurrent
@@ -240,15 +240,14 @@ impl CreateCommand {
         custom_port: Option<u16>,
     ) -> Result<ServerCreationResult> {
         let id = Uuid::new_v4().to_string();
-        let has_custom_name = custom_name.is_some();
 
         let name = if let Some(custom_name) = custom_name {
             validate_server_name(&custom_name)?;
-            let servers = ctx.servers.read().unwrap();
+            let servers = read_lock(&ctx.servers, "servers")?;
             if servers.values().any(|s| s.name == custom_name) {
-                return Err(AppError::Validation(format!(
-                    "Server-Name '{}' bereits vergeben!",
-                    custom_name
+                return Err(AppError::Validation(get_translation(
+                    "server.error.name_taken",
+                    &[&custom_name],
                 )));
             }
             custom_name
@@ -273,17 +272,20 @@ impl CreateCommand {
                 )));
             }
 
-            let servers = ctx.servers.read().unwrap();
+            let servers = read_lock(&ctx.servers, "servers")?;
             if servers.values().any(|s| s.port == custom_port) {
-                return Err(AppError::Validation(format!(
-                    "Port {} bereits verwendet!",
-                    custom_port
+                return Err(AppError::Validation(get_translation(
+                    "server.error.port_used",
+                    &[&custom_port.to_string()],
                 )));
             }
-            if !crate::server::utils::port::is_port_available(custom_port) {
-                return Err(AppError::Validation(format!(
-                    "Port {} bereits belegt!",
-                    custom_port
+            if !crate::server::utils::port::is_port_available(
+                custom_port,
+                &config.server.bind_address,
+            ) {
+                return Err(AppError::Validation(get_translation(
+                    "server.error.port_occupied",
+                    &[&custom_port.to_string()],
                 )));
             }
 
@@ -316,10 +318,7 @@ impl CreateCommand {
         }
 
         // Add to runtime context
-        ctx.servers
-            .write()
-            .unwrap()
-            .insert(id.clone(), server_info.clone());
+        write_lock(&ctx.servers, "servers")?.insert(id.clone(), server_info.clone());
 
         // Persist to file (async)
         let registry = crate::server::shared::get_persistent_registry();
@@ -332,21 +331,12 @@ impl CreateCommand {
             }
         });
 
-        let summary = if has_custom_name {
-            format!(
-                "'{}' (ID: {}) on port {} [PERSISTENT]",
-                name,
-                &id[0..8],
-                port
-            )
-        } else {
-            format!(
-                "'{}' (ID: {}) on port {} [PERSISTENT]",
-                name,
-                &id[0..8],
-                port
-            )
-        };
+        let summary = format!(
+            "'{}' (ID: {}) on port {} [PERSISTENT]",
+            name,
+            &id[0..8],
+            port
+        );
 
         Ok(ServerCreationResult { name, summary })
     }
@@ -382,7 +372,10 @@ impl CreateCommand {
             }
 
             if !used_ports.contains(&candidate_port)
-                && crate::server::utils::port::is_port_available(candidate_port)
+                && crate::server::utils::port::is_port_available(
+                    candidate_port,
+                    &config.server.bind_address,
+                )
             {
                 return Ok(candidate_port);
             }
@@ -395,7 +388,13 @@ impl CreateCommand {
     }
 
     fn find_next_server_number(&self, ctx: &ServerContext) -> u32 {
-        let servers = ctx.servers.read().unwrap();
+        let servers = match ctx.servers.read() {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("servers lock poisoned: {}", e);
+                return 1;
+            }
+        };
         let mut existing_numbers = Vec::new();
 
         for server in servers.values() {

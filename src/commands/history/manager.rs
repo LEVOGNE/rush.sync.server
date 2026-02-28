@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: commands/history/manager.rs - FINAL VERSION (ohne Debug)
-// =====================================================
-
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -23,7 +19,7 @@ impl HistoryManager {
             file_path,
         };
 
-        // Lade sofort beim Erstellen
+        // Load history from disk immediately
         manager.load_from_file();
         manager
     }
@@ -33,7 +29,7 @@ impl HistoryManager {
             if let Some(base_dir) = exe_path.parent() {
                 let history_path = base_dir.join(".rss").join("rush.history");
 
-                // Erstelle Verzeichnis falls nicht vorhanden
+                // Create directory if it doesn't exist
                 if let Some(parent) = history_path.parent() {
                     let _ = std::fs::create_dir_all(parent);
                 }
@@ -57,12 +53,12 @@ impl HistoryManager {
                 }
             }
 
-            // Limitiere auf max_size
+            // Trim to max_size
             if self.entries.len() > self.max_size {
                 self.entries.drain(0..self.entries.len() - self.max_size);
             }
 
-            log::info!("📁 Loaded {} history entries", self.entries.len());
+            log::info!("Loaded {} history entries", self.entries.len());
         }
     }
 
@@ -78,10 +74,10 @@ impl HistoryManager {
             return;
         }
 
-        // Entferne Duplikate
+        // Remove duplicates
         self.entries.retain(|e| e != &entry);
 
-        // Füge am Ende hinzu
+        // Append new entry
         if self.entries.len() >= self.max_size {
             self.entries.remove(0);
         }
@@ -89,7 +85,7 @@ impl HistoryManager {
         self.entries.push(entry);
         self.position = None;
 
-        // Speichere sofort
+        // Persist immediately
         self.save_to_file();
     }
 
@@ -123,9 +119,8 @@ impl HistoryManager {
         self.entries.clear();
         self.position = None;
 
-        // Lösche Datei
         let _ = std::fs::remove_file(&self.file_path);
-        log::info!("📁 History cleared");
+        log::info!("History cleared");
     }
 
     pub fn reset_position(&mut self) {

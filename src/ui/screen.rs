@@ -1,4 +1,4 @@
-// ## FILE: src/ui/screen.rs - KOMPRIMIERTE VERSION
+// src/ui/screen.rs
 use crate::commands::{history::HistoryKeyboardHandler, lang::LanguageService, theme::ThemeSystem};
 use crate::core::prelude::*;
 use crate::input::{
@@ -66,7 +66,6 @@ impl ScreenManager {
             .message_display
             .add_message_instant(startup_msg);
 
-        // ✅ FERTIG!
         Ok(screen_manager)
     }
 
@@ -90,7 +89,6 @@ impl ScreenManager {
         result
     }
 
-    // ✅ KOMPRIMIERTES INPUT HANDLING
     async fn handle_input(&mut self, key: KeyEvent) -> Result<bool> {
         // History handling
         if HistoryKeyboardHandler::get_history_action(&key).is_some() {
@@ -132,33 +130,31 @@ impl ScreenManager {
     }
 
     async fn handle_submit(&mut self, key: KeyEvent) -> Result<bool> {
+        use crate::core::constants::*;
         let Some(input) = self.input_state.handle_input(key) else {
             return Ok(false);
         };
 
-        // 🎯 KRITISCHER FIX: SYSTEM-COMMANDS ZUERST PRÜFEN UND AUSFÜHREN!
-        //    (BEVOR wir sie als Text ausgeben!)
-
-        if input == "__CLEAR__" {
+        if input == SIG_CLEAR {
             self.message_display.clear_messages();
             return Ok(false);
         }
 
-        if input == "__EXIT__" {
-            return Ok(true); // ✅ BEENDE PROGRAMM SOFORT!
+        if input == SIG_EXIT {
+            return Ok(true);
         }
 
-        if input.starts_with("__RESTART") {
+        if input.starts_with(SIG_RESTART) {
             self.handle_restart(&input).await;
             return Ok(false);
         }
 
-        // ✅ Process special messages (Theme, Language updates)
+        // Process special messages (theme, language updates)
         if self.process_special_input(&input).await {
             return Ok(false);
         }
 
-        // ✅ Add message to display (NUR wenn es KEIN System-Command war)
+        // Only add to display if it was not a system command
         let cmd = input.trim().to_lowercase();
         if input.starts_with("__")
             || ["theme", "help", "lang"]
@@ -173,7 +169,6 @@ impl ScreenManager {
         Ok(false)
     }
 
-    // ✅ VEREINFACHTE SPECIAL INPUT PROCESSING
     async fn process_special_input(&mut self, input: &str) -> bool {
         // Language updates
         if let Some(processed) = LanguageService::process_save_message(input).await {
@@ -190,18 +185,18 @@ impl ScreenManager {
         false
     }
 
-    // ✅ KOMPRIMIERTES THEME UPDATE
     async fn process_theme_update(&mut self, message: &str) -> Option<String> {
-        if !message.starts_with("__LIVE_THEME_UPDATE__") {
+        use crate::core::constants::*;
+        if !message.starts_with(SIG_LIVE_THEME_UPDATE) {
             return None;
         }
 
-        let parts: Vec<&str> = message.split("__MESSAGE__").collect();
+        let parts: Vec<&str> = message.split(SIG_THEME_MSG_SEP).collect();
         if parts.len() != 2 {
             return None;
         }
 
-        let theme_name = parts[0].replace("__LIVE_THEME_UPDATE__", "");
+        let theme_name = parts[0].replace(SIG_LIVE_THEME_UPDATE, "");
         let display_msg = parts[1];
 
         // Load and apply theme
@@ -241,8 +236,9 @@ impl ScreenManager {
     }
 
     async fn handle_restart(&mut self, input: &str) {
-        if input.starts_with("__RESTART_WITH_MSG__") {
-            let msg = input.replace("__RESTART_WITH_MSG__", "").trim().to_string();
+        use crate::core::constants::SIG_RESTART_WITH_MSG;
+        if input.starts_with(SIG_RESTART_WITH_MSG) {
+            let msg = input.replace(SIG_RESTART_WITH_MSG, "").trim().to_string();
             if !msg.is_empty() {
                 self.message_display.add_message_instant(msg);
                 tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
@@ -266,7 +262,6 @@ impl ScreenManager {
         Ok(())
     }
 
-    // ✅ KOMPRIMIERTES RENDERING
     async fn render(&mut self) -> Result<()> {
         let (input_widget, cursor_pos) = self.input_state.render_with_cursor();
 
@@ -331,7 +326,6 @@ impl ScreenManager {
         Ok(())
     }
 
-    // ✅ UTILITY METHODS
     fn exceeds_bounds(
         output: &crate::ui::viewport::LayoutArea,
         input: &crate::ui::viewport::LayoutArea,
@@ -343,7 +337,6 @@ impl ScreenManager {
             || input.y + input.height > size.height
     }
 
-    // ✅ CURSOR STYLING (komprimiert)
     fn apply_cursor_styling(&self) -> Result<()> {
         let form = match self.config.theme.input_cursor.to_uppercase().as_str() {
             "PIPE" => "\x1B[6 q",
@@ -430,7 +423,6 @@ impl ScreenManager {
         Ok(())
     }
 
-    // ✅ PUBLIC API METHODS
     pub async fn switch_theme_safely(&mut self, theme_name: &str) -> Result<String> {
         let system = ThemeSystem::load().map_err(|e| {
             AppError::Validation(get_translation(
@@ -459,7 +451,7 @@ impl ScreenManager {
         ))
     }
 
-    // ✅ I18N VALIDATION (komprimiert)
+    /// Returns any missing i18n translation keys used by this module.
     pub fn validate_i18n_keys() -> Vec<String> {
         [
             "screen.theme.failed",

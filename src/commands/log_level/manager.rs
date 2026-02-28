@@ -7,7 +7,6 @@ pub struct LogLevelManager;
 static CURRENT_LOG_LEVEL: Mutex<LevelFilter> = Mutex::new(LevelFilter::Info);
 
 impl LogLevelManager {
-    // ✅ STATUS DISPLAY mit i18n
     pub fn show_status() -> String {
         let current = Self::get_current_level();
         let current_name = Self::level_to_name(current);
@@ -23,18 +22,14 @@ impl LogLevelManager {
         )
     }
 
-    // ✅ HELP TEXT mit i18n
     pub fn show_help_i18n() -> String {
         get_command_translation("system.commands.log_level.help_text", &[])
     }
 
-    // ✅ Legacy method (for compatibility)
     pub fn show_help() -> String {
         Self::show_help_i18n()
     }
 
-    // ✅ SET LEVEL mit i18n - FIXED RETURN TYPE
-    // src/commands/log_level/manager.rs
     pub fn set_level_persistent(level_input: &str) -> Result<String> {
         use log::LevelFilter;
 
@@ -64,7 +59,6 @@ impl LogLevelManager {
         ))
     }
 
-    // ✅ Unchanged core functionality
     pub fn set_level_runtime(level_filter: LevelFilter) {
         if let Ok(mut current) = CURRENT_LOG_LEVEL.lock() {
             *current = level_filter;
@@ -91,7 +85,6 @@ impl LogLevelManager {
         }
     }
 
-    // ✅ Unchanged helper methods
     pub fn get_current_level() -> LevelFilter {
         if let Ok(current) = CURRENT_LOG_LEVEL.lock() {
             *current
@@ -107,7 +100,6 @@ impl LogLevelManager {
         log::set_max_level(level);
     }
 
-    // ✅ FIXED STRING TO LEVEL FILTER - Uses proper Result<T>
     fn string_to_level_filter(s: &str) -> std::result::Result<LevelFilter, ()> {
         match s.to_lowercase().as_str() {
             "error" | "1" => Ok(LevelFilter::Error),

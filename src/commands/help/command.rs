@@ -41,17 +41,15 @@ impl Command for HelpCommand {
 }
 
 impl HelpCommand {
-    /// ROBUSTE ZENTRALE DESCRIPTION ÜBERSETZUNG
+    /// Look up the localized description for a command, falling back to the original
     fn get_localized_description(&self, command_name: &str, original_description: &str) -> String {
-        // Normalisiere Command-Namen für i18n keys
+        // Normalize command name for i18n key lookup
         let normalized_name = command_name.replace("-", "_");
         let description_key = format!("system.commands.{}.description", normalized_name);
 
-        // Prüfe ob Übersetzung existiert
         if crate::i18n::has_translation(&description_key) {
             get_command_translation(&description_key, &[])
         } else {
-            // Sichere Fallback-Strategie
             log::debug!(
                 "No translation found for key '{}', using original description",
                 description_key
@@ -60,7 +58,7 @@ impl HelpCommand {
         }
     }
 
-    /// Formatierte Standard-Liste mit robusten Übersetzungen
+    /// Build the formatted default help list
     fn create_formatted_list(&self, handler: &crate::commands::CommandHandler) -> String {
         let commands = handler.list_commands();
 
@@ -72,7 +70,6 @@ impl HelpCommand {
         result.push_str(&get_command_translation("system.commands.help.header", &[]));
         result.push_str("\n\n");
 
-        // Robuste Kategorisierung mit Übersetzung
         let mut categorized = std::collections::BTreeMap::new();
 
         for (name, original_description) in commands {
@@ -85,12 +82,10 @@ impl HelpCommand {
                 .push((name, localized_description));
         }
 
-        // Ausgabe mit robusten Übersetzungen
         for (category_key, commands) in categorized {
             let category_translation_key =
                 format!("system.commands.help.category.{}", category_key);
 
-            // Robuste Kategorie-Übersetzung mit Fallback
             let category_name = if crate::i18n::has_translation(&category_translation_key) {
                 get_command_translation(&category_translation_key, &[])
             } else {
@@ -113,7 +108,7 @@ impl HelpCommand {
         result
     }
 
-    /// Robuste Kategorie-Bestimmung
+    /// Determine the category for a command by name prefix
     fn determine_category(&self, command_name: &str) -> &'static str {
         match command_name {
             name if name.starts_with("start")
@@ -123,6 +118,7 @@ impl HelpCommand {
                 "server_control"
             }
             name if name.starts_with("create") || name.starts_with("list") => "server_management",
+            name if name.starts_with("remote") || name.starts_with("sync") => "deployment",
             name if name.starts_with("cleanup") || name.starts_with("recover") => "maintenance",
             name if name.starts_with("theme")
                 || name.starts_with("lang")
@@ -141,11 +137,12 @@ impl HelpCommand {
         }
     }
 
-    /// Fallback-Kategorie-Namen (falls i18n fehlt)
+    /// Fallback category names when i18n key is missing
     fn get_fallback_category_name(&self, category_key: &str) -> String {
         match category_key {
             "server_control" => "Server Control".to_string(),
             "server_management" => "Server Management".to_string(),
+            "deployment" => "Deployment & Sync".to_string(),
             "maintenance" => "Maintenance".to_string(),
             "configuration" => "Configuration".to_string(),
             "information" => "Information".to_string(),
@@ -155,7 +152,7 @@ impl HelpCommand {
         }
     }
 
-    /// Einfache Liste mit robusten Übersetzungen
+    /// Build a comma-separated simple command list
     fn create_simple_list(&self, handler: &crate::commands::CommandHandler) -> String {
         let commands = handler.list_commands();
         let names: Vec<&str> = commands.iter().map(|(name, _)| *name).collect();
@@ -164,7 +161,7 @@ impl HelpCommand {
         get_command_translation("system.commands.help.simple_list", &[&names_str])
     }
 
-    /// Detaillierte Liste mit robusten Übersetzungen
+    /// Build a detailed command list with labels and separators
     fn create_detailed_list(&self, handler: &crate::commands::CommandHandler) -> String {
         let commands = handler.list_commands();
         let mut result = String::new();
@@ -201,7 +198,7 @@ impl HelpCommand {
         result
     }
 
-    /// Spezifische Command-Hilfe mit robusten Übersetzungen
+    /// Show help for a specific command
     fn show_command_help(
         &self,
         command_name: &str,

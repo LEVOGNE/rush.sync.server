@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: commands/version/version.rs - TRAIT IMPL
-// =====================================================
-
 use crate::commands::command::Command;
 use crate::core::constants::VERSION;
 use crate::core::prelude::*;
@@ -31,6 +27,6 @@ impl Command for VersionCommand {
     }
 
     fn priority(&self) -> u8 {
-        40 // Standard Priorität
+        40
     }
 }

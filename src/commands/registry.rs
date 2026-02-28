@@ -5,8 +5,8 @@ use std::collections::HashMap;
 pub struct CommandRegistry {
     commands: Vec<Box<dyn Command>>,
     name_map: HashMap<String, usize>,
-    available_cache: std::sync::RwLock<Vec<usize>>, // Neu: Cache für verfügbare Commands
-    cache_dirty: std::sync::atomic::AtomicBool,     // Neu: Cache-Status
+    available_cache: std::sync::RwLock<Vec<usize>>,
+    cache_dirty: std::sync::atomic::AtomicBool,
 }
 
 impl CommandRegistry {
@@ -30,7 +30,7 @@ impl CommandRegistry {
         self.commands.push(boxed);
         self.name_map.insert(name, index);
 
-        // Cache invalidieren
+        // Invalidate cache
         self.cache_dirty
             .store(true, std::sync::atomic::Ordering::Release);
 
@@ -40,7 +40,7 @@ impl CommandRegistry {
     pub fn find_command(&self, input: &str) -> Option<&dyn Command> {
         let input = input.trim().to_lowercase();
 
-        // Exakte Übereinstimmung (schnellster Pfad)
+        // Exact match (fast path)
         if let Some(&index) = self.name_map.get(&input) {
             if let Some(cmd) = self.commands.get(index) {
                 if cmd.is_available() {
@@ -49,7 +49,7 @@ impl CommandRegistry {
             }
         }
 
-        // Cache-basierte Pattern-Matching
+        // Cache-based pattern matching
         self.update_available_cache_if_needed();
 
         if let Ok(cache) = self.available_cache.read() {
@@ -65,7 +65,6 @@ impl CommandRegistry {
         None
     }
 
-    // Neue private Methode hinzufügen:
     fn update_available_cache_if_needed(&self) {
         if !self.cache_dirty.load(std::sync::atomic::Ordering::Acquire) {
             return;
@@ -87,7 +86,6 @@ impl CommandRegistry {
         self.find_command(command).map(|cmd| cmd.execute_sync(args))
     }
 
-    // src/commands/registry.rs
     pub async fn execute_async(&self, command: &str, args: &[&str]) -> Option<Result<String>> {
         match self.find_command(command) {
             Some(cmd) => Some(cmd.execute(args).await),
@@ -95,7 +93,6 @@ impl CommandRegistry {
         }
     }
 
-    // ✅ OPTIMIERT: Iterator-Chain statt collect
     pub fn list_commands(&self) -> Vec<(&str, &str)> {
         self.update_available_cache_if_needed();
 
@@ -109,7 +106,7 @@ impl CommandRegistry {
                 })
                 .collect()
         } else {
-            // Fallback bei Lock-Fehler
+            // Fallback on lock failure
             self.commands
                 .iter()
                 .filter(|cmd| cmd.is_available())
@@ -118,7 +115,6 @@ impl CommandRegistry {
         }
     }
 
-    // ✅ VEREINFACHT: Weniger Felder zu debuggen
     pub fn debug_info(&self) -> String {
         format!(
             "CommandRegistry: {} commands registered",
@@ -141,7 +137,7 @@ impl Default for CommandRegistry {
     }
 }
 
-// ✅ AUTO-IMPL: Ermöglicht register(MyCommand::new()) und register(Box::new(MyCommand::new()))
+// Enables both register(MyCommand::new()) and register(Box::new(MyCommand::new()))
 impl<T: Command> From<T> for Box<dyn Command> {
     fn from(cmd: T) -> Self {
         Box::new(cmd)

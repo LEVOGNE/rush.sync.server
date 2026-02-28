@@ -1,4 +1,4 @@
-// src/commands/cleanup/command.rs - FIXED für konsistenten i18n-Stil
+// src/commands/cleanup/command.rs
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 use crate::server::types::{ServerContext, ServerStatus};
@@ -29,7 +29,6 @@ impl Command for CleanupCommand {
         let ctx = crate::server::shared::get_shared_context();
 
         match args.first() {
-            // FIXED: Konsistente Verwendung von get_command_translation ohne .text Suffix
             Some(&"stopped") => {
                 let msg = crate::i18n::get_command_translation(
                     "system.commands.cleanup.confirm_stopped",
@@ -184,7 +183,6 @@ impl Command for CleanupCommand {
 }
 
 impl CleanupCommand {
-    // FIXED: Alle cleanup-Methoden nutzen jetzt konsistent get_command_translation
     fn cleanup_stopped_servers(&self, ctx: &ServerContext) -> String {
         let registry = crate::server::shared::get_persistent_registry();
 
@@ -204,7 +202,13 @@ impl CleanupCommand {
             }
         });
 
-        let mut servers = ctx.servers.write().unwrap();
+        let mut servers = match ctx.servers.write() {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("servers lock poisoned: {}", e);
+                return "Error: server lock poisoned".to_string();
+            }
+        };
         let initial_count = servers.len();
         servers.retain(|_, server| server.status != ServerStatus::Stopped);
         let removed_count = initial_count - servers.len();
@@ -238,7 +242,13 @@ impl CleanupCommand {
             }
         });
 
-        let mut servers = ctx.servers.write().unwrap();
+        let mut servers = match ctx.servers.write() {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("servers lock poisoned: {}", e);
+                return "Error: server lock poisoned".to_string();
+            }
+        };
         let initial_count = servers.len();
         servers.retain(|_, server| server.status != ServerStatus::Failed);
         let removed_count = initial_count - servers.len();
@@ -253,7 +263,6 @@ impl CleanupCommand {
         }
     }
 
-    // Alle async cleanup methods mit konsistenten i18n keys
     pub async fn cleanup_all_server_logs() -> Result<String> {
         let exe_path = std::env::current_exe().map_err(AppError::Io)?;
         let base_dir = exe_path.parent().ok_or_else(|| {
@@ -447,12 +456,10 @@ impl CleanupCommand {
             return true;
         }
 
-        if dir_name.contains(server_name) {
-            if dir_name.contains('[') && dir_name.ends_with(']') {
-                if let Some(bracket_start) = dir_name.rfind('[') {
-                    if let Some(port_str) = dir_name.get(bracket_start + 1..dir_name.len() - 1) {
-                        return port_str.parse::<u16>().is_ok();
-                    }
+        if dir_name.contains(server_name) && dir_name.contains('[') && dir_name.ends_with(']') {
+            if let Some(bracket_start) = dir_name.rfind('[') {
+                if let Some(port_str) = dir_name.get(bracket_start + 1..dir_name.len() - 1) {
+                    return port_str.parse::<u16>().is_ok();
                 }
             }
         }

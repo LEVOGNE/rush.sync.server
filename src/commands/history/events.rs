@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: commands/history/events.rs
-// =====================================================
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum HistoryEvent {
     Clear,

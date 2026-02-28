@@ -37,7 +37,7 @@ impl ThemeSystem {
         });
 
         log::info!(
-            "✅ {} Themes loaded: {}",
+            "{} themes loaded: {}",
             themes.len(),
             themes.keys().cloned().collect::<Vec<_>>().join(", ")
         );
@@ -51,7 +51,7 @@ impl ThemeSystem {
 
     pub fn show_status(&self) -> String {
         if self.themes.is_empty() {
-            return "❌ No themes available! Add [theme.xyz] sections to rush.toml.".to_string();
+            return "No themes available! Add [theme.xyz] sections to rush.toml.".to_string();
         }
         format!(
             "Current theme: {} (from TOML)\nAvailable: {}",
@@ -65,10 +65,10 @@ impl ThemeSystem {
 
         if !self.themes.contains_key(&theme_name_lower) {
             return Ok(if self.themes.is_empty() {
-                "❌ No themes available! Add [theme.xyz] sections to rush.toml.".to_string()
+                "No themes available! Add [theme.xyz] sections to rush.toml.".to_string()
             } else {
                 format!(
-                    "❌ Theme '{}' not found. Available: {}",
+                    "Theme '{}' not found. Available: {}",
                     theme_name,
                     self.themes.keys().cloned().collect::<Vec<_>>().join(", ")
                 )
@@ -80,7 +80,7 @@ impl ThemeSystem {
         // Log cursor details
         if let Some(theme_def) = self.themes.get(&theme_name_lower) {
             log::info!(
-                "🎨 Theme '{}': input_cursor='{}' ({}), output_cursor='{}' ({}), prefix='{}'",
+                "Theme '{}': input_cursor='{}' ({}), output_cursor='{}' ({}), prefix='{}'",
                 theme_name_lower.to_uppercase(),
                 theme_def.input_cursor,
                 theme_def.input_cursor_color,
@@ -100,7 +100,7 @@ impl ThemeSystem {
         });
 
         Ok(format!(
-            "__LIVE_THEME_UPDATE__{}__MESSAGE__🎨 Theme changed to: {} ✨",
+            "__LIVE_THEME_UPDATE__{}__MESSAGE__Theme changed to: {}",
             theme_name_lower,
             theme_name_lower.to_uppercase()
         ))
@@ -110,14 +110,14 @@ impl ThemeSystem {
         let theme_name_lower = theme_name.to_lowercase();
 
         if let Some(theme_def) = self.themes.get(&theme_name_lower) {
-            Ok(format!("🎨 Theme '{}' Preview:\nInput: {} on {}\nOutput: {} on {}\nCursor Prefix: '{}' in {}\nInput Cursor: {}\nOutput Cursor: {} in {}\n\n📁 Source: [theme.{}] in rush.toml",
+            Ok(format!("Theme '{}' Preview:\nInput: {} on {}\nOutput: {} on {}\nCursor Prefix: '{}' in {}\nInput Cursor: {}\nOutput Cursor: {} in {}\n\nSource: [theme.{}] in rush.toml",
                 theme_name_lower.to_uppercase(), theme_def.input_text, theme_def.input_bg,
                 theme_def.output_text, theme_def.output_bg, theme_def.input_cursor_prefix,
                 theme_def.input_cursor_color, theme_def.input_cursor, theme_def.output_cursor,
                 theme_def.output_cursor_color, theme_name_lower))
         } else {
             Ok(format!(
-                "❌ Theme '{}' not found. Available: {}",
+                "Theme '{}' not found. Available: {}",
                 theme_name,
                 self.themes.keys().cloned().collect::<Vec<_>>().join(", ")
             ))
@@ -126,17 +126,16 @@ impl ThemeSystem {
 
     pub fn debug_theme_details(&self, theme_name: &str) -> String {
         if let Some(theme_def) = self.themes.get(&theme_name.to_lowercase()) {
-            format!("🔍 Theme '{}':\ninput_text: '{}'\ninput_bg: '{}'\noutput_text: '{}'\noutput_bg: '{}'\ninput_cursor_prefix: '{}'\ninput_cursor_color: '{}'\ninput_cursor: '{}'\noutput_cursor: '{}'\noutput_cursor_color: '{}'",
+            format!("Theme '{}':\ninput_text: '{}'\ninput_bg: '{}'\noutput_text: '{}'\noutput_bg: '{}'\ninput_cursor_prefix: '{}'\ninput_cursor_color: '{}'\ninput_cursor: '{}'\noutput_cursor: '{}'\noutput_cursor_color: '{}'",
                 theme_name.to_uppercase(), theme_def.input_text, theme_def.input_bg,
                 theme_def.output_text, theme_def.output_bg, theme_def.input_cursor_prefix,
                 theme_def.input_cursor_color, theme_def.input_cursor, theme_def.output_cursor,
                 theme_def.output_cursor_color)
         } else {
-            format!("❌ Theme '{}' not found!", theme_name)
+            format!("Theme '{}' not found!", theme_name)
         }
     }
 
-    // Getters
     pub fn theme_exists(&self, theme_name: &str) -> bool {
         self.themes.contains_key(&theme_name.to_lowercase())
     }

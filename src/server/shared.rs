@@ -14,13 +14,21 @@ pub fn get_shared_context() -> &'static ServerContext {
 }
 
 pub fn get_persistent_registry() -> &'static ServerRegistry {
-    PERSISTENT_REGISTRY
-        .get_or_init(|| ServerRegistry::new().expect("Failed to initialize server registry"))
+    PERSISTENT_REGISTRY.get_or_init(|| match ServerRegistry::new() {
+        Ok(registry) => registry,
+        Err(e) => {
+            log::error!(
+                "Failed to initialize server registry: {}, using fallback",
+                e
+            );
+            ServerRegistry::with_fallback()
+        }
+    })
 }
 
 pub fn get_proxy_manager() -> &'static Arc<ProxyManager> {
     PROXY_MANAGER.get_or_init(|| {
-        // Config laden und Proxy Manager erstellen
+        // Load config and create proxy manager
         let config = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 crate::core::config::Config::load()
@@ -33,7 +41,7 @@ pub fn get_proxy_manager() -> &'static Arc<ProxyManager> {
     })
 }
 
-// NEU: Proxy System starten
+// Start the proxy system
 async fn start_proxy_system(config: &Config) -> crate::core::error::Result<()> {
     if !config.proxy.enabled {
         log::info!("Proxy system disabled in config");
@@ -42,53 +50,25 @@ async fn start_proxy_system(config: &Config) -> crate::core::error::Result<()> {
 
     let proxy_manager = get_proxy_manager();
 
-    // Proxy Server starten (HTTP auf 8000 + HTTPS auf 8443)
+    // Start proxy server (HTTP + HTTPS)
     Arc::clone(proxy_manager).start_proxy_server().await?;
 
     log::info!("Proxy system started:");
-    log::info!("  HTTP:  http://{{name}}.localhost:{}", config.proxy.port);
+    log::info!(
+        "  HTTP:  http://{{name}}.{}:{}",
+        config.server.production_domain,
+        config.proxy.port
+    );
 
     let https_port = config.proxy.port + config.proxy.https_port_offset;
-    log::info!("HTTPS: https://{{name}}.localhost:{}", https_port);
+    log::info!(
+        "  HTTPS: https://{{name}}.{}:{}",
+        config.server.production_domain,
+        https_port
+    );
 
     Ok(())
 }
-
-// NEU: HTTP Redirect Server starten
-// async fn start_http_redirect(config: &Config) -> crate::core::error::Result<()> {
-//     if !config.proxy.enabled {
-//         return Ok(());
-//     }
-
-//     // Port 80 nur wenn verfügbar
-//     if !is_port_available(80) {
-//         log::warn!("Port 80 already in use - HTTP redirect disabled");
-//         log::info!("Tip: Use 'sudo lsof -i :80' to check what's using it");
-//         return Ok(());
-//     }
-
-//     // Import aus server::redirect
-//     use crate::server::redirect::HttpRedirectServer;
-
-//     let redirect = HttpRedirectServer::new(80, 8443); // Redirect zu HTTPS Proxy
-
-//     std::thread::spawn(move || {
-//         // Single-thread Tokio-Runtime (keine Send-Anforderung für Futures)
-//         let rt = tokio::runtime::Builder::new_current_thread()
-//             .enable_all()
-//             .build()
-//             .expect("failed to build single-thread runtime");
-
-//         rt.block_on(async move {
-//             if let Err(e) = redirect.run().await {
-//                 log::error!("HTTP redirect server failed: {}", e);
-//             }
-//         });
-//     });
-
-//     log::info!("HTTP→HTTPS redirect active on port 80");
-//     Ok(())
-// }
 
 pub async fn initialize_server_system() -> crate::core::error::Result<()> {
     let config = Config::load().await?;
@@ -103,7 +83,7 @@ pub async fn initialize_server_system() -> crate::core::error::Result<()> {
 
     for (_server_id, persistent_info) in persistent_servers.iter_mut() {
         if persistent_info.status == ServerStatus::Running {
-            if !is_port_available(persistent_info.port) {
+            if !is_port_available(persistent_info.port, &config.server.bind_address) {
                 log::warn!(
                     "Server {} claims to be running on port {}, but port is occupied",
                     persistent_info.name,
@@ -131,7 +111,9 @@ pub async fn initialize_server_system() -> crate::core::error::Result<()> {
     }
 
     {
-        let mut servers = context.servers.write().unwrap();
+        let mut servers = context.servers.write().map_err(|e| {
+            crate::core::error::AppError::Validation(format!("servers lock poisoned: {}", e))
+        })?;
         servers.clear();
         for (id, persistent_info) in persistent_servers.iter() {
             let server_info = crate::server::types::ServerInfo::from(persistent_info.clone());
@@ -174,50 +156,64 @@ pub async fn initialize_server_system() -> crate::core::error::Result<()> {
         }
     }
 
-    // ÜBERARBEITET: Proxy Manager mit verbesserter Struktur
+    // Initialize proxy manager
     if config.proxy.enabled {
-        // 1. Proxy System starten (HTTP + HTTPS)
+        // 1. Start proxy system (HTTP + HTTPS)
         if let Err(e) = start_proxy_system(&config).await {
             log::error!("Failed to start proxy system: {}", e);
-            // Proxy ist optional - wir laufen trotzdem weiter
         } else {
-            // 2. HTTP Redirect starten (optional, braucht sudo für Port 80)
+            // 2. Start HTTP redirect (port 80, serves ACME challenges + redirects to HTTPS)
             if let Err(e) = start_http_redirect_server(&config).await {
                 log::warn!("Failed to start HTTP redirect: {}", e);
-                // Nicht fatal - läuft auch ohne
             }
 
-            // 3. Bereits laufende Server beim Proxy registrieren
-            let proxy_manager = get_proxy_manager();
+            // Note: Proxy routes for auto-started servers are registered later
+            // by create_web_server() in auto_start_servers(), not here.
+        }
+
+        log::info!(
+            "  DNS: Point *.{} to this server",
+            config.server.production_domain
+        );
+
+        // 4. Start ACME background provisioning + auto hot-reload
+        // ACME runs AFTER proxy is ready (5s delay), provisions cert, then hot-reloads proxy TLS.
+        // No manual restart needed — new connections automatically use the LE certificate.
+        if config.server.use_lets_encrypt && config.server.production_domain != "localhost" {
+            let cert_dir = crate::core::helpers::get_base_dir()
+                .map(|b| b.join(&config.server.cert_dir))
+                .unwrap_or_else(|_| std::path::PathBuf::from(&config.server.cert_dir));
+
+            // Collect subdomains only from actually registered servers and proxy routes.
+            // Every SAN must have a valid DNS record pointing to this server,
+            // otherwise Let's Encrypt HTTP-01 validation fails for the entire certificate.
+            // "blog" and "myapp" are built-in proxy routes (served directly, not via add_route).
+            let mut subdomains: Vec<String> = vec!["blog".to_string(), "myapp".to_string()];
             for (_id, persistent_info) in persistent_servers.iter() {
-                if persistent_info.status == ServerStatus::Running {
-                    if let Err(e) = proxy_manager
-                        .add_route(
-                            &persistent_info.name,
-                            &persistent_info.id,
-                            persistent_info.port,
-                        )
-                        .await
-                    {
-                        log::error!(
-                            "Failed to register server {} with proxy: {}",
-                            persistent_info.name,
-                            e
-                        );
-                    } else {
-                        log::info!(
-                            "Registered existing server {} with proxy",
-                            persistent_info.name
-                        );
-                    }
+                if !subdomains.contains(&persistent_info.name) {
+                    subdomains.push(persistent_info.name.clone());
                 }
             }
-        }
+            let proxy_manager = get_proxy_manager();
+            let routes = proxy_manager.get_routes().await;
+            for route in &routes {
+                if !subdomains.contains(&route.subdomain) {
+                    subdomains.push(route.subdomain.clone());
+                }
+            }
 
-        if is_port_available(80) {
-            log::info!("  With sudo: http://{{name}}.localhost → redirects to HTTPS");
+            crate::server::acme::start_acme_background(
+                config.server.production_domain.clone(),
+                cert_dir,
+                config.server.acme_email.clone(),
+                false,
+                subdomains,
+            );
+            log::info!(
+                "ACME: Background provisioning + auto hot-reload started for {}",
+                config.server.production_domain
+            );
         }
-        log::info!("  Add to /etc/hosts: 127.0.0.1 {{name}}.localhost");
     } else {
         log::info!("Reverse Proxy disabled in configuration");
     }
@@ -238,7 +234,9 @@ pub async fn shutdown_all_servers_on_exit() -> crate::core::error::Result<()> {
     let context = get_shared_context();
 
     let server_handles: Vec<_> = {
-        let mut handles = context.handles.write().unwrap();
+        let mut handles = context.handles.write().map_err(|e| {
+            crate::core::error::AppError::Validation(format!("handles lock poisoned: {}", e))
+        })?;
         handles.drain().collect()
     };
 
@@ -257,11 +255,14 @@ pub async fn shutdown_all_servers_on_exit() -> crate::core::error::Result<()> {
             handle.stop(false).await;
         }
 
-        // Korrigierte API-Aufrufe
+        // Persist stopped status
         let _ = registry
             .update_server_status(&server_id, ServerStatus::Stopped)
             .await;
     }
+
+    // Save analytics data before exit
+    crate::server::analytics::save_analytics_on_shutdown();
 
     log::info!("Server system shutdown complete");
     Ok(())
@@ -273,7 +274,9 @@ pub async fn validate_server_creation(
 ) -> crate::core::error::Result<()> {
     let config = Config::load().await?;
     let context = get_shared_context();
-    let servers = context.servers.read().unwrap();
+    let servers = context.servers.read().map_err(|e| {
+        crate::core::error::AppError::Validation(format!("servers lock poisoned: {}", e))
+    })?;
 
     if servers.len() >= config.server.max_concurrent {
         return Err(crate::core::error::AppError::Validation(format!(
@@ -305,7 +308,10 @@ pub async fn validate_server_creation(
 pub async fn get_server_system_stats() -> serde_json::Value {
     let config = Config::load().await.unwrap_or_default();
     let context = get_shared_context();
-    let servers = context.servers.read().unwrap();
+    let servers = match context.servers.read() {
+        Ok(s) => s,
+        Err(_) => return serde_json::json!({"error": "lock poisoned"}),
+    };
 
     let running_count = servers
         .values()
@@ -332,8 +338,8 @@ pub async fn get_server_system_stats() -> serde_json::Value {
         "proxy": {
             "enabled": config.proxy.enabled,
             "http_port": config.proxy.port,
-            "https_port": 8443,
-            "redirect_port": if is_port_available(80) { None } else { Some(80) }
+            "https_port": config.proxy.port + config.proxy.https_port_offset,
+            "redirect_port": if is_port_available(80, "0.0.0.0") { None } else { Some(80) }
         },
         "config": {
             "workers_per_server": config.server.workers,
@@ -354,31 +360,87 @@ pub async fn get_server_system_stats() -> serde_json::Value {
 pub async fn auto_start_servers() -> crate::core::error::Result<Vec<String>> {
     let config = Config::load().await?;
     let registry = get_persistent_registry();
-    let auto_start_servers = {
+    let ctx = get_shared_context();
+    let auto_start_list = {
         let servers = registry.load_servers().await?;
         registry.get_auto_start_servers(&servers)
     };
 
-    if auto_start_servers.is_empty() {
+    if auto_start_list.is_empty() {
         return Ok(vec![]);
     }
 
-    let max_to_start = config.server.max_concurrent.min(auto_start_servers.len());
+    let max_to_start = config.server.max_concurrent.min(auto_start_list.len());
     let mut started_servers = Vec::new();
 
-    for server in auto_start_servers.iter().take(max_to_start) {
+    for server in auto_start_list.iter().take(max_to_start) {
         log::info!(
             "Auto-starting server: {} on port {}",
             server.name,
             server.port
         );
-        started_servers.push(format!("{}:{}", server.name, server.port));
+
+        // Check port availability
+        if !is_port_available(server.port, &config.server.bind_address) {
+            log::warn!(
+                "Port {} not available for server '{}', skipping",
+                server.port,
+                server.name
+            );
+            continue;
+        }
+
+        let server_info = crate::server::types::ServerInfo::from(server.clone());
+
+        // Actually start the web server (bind port, serve HTTP)
+        match crate::server::handlers::web::create_web_server(ctx, server_info.clone(), &config) {
+            Ok(handle) => {
+                // Store handle
+                if let Ok(mut handles) = ctx.handles.write() {
+                    handles.insert(server_info.id.clone(), handle);
+                }
+
+                // Update status in memory
+                if let Ok(mut servers) = ctx.servers.write() {
+                    if let Some(s) = servers.get_mut(&server_info.id) {
+                        s.status = ServerStatus::Running;
+                    }
+                }
+
+                // Persist status
+                let server_id = server_info.id.clone();
+                tokio::spawn(async move {
+                    persist_server_update(&server_id, ServerStatus::Running).await;
+                });
+
+                started_servers.push(format!("{}:{}", server_info.name, server_info.port));
+                log::info!(
+                    "Server '{}' started on http://{}:{}",
+                    server_info.name,
+                    config.server.bind_address,
+                    server_info.port
+                );
+            }
+            Err(e) => {
+                log::error!(
+                    "Failed to auto-start server '{}': {}",
+                    server.name,
+                    e
+                );
+
+                // Mark as failed
+                let server_id = server_info.id.clone();
+                tokio::spawn(async move {
+                    persist_server_update(&server_id, ServerStatus::Failed).await;
+                });
+            }
+        }
     }
 
-    if auto_start_servers.len() > max_to_start {
+    if auto_start_list.len() > max_to_start {
         log::warn!(
             "Skipped {} auto-start servers due to max_concurrent limit of {}",
-            auto_start_servers.len() - max_to_start,
+            auto_start_list.len() - max_to_start,
             config.server.max_concurrent
         );
     }
@@ -386,14 +448,17 @@ pub async fn auto_start_servers() -> crate::core::error::Result<Vec<String>> {
     Ok(started_servers)
 }
 
-// Füge das ganz am Ende der Datei ein, nach der letzten Funktion
-// Ersetze die start_http_redirect_server Funktion in src/server/shared.rs
-
-async fn start_http_redirect_server(_config: &Config) -> crate::core::error::Result<()> {
+async fn start_http_redirect_server(config: &Config) -> crate::core::error::Result<()> {
     let redirect_port = 80;
-    let target_https_port = 8443;
+    // In Docker, host port 443 maps to container port 3443.
+    // The redirect must use the EXTERNAL port that clients see (443), not the internal one (3443).
+    // EXTERNAL_HTTPS_PORT env var overrides the computed internal port.
+    let target_https_port = std::env::var("EXTERNAL_HTTPS_PORT")
+        .ok()
+        .and_then(|v| v.parse::<u16>().ok())
+        .unwrap_or_else(|| config.proxy.port + config.proxy.https_port_offset);
 
-    if !crate::server::utils::port::is_port_available(redirect_port) {
+    if !crate::server::utils::port::is_port_available(redirect_port, "0.0.0.0") {
         log::warn!(
             "Port {} already in use - HTTP redirect disabled",
             redirect_port
@@ -402,13 +467,13 @@ async fn start_http_redirect_server(_config: &Config) -> crate::core::error::Res
     }
 
     log::info!(
-        "Starting HTTP→HTTPS redirect server on port {}",
+        "Starting HTTP->HTTPS redirect server on port {}",
         redirect_port
     );
 
-    // LÖSUNG: std::thread::spawn statt tokio::spawn verwenden
+    // Use std::thread::spawn to avoid Send requirements on the future
     std::thread::spawn(move || {
-        // Single-thread Tokio-Runtime (keine Send-Anforderung für Futures)
+        // Single-threaded tokio runtime for the redirect server
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -424,7 +489,7 @@ async fn start_http_redirect_server(_config: &Config) -> crate::core::error::Res
         });
     });
 
-    // Kurz warten für Startup
+    // Brief wait for startup
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
     log::info!(
         "HTTP redirect active: Port {} → HTTPS Port {}",

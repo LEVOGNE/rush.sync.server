@@ -4,7 +4,7 @@ use std::time::SystemTime;
 
 use sysinfo; // 0.30+
 
-// ---------------- Prozess-Systemhandle (einmalig, wiederverwendbar) ----------------
+// ---------------- Process system handle (created once, reusable) ----------------
 
 static SYS: OnceLock<Mutex<sysinfo::System>> = OnceLock::new();
 
@@ -17,7 +17,7 @@ fn sys_handle() -> &'static Mutex<sysinfo::System> {
 #[derive(Clone, Copy, Debug)]
 pub enum ResourceKind {
     EmbeddedAsset,
-    Phase, // ΔRSS je Start-/Laufzeitphase
+    Phase, // delta RSS per startup/runtime phase
     Other,
 }
 
@@ -64,9 +64,9 @@ pub fn total_bytes() -> u64 {
         .sum()
 }
 
-// ---------------- Prozess-Metriken ----------------
+// ---------------- Process metrics ----------------
 
-// RSS in BYTES (sysinfo 0.30+ liefert Bytes)
+// RSS in bytes (sysinfo 0.30+ returns bytes)
 pub fn process_rss_bytes() -> u64 {
     let mut sys = sys_handle().lock().expect("sysinfo mutex poisoned");
     sys.refresh_processes();
@@ -101,11 +101,11 @@ pub fn total_ram_bytes() -> u64 {
     sys.total_memory() as u64
 }
 
-/// Anzahl Threads (falls nicht verfügbar: 0)
+/// Thread count (0 if unavailable)
 #[cfg(target_os = "linux")]
 pub fn process_thread_count() -> usize {
-    // Best-effort: aus /proc/self/status die "Threads:"-Zeile parsen
-    // (keine extra Dependencies)
+    // Best-effort: parse from /proc/self/status
+    // (no extra dependencies)
     use std::fs;
     if let Ok(s) = fs::read_to_string("/proc/self/status") {
         for line in s.lines() {
@@ -119,12 +119,12 @@ pub fn process_thread_count() -> usize {
 
 #[cfg(not(target_os = "linux"))]
 pub fn process_thread_count() -> usize {
-    // sysinfo 0.30 bietet hier plattformübergreifend keine Threads-API.
-    // Fallback: 0 (oder du gibst in der Anzeige "n/a" aus).
+    // sysinfo 0.30 has no cross-platform thread count API.
+    // Fallback: 0 (display layer shows "n/a" when appropriate).
     0
 }
 
-// ---------------- Scopes / Phasen-Messung ----------------
+// ---------------- Scopes / Phase measurement ----------------
 
 pub struct ScopeGuard {
     id: String,

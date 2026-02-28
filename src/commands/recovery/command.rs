@@ -1,4 +1,3 @@
-// NEW: src/commands/recovery/command.rs
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 use crate::server::types::{ServerContext, ServerStatus};
@@ -38,29 +37,41 @@ impl Command for RecoveryCommand {
     }
 
     fn priority(&self) -> u8 {
-        80 // Hohe Priorität für Recovery
+        80
     }
 }
 
 impl RecoveryCommand {
-    // ✅ AUTO-RECOVERY: Analysiert und repariert alle inkonsistenten Server
+    /// Analyzes and repairs all inconsistent servers
     fn auto_recover(&self, ctx: &ServerContext) -> String {
         let mut fixes = Vec::new();
         let registry = crate::server::shared::get_persistent_registry();
 
-        // 1. Handle-Status-Synchronisation
+        // 1. Handle-status synchronization
         let (orphaned_handles, missing_handles) = {
-            let servers = ctx.servers.read().unwrap();
-            let handles = ctx.handles.read().unwrap();
+            let servers = match ctx.servers.read() {
+                Ok(s) => s,
+                Err(e) => {
+                    log::error!("servers lock poisoned: {}", e);
+                    return "Error: lock poisoned".to_string();
+                }
+            };
+            let handles = match ctx.handles.read() {
+                Ok(h) => h,
+                Err(e) => {
+                    log::error!("handles lock poisoned: {}", e);
+                    return "Error: lock poisoned".to_string();
+                }
+            };
 
-            // Handles ohne entsprechende Server (Orphaned)
+            // Handles without corresponding servers (orphaned)
             let orphaned: Vec<String> = handles
                 .keys()
                 .filter(|id| !servers.contains_key(*id))
                 .cloned()
                 .collect();
 
-            // Running-Server ohne Handle (Missing)
+            // Running servers without a handle (missing)
             let missing: Vec<String> = servers
                 .iter()
                 .filter_map(|(id, server)| {
@@ -75,87 +86,95 @@ impl RecoveryCommand {
             (orphaned, missing)
         };
 
-        // 2. Port-Status-Validierung
+        // 2. Port status validation
         let port_fixes = self.validate_and_fix_ports(ctx);
         fixes.extend(port_fixes);
 
-        // 3. Orphaned Handles bereinigen
+        // 3. Clean up orphaned handles
         if !orphaned_handles.is_empty() {
             let count = orphaned_handles.len();
             for handle_id in orphaned_handles {
-                let mut handles = ctx.handles.write().unwrap();
+                let mut handles = match ctx.handles.write() {
+                    Ok(h) => h,
+                    Err(e) => {
+                        log::error!("handles lock poisoned: {}", e);
+                        continue;
+                    }
+                };
                 if let Some(handle) = handles.remove(&handle_id) {
-                    // Handle graceful stoppen
+                    // Stop handle gracefully
                     tokio::spawn(async move {
                         let _ = handle.stop(true).await;
                     });
                 }
             }
-            fixes.push(format!("🧹 {} orphaned handles cleaned", count));
+            fixes.push(format!("{} orphaned handles cleaned", count));
         }
 
-        // 4. Missing Handles reparieren
+        // 4. Repair missing handles
         if !missing_handles.is_empty() {
             for server_id in &missing_handles {
-                self.fix_missing_handle(ctx, &server_id);
+                self.fix_missing_handle(ctx, server_id);
             }
-            fixes.push(format!(
-                "🔧 {} missing handles fixed",
-                missing_handles.len()
-            ));
+            fixes.push(format!("{} missing handles fixed", missing_handles.len()));
         }
 
-        // 5. Persistence synchronisieren
+        // 5. Synchronize persistence
         tokio::spawn(async move {
             if let Ok(persistent_servers) = registry.load_servers().await {
-                // Hier würde man die aktuelle Runtime-State in die Persistence schreiben
                 let _ = registry.save_servers(&persistent_servers).await;
             }
         });
 
         if fixes.is_empty() {
-            "✅ All servers are in consistent state".to_string()
+            "All servers are in consistent state".to_string()
         } else {
-            format!("🛠️ Recovery completed:\n{}", fixes.join("\n"))
+            format!("Recovery completed:\n{}", fixes.join("\n"))
         }
     }
 
-    // ✅ EINZELNEN SERVER REPARIEREN
     fn recover_single_server(&self, ctx: &ServerContext, identifier: &str) -> String {
-        let servers = ctx.servers.read().unwrap();
+        let servers = match ctx.servers.read() {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("servers lock poisoned: {}", e);
+                return "Error: lock poisoned".to_string();
+            }
+        };
 
-        // Server finden
+        // Find server
         let server_info = match servers
             .values()
             .find(|s| s.id.starts_with(identifier) || s.name == identifier)
         {
             Some(server) => server.clone(),
-            None => return format!("❌ Server '{}' not found", identifier),
+            None => return format!("Server '{}' not found", identifier),
         };
 
-        drop(servers); // Lock freigeben
+        drop(servers); // Release lock
 
         let fixes = self.diagnose_and_fix_server(ctx, &server_info);
 
         if fixes.is_empty() {
             format!(
-                "✅ Server '{}' is already in consistent state",
+                "Server '{}' is already in consistent state",
                 server_info.name
             )
         } else {
-            format!(
-                "🛠️ Fixed server '{}':\n{}",
-                server_info.name,
-                fixes.join("\n")
-            )
+            format!("Fixed server '{}':\n{}", server_info.name, fixes.join("\n"))
         }
     }
 
-    // ✅ ALLE SERVER DURCHGEHEN
     fn recover_all_servers(&self, ctx: &ServerContext) -> String {
         let mut total_fixes = Vec::new();
         let servers: Vec<_> = {
-            let servers = ctx.servers.read().unwrap();
+            let servers = match ctx.servers.read() {
+                Ok(s) => s,
+                Err(e) => {
+                    log::error!("servers lock poisoned: {}", e);
+                    return "Error: lock poisoned".to_string();
+                }
+            };
             servers.values().cloned().collect()
         };
 
@@ -171,13 +190,12 @@ impl RecoveryCommand {
         }
 
         if total_fixes.is_empty() {
-            "✅ All servers are in consistent state".to_string()
+            "All servers are in consistent state".to_string()
         } else {
-            format!("🛠️ Recovery results:\n{}", total_fixes.join("\n"))
+            format!("Recovery results:\n{}", total_fixes.join("\n"))
         }
     }
 
-    // ✅ SERVER DIAGNOSE UND REPARATUR
     fn diagnose_and_fix_server(
         &self,
         ctx: &ServerContext,
@@ -185,71 +203,78 @@ impl RecoveryCommand {
     ) -> Vec<String> {
         let mut fixes = Vec::new();
 
-        // Handle-Status prüfen
         let has_handle = {
-            let handles = ctx.handles.read().unwrap();
+            let handles = match ctx.handles.read() {
+                Ok(h) => h,
+                Err(_) => return fixes,
+            };
             handles.contains_key(&server_info.id)
         };
 
-        // Port-Status prüfen
-        let port_available = is_port_available(server_info.port);
+        // Check port status (use 127.0.0.1 as conservative check)
+        let port_available = is_port_available(server_info.port, "127.0.0.1");
 
         match (server_info.status, has_handle, port_available) {
-            // INKONSISTENZ: Server soll laufen, aber kein Handle
+            // Inconsistency: server should be running but has no handle
             (ServerStatus::Running, false, _) => {
                 if port_available {
-                    // Port frei, aber Status Running → Korrigieren zu Stopped
+                    // Port free but status Running -> correct to Stopped
                     self.update_server_status(ctx, &server_info.id, ServerStatus::Stopped);
                     fixes.push("Status: Running → Stopped (no handle, port free)".to_string());
                 } else {
-                    // Port belegt, Handle fehlt → Neustart versuchen oder Failed setzen
+                    // Port occupied but handle missing -> mark as Failed
                     self.update_server_status(ctx, &server_info.id, ServerStatus::Failed);
                     fixes.push("Status: Running → Failed (no handle, port occupied)".to_string());
                 }
             }
 
-            // INKONSISTENZ: Server hat Handle, aber Status nicht Running
+            // Inconsistency: server has handle but status is not Running
             (status, true, _) if status != ServerStatus::Running => {
                 self.update_server_status(ctx, &server_info.id, ServerStatus::Running);
                 fixes.push(format!("Status: {} → Running (handle exists)", status));
             }
 
-            // INKONSISTENZ: Server Failed, aber Port ist frei
+            // Inconsistency: server Failed but port is free
             (ServerStatus::Failed, false, true) => {
                 self.update_server_status(ctx, &server_info.id, ServerStatus::Stopped);
                 fixes.push("Status: Failed → Stopped (port now free)".to_string());
             }
 
             _ => {
-                // Server ist konsistent
+                // Server is consistent
             }
         }
 
         fixes
     }
 
-    // ✅ PORT-VALIDIERUNG FÜR ALLE SERVER
     fn validate_and_fix_ports(&self, ctx: &ServerContext) -> Vec<String> {
         let mut fixes = Vec::new();
         let servers: Vec<_> = {
-            let servers = ctx.servers.read().unwrap();
+            let servers = match ctx.servers.read() {
+                Ok(s) => s,
+                Err(_) => return fixes,
+            };
             servers.values().cloned().collect()
         };
 
         for server_info in servers {
-            let port_available = is_port_available(server_info.port);
+            let port_available = is_port_available(server_info.port, "127.0.0.1");
             let has_handle = {
-                let handles = ctx.handles.read().unwrap();
+                let handles = match ctx.handles.read() {
+                    Ok(h) => h,
+                    Err(_) => continue,
+                };
                 handles.contains_key(&server_info.id)
             };
 
-            // Logik-Matrix für Port-Fixes
+            // Port fix decision matrix
             match (server_info.status, has_handle, port_available) {
                 (ServerStatus::Running, true, false) => {
-                    // OK: Server läuft, Handle da, Port belegt
+                    // OK: server running, handle present, port occupied
                 }
                 (ServerStatus::Running, false, false) => {
-                    // Problem: Server soll laufen, aber kein Handle und Port belegt
+                    // Server should be running but no handle and port is occupied
                     self.update_server_status(ctx, &server_info.id, ServerStatus::Failed);
                     fixes.push(format!(
                         "Fixed '{}': Running → Failed (orphaned)",
@@ -257,7 +282,7 @@ impl RecoveryCommand {
                     ));
                 }
                 (ServerStatus::Running, false, true) => {
-                    // Problem: Server soll laufen, kein Handle, Port frei
+                    // Server should be running but no handle and port is free
                     self.update_server_status(ctx, &server_info.id, ServerStatus::Stopped);
                     fixes.push(format!(
                         "Fixed '{}': Running → Stopped (no handle)",
@@ -271,9 +296,8 @@ impl RecoveryCommand {
         fixes
     }
 
-    // ✅ MISSING HANDLE REPARIEREN
     fn fix_missing_handle(&self, ctx: &ServerContext, server_id: &str) {
-        // Server auf Stopped setzen, da wir kein Handle haben
+        // Set server to Stopped since we have no handle
         self.update_server_status(ctx, server_id, ServerStatus::Stopped);
 
         // Async persistence update
@@ -284,7 +308,6 @@ impl RecoveryCommand {
         });
     }
 
-    // ✅ STATUS UPDATE
     fn update_server_status(&self, ctx: &ServerContext, server_id: &str, status: ServerStatus) {
         if let Ok(mut servers) = ctx.servers.write() {
             if let Some(server) = servers.get_mut(server_id) {

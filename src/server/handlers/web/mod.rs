@@ -1,4 +1,3 @@
-// src/server/handlers/web/mod.rs
 pub mod api;
 pub mod assets;
 pub mod logs;
@@ -13,7 +12,7 @@ pub use templates::*;
 
 use crate::core::config::Config;
 use crate::server::logging::ServerLogger;
-use crate::server::middleware::LoggingMiddleware;
+use crate::server::middleware::{ApiKeyAuth, LoggingMiddleware, RateLimiter};
 use crate::server::tls::TlsManager;
 use crate::server::types::{ServerContext, ServerData, ServerInfo};
 use crate::server::watchdog::{get_watchdog_manager, ws_hot_reload};
@@ -26,36 +25,21 @@ use std::time::Duration;
 
 static GLOBAL_CONFIG: OnceLock<Config> = OnceLock::new();
 
-// Funktion um Config zu setzen
+// Set the global config (called once at startup)
 pub fn set_global_config(config: Config) {
     let _ = GLOBAL_CONFIG.set(config);
 }
 
-// KORRIGIERTE Port-Funktionen mit TOML-Config
 pub fn get_proxy_http_port() -> u16 {
-    // HTTP Proxy läuft auf dem konfigurierten Proxy-Port (3000)
+    // HTTP proxy runs on the configured proxy port (default 3000)
     GLOBAL_CONFIG.get().map(|c| c.proxy.port).unwrap_or(3000)
 }
 
 pub fn get_proxy_https_port() -> u16 {
-    // HTTPS Proxy läuft auf HTTP-Port + https_port_offset
+    // HTTPS proxy runs on HTTP port + https_port_offset
     GLOBAL_CONFIG
         .get()
         .map(|c| c.proxy.port + c.proxy.https_port_offset)
-        .unwrap_or(3443)
-}
-
-// Alternative: Falls Config erweitert wird
-pub fn get_proxy_https_port_from_config() -> u16 {
-    GLOBAL_CONFIG
-        .get()
-        .map(|c| {
-            // Wenn Config später https_port_offset hat:
-            // c.proxy.port + c.proxy.https_port_offset
-
-            // Aktuell: Standardoffset
-            c.proxy.port + 443
-        })
         .unwrap_or(3443)
 }
 
@@ -63,19 +47,14 @@ pub fn create_server_directory_and_files(
     server_name: &str,
     port: u16,
 ) -> crate::core::error::Result<PathBuf> {
-    let exe_path = std::env::current_exe().map_err(crate::core::error::AppError::Io)?;
-    let base_dir = exe_path.parent().ok_or_else(|| {
-        crate::core::error::AppError::Validation(
-            "Cannot determine executable directory".to_string(),
-        )
-    })?;
+    let base_dir = crate::core::helpers::get_base_dir()?;
 
     let server_dir = base_dir
         .join("www")
         .join(format!("{}-[{}]", server_name, port));
     std::fs::create_dir_all(&server_dir).map_err(crate::core::error::AppError::Io)?;
 
-    // Template-Pfade korrigiert für neue Struktur
+    // Generate files from templates
     let readme_template = include_str!("../templates/README.md");
     let readme_content = readme_template
         .replace("{{SERVER_NAME}}", server_name)
@@ -126,7 +105,7 @@ pub fn create_web_server(
         }
     });
 
-    // KORRIGIERTE ServerDataWithConfig mit richtigen Ports
+    // Build server data with proxy port configuration
     let server_data = web::Data::new(ServerDataWithConfig {
         server: ServerData {
             id: server_id.clone(),
@@ -142,7 +121,11 @@ pub fn create_web_server(
 
     let tls_config = if config.server.enable_https && config.server.auto_cert {
         match TlsManager::new(&config.server.cert_dir, config.server.cert_validity_days) {
-            Ok(tls_manager) => match tls_manager.get_rustls_config(&server_name, server_port) {
+            Ok(tls_manager) => match tls_manager.get_rustls_config_for_domain(
+                &server_name,
+                server_port,
+                &config.server.production_domain,
+            ) {
                 Ok(rustls_config) => {
                     log::info!("TLS certificate loaded for {}:{}", server_name, server_port);
                     Some(rustls_config)
@@ -161,14 +144,39 @@ pub fn create_web_server(
         None
     };
 
+    let production_domain = config.server.production_domain.clone();
+    let api_key = config.server.api_key.clone();
+    let rate_limit_rps = config.server.rate_limit_rps;
+    let rate_limit_enabled = config.server.rate_limit_enabled;
     let mut http_server = HttpServer::new(move || {
+        let prod_domain = production_domain.clone();
         App::new()
             .app_data(server_data.clone())
             .app_data(web::Data::new(watchdog_manager.clone()))
             .wrap(LoggingMiddleware::new(server_logger_for_app.clone()))
+            .wrap(RateLimiter::new(rate_limit_rps, rate_limit_enabled))
+            .wrap(ApiKeyAuth::new(api_key.clone()))
             .wrap(middleware::Compress::default())
-            .wrap(LoggingMiddleware::new(server_logger_for_app.clone()))
-            .wrap(Cors::permissive())
+            .wrap(
+                Cors::default()
+                    .allowed_origin_fn(move |origin, _req_head| {
+                        let origin_str = origin.to_str().unwrap_or("");
+                        // Always allow local development
+                        let is_local =
+                            origin_str.contains("127.0.0.1") || origin_str.contains("localhost");
+                        if is_local {
+                            return true;
+                        }
+                        // Allow production domain if configured
+                        if prod_domain != "localhost" {
+                            return origin_str.contains(&prod_domain);
+                        }
+                        false
+                    })
+                    .allow_any_method()
+                    .allow_any_header()
+                    .max_age(3600),
+            )
             // Assets
             .route("/.rss/_reset.css", web::get().to(serve_global_reset_css))
             .route("/.rss/style.css", web::get().to(serve_system_css))
@@ -181,7 +189,7 @@ pub fn create_web_server(
             .route("/.rss/js/rush-app.js", web::get().to(serve_rush_app_js))
             .route("/.rss/js/rush-api.js", web::get().to(serve_rush_api_js))
             .route("/.rss/js/rush-ui.js", web::get().to(serve_rush_ui_js))
-            // API Routes - SPEZIFISCH VOR GENERISCH
+            // API Routes (specific before generic)
             .route("/api/status", web::get().to(status_handler))
             .route("/api/health", web::get().to(health_handler))
             .route("/api/info", web::get().to(info_handler))
@@ -193,9 +201,22 @@ pub fn create_web_server(
             .route("/api/close-browser", web::get().to(close_browser_handler))
             .route("/api/logs", web::get().to(logs_handler))
             .route("/api/logs/raw", web::get().to(logs_raw_handler))
+            .route("/api/acme/status", web::get().to(acme_status_handler))
+            .route("/api/acme/dashboard", web::get().to(acme_dashboard_handler))
+            .route("/api/analytics", web::get().to(analytics_handler))
+            .route("/api/analytics/dashboard", web::get().to(analytics_dashboard_handler))
+            // File Management API
+            .route("/api/files", web::get().to(list_files))
+            .route("/api/files/{path:.*}", web::put().to(upload_file))
+            .route("/api/files/{path:.*}", web::delete().to(delete_file))
+            // ACME Challenge (Let's Encrypt)
+            .route(
+                "/.well-known/acme-challenge/{token}",
+                web::get().to(acme_challenge_handler),
+            )
             // WebSocket Routes
             .route("/ws/hot-reload", web::get().to(ws_hot_reload))
-            // ===== FALLBACK ZULETZT =====
+            // Fallback (must be last)
             .default_service(web::route().to(serve_fallback_or_inject))
     })
     .workers(config.server.workers)
@@ -203,17 +224,32 @@ pub fn create_web_server(
     .disable_signals();
 
     http_server = http_server
-        .bind(("127.0.0.1", server_info.port))
+        .bind((&*config.server.bind_address, server_info.port))
         .map_err(|e| format!("HTTP bind failed: {}", e))?;
 
-    if tls_config.is_some() {
-        let https_port = server_port + 443; // FIXME: config.server.https_port_offset existiert nicht
-        log::info!("TLS certificate ready for HTTPS on port {}", https_port);
-        log::info!(
-            "Certificate: .rss/certs/{}-{}.cert",
-            server_name,
-            server_port
+    if let Some(tls_cfg) = tls_config {
+        let https_port = server_port + config.server.https_port_offset;
+        let bind_result = http_server.bind_rustls_021(
+            (&*config.server.bind_address, https_port),
+            tls_cfg.as_ref().clone(),
         );
+        match bind_result {
+            Ok(server) => {
+                http_server = server;
+                log::info!("HTTPS active for {} on port {}", server_name, https_port);
+            }
+            Err(e) => {
+                log::error!(
+                    "HTTPS bind failed for {} on port {}: {}",
+                    server_name,
+                    https_port,
+                    e
+                );
+                log::info!("Continuing with HTTP only");
+                // http_server was consumed by bind_rustls_021, need to return error
+                return Err(format!("HTTPS bind failed: {}", e));
+            }
+        }
     }
 
     let server_result = http_server.run();
@@ -231,6 +267,7 @@ pub fn create_web_server(
         let proxy_server_id = server_id.clone();
         let proxy_server_port = server_port;
         let startup_delay_clone = startup_delay;
+        let bind_addr = config.server.bind_address.clone();
 
         tokio::spawn(async move {
             tokio::time::sleep(tokio::time::Duration::from_millis(
@@ -249,9 +286,10 @@ pub fn create_web_server(
                 );
             } else {
                 log::info!(
-                    "Server {} registered with proxy: {}.localhost -> 127.0.0.1:{}",
+                    "Server {} registered with proxy: {} -> {}:{}",
                     proxy_server_name,
                     proxy_server_name,
+                    bind_addr,
                     proxy_server_port
                 );
             }
@@ -259,7 +297,22 @@ pub fn create_web_server(
     }
 
     std::thread::spawn(move || {
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(e) => {
+                log::error!(
+                    "Failed to create runtime for server {}: {}",
+                    server_id_for_thread,
+                    e
+                );
+                if let Ok(mut servers) = servers_clone.write() {
+                    if let Some(server) = servers.get_mut(&server_id_for_thread) {
+                        server.status = crate::server::types::ServerStatus::Failed;
+                    }
+                }
+                return;
+            }
+        };
         rt.block_on(async move {
             match server_result.await {
                 Ok(_) => log::info!("Server {} ended normally", server_id_for_thread),

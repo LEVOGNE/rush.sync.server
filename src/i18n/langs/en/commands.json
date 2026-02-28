@@ -269,5 +269,33 @@
 
   "system.commands.version.text": "Rush Sync Server Version {0}",
   "system.commands.version.display_text": "VERSION",
-  "system.commands.version.category": "version"
+  "system.commands.version.category": "version",
+
+  "server.error.name_taken.text": "Server name '{0}' is already taken!",
+  "server.error.name_taken.display_text": "ERROR",
+  "server.error.name_taken.category": "error",
+
+  "server.error.port_used.text": "Port {0} is already in use!",
+  "server.error.port_used.display_text": "ERROR",
+  "server.error.port_used.category": "error",
+
+  "server.error.port_occupied.text": "Port {0} is already occupied!",
+  "server.error.port_occupied.display_text": "ERROR",
+  "server.error.port_occupied.category": "error",
+
+  "server.error.id_missing.text": "Server ID/name missing! Use '<cmd> <ID>', '<cmd> 1-3', '<cmd> all'",
+  "server.error.id_missing.display_text": "ERROR",
+  "server.error.id_missing.category": "error",
+
+  "server.error.port_used_by_us.text": "Port {0} is already used by our system",
+  "server.error.port_used_by_us.display_text": "ERROR",
+  "server.error.port_used_by_us.category": "error",
+
+  "server.error.port_used_by_other.text": "Port {0} is occupied by another process! Server '{1}' stays stopped.",
+  "server.error.port_used_by_other.display_text": "ERROR",
+  "server.error.port_used_by_other.category": "error",
+
+  "server.error.not_found.text": "Server '{0}' not found",
+  "server.error.not_found.display_text": "ERROR",
+  "server.error.not_found.category": "error"
 }

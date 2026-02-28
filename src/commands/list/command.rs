@@ -36,7 +36,13 @@ impl Command for ListCommand {
 impl ListCommand {
     fn list_servers(&self, ctx: &ServerContext) -> String {
         let registry = crate::server::shared::get_persistent_registry();
-        let servers = ctx.servers.read().unwrap();
+        let servers = match ctx.servers.read() {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("servers lock poisoned: {}", e);
+                return "Error: server lock poisoned".to_string();
+            }
+        };
 
         if servers.is_empty() {
             return format!(

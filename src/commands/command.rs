@@ -6,16 +6,16 @@ pub trait Command: Send + Sync + std::fmt::Debug + 'static {
     fn description(&self) -> &'static str;
     fn matches(&self, command: &str) -> bool;
 
-    // Hauptausführung - immer implementieren
+    // Async execution - default calls sync version
     async fn execute(&self, args: &[&str]) -> Result<String> {
-        // Einfach & robust: vorhandene Sync-Logik nutzen
         self.execute_sync(args)
     }
 
-    // Optional: Sync-Fallback für Commands die es brauchen
-    fn execute_sync(&self, args: &[&str]) -> Result<String> {
-        // Default: Blockiert auf async execute
-        futures::executor::block_on(self.execute(args))
+    // Sync execution - MUST be implemented by commands that don't override execute()
+    fn execute_sync(&self, _args: &[&str]) -> Result<String> {
+        Err(crate::core::error::AppError::Validation(
+            "Command must implement either execute() or execute_sync()".to_string(),
+        ))
     }
 
     fn priority(&self) -> u8 {

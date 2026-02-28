@@ -12,7 +12,7 @@ impl ServerManager {
     }
 
     pub fn get_server_info(&self, identifier: &str) -> Result<ServerInfo> {
-        let servers = self.ctx.servers.read().unwrap();
+        let servers = read_lock(&self.ctx.servers, "servers")?;
         let server = crate::server::utils::validation::find_server(&servers, identifier)?;
         Ok(server.clone())
     }

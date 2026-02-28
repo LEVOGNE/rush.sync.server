@@ -18,15 +18,17 @@ impl Command for HistoryCommand {
     }
 
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
+        use crate::core::constants::{SIG_CLEAR_HISTORY, SIG_CONFIRM_PREFIX};
         match args.first() {
-            // ✅ NEU: Bestätigungssystem für -c/--clear
             Some(&"-c" | &"--clear") => {
                 let msg = get_command_translation("system.commands.history.confirm_clear", &[]);
-                Ok(format!("__CONFIRM:__CLEAR_HISTORY__{}", msg))
+                Ok(format!(
+                    "{}{}{}",
+                    SIG_CONFIRM_PREFIX, SIG_CLEAR_HISTORY, msg
+                ))
             }
 
-            // ✅ NEU: --force für direktes Löschen ohne Bestätigung
-            Some(&"--force-clear" | &"-fc") => Ok("__CLEAR_HISTORY__".to_string()),
+            Some(&"--force-clear" | &"-fc") => Ok(SIG_CLEAR_HISTORY.to_string()),
 
             Some(&"-h" | &"--help") => {
                 Ok(get_command_translation("system.commands.history.help", &[]))

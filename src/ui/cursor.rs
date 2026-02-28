@@ -248,13 +248,13 @@ impl UiCursor {
     }
 
     pub fn full_debug(&self) -> String {
-        format!("🔍 FULL CURSOR DEBUG:\nKind: {:?}\nType: {:?}\nSymbol: '{}'\nCursor Color: '{}'\nText Color: '{}'\nPosition: {}/{}\nVisible: {}",
+        format!("FULL CURSOR DEBUG:\nKind: {:?}\nType: {:?}\nSymbol: '{}'\nCursor Color: '{}'\nText Color: '{}'\nPosition: {}/{}\nVisible: {}",
             self.kind, self.ctype, self.get_symbol(), self.color.to_name(), self.fg.to_name(),
             self.position, self.text_length, self.blink_visible)
     }
 
     pub fn detailed_debug(&self) -> String {
-        format!("🔍 DETAILED CURSOR DEBUG:\n🏷️ Kind: {:?}\n🎯 Type: {:?} (symbol: '{}')\n🎨 Cursor Color: '{}'\n🎨 Text Color (fg): '{}'\n📍 Position: {}/{}\n👁️ Visible: {}\n⏱️ Last Blink: {:?}",
+        format!("DETAILED CURSOR DEBUG:\nKind: {:?}\nType: {:?} (symbol: '{}')\nCursor Color: '{}'\nText Color (fg): '{}'\nPosition: {}/{}\nVisible: {}\nLast Blink: {:?}",
             self.kind, self.ctype, self.get_symbol(), self.color.to_name(), self.fg.to_name(),
             self.position, self.text_length, self.blink_visible, self.last_blink.elapsed())
     }

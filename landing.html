@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<!-- /rss.js -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RUSH.SYNC.SERVER</title>
+    <link rel="icon" href="/.rss/favicon.svg" type="image/svg+xml">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-card-hover: #1a1a26;
+            --border: #2a2a3a;
+            --text: #e4e4ef;
+            --text-dim: #8888a0;
+            --accent: #6c63ff;
+            --accent-glow: rgba(108, 99, 255, 0.15);
+            --green: #4ade80;
+            --orange: #fb923c;
+            --cyan: #22d3ee;
+            --pink: #f472b6;
+        }
+
+        [data-theme="light"] {
+            --bg: #f5f5fa;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f0f0f8;
+            --border: #d8d8e8;
+            --text: #1a1a2e;
+            --text-dim: #606078;
+            --accent: #5b52e6;
+            --accent-glow: rgba(108, 99, 255, 0.08);
+            --green: #16a34a;
+            --orange: #ea580c;
+            --cyan: #0891b2;
+            --pink: #db2777;
+        }
+        [data-theme="light"] .grain { opacity: 0; }
+        [data-theme="light"] .glow-orb { opacity: 0.04; }
+        [data-theme="light"] .status-version { background: rgba(0,0,0,0.05); }
+        [data-theme="light"] .arch-box { background: #ffffff; border-color: var(--border); }
+        [data-theme="light"] .arch-box .hl-dim { color: #aaaabc; }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html {
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+            width: 100%;
+            position: relative;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .glow-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.12;
+            pointer-events: none;
+        }
+
+        .glow-orb.purple { background: #6c63ff; width: 400px; height: 400px; top: -100px; right: 0; }
+        .glow-orb.cyan { background: #22d3ee; width: 300px; height: 300px; top: 400px; left: 0; }
+        .glow-orb.pink { background: #f472b6; width: 350px; height: 350px; bottom: 200px; right: 0; }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
+            position: relative;
+        }
+
+        /* Hero */
+        .hero {
+            padding: 100px 0 60px;
+            text-align: center;
+            position: relative;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 16px;
+            background: var(--accent-glow);
+            border: 1px solid rgba(108, 99, 255, 0.3);
+            border-radius: 100px;
+            font-size: 13px;
+            color: var(--accent);
+            letter-spacing: 0.5px;
+            margin-bottom: 24px;
+        }
+
+        .hero h1 {
+            font-size: clamp(28px, 7vw, 72px);
+            font-weight: 800;
+            letter-spacing: -2px;
+            line-height: 1.05;
+            margin-bottom: 20px;
+            word-break: break-word;
+        }
+
+        .hero h1 .dot { color: var(--accent); }
+
+        .hero .subtitle {
+            font-size: 20px;
+            color: var(--text-dim);
+            max-width: 600px;
+            margin: 0 auto 40px;
+            font-weight: 400;
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 48px;
+            flex-wrap: wrap;
+        }
+
+        .hero-stat {
+            text-align: center;
+        }
+
+        .hero-stat .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .hero-stat .label {
+            font-size: 13px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Architecture */
+        .architecture {
+            padding: 60px 0;
+        }
+
+        .arch-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+            color: var(--text-dim);
+            overflow-x: auto;
+            white-space: pre;
+            max-width: 100%;
+        }
+
+        .arch-box .hl-purple { color: var(--accent); }
+        .arch-box .hl-green { color: var(--green); }
+        .arch-box .hl-cyan { color: var(--cyan); }
+        .arch-box .hl-orange { color: var(--orange); }
+        .arch-box .hl-pink { color: var(--pink); }
+        .arch-box .hl-dim { color: #555566; }
+
+        /* Section */
+        .section {
+            padding: 60px 0;
+        }
+
+        .section-label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .section-title {
+            font-size: 36px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            margin-bottom: 48px;
+        }
+
+        /* Feature Grid */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .features > a {
+            display: flex;
+        }
+
+        .feature {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px;
+            transition: all 0.25s ease;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .feature p {
+            flex: 1;
+        }
+
+        .feature:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(108, 99, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .feature-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 16px;
+        }
+
+        .feature-icon.purple { background: rgba(108, 99, 255, 0.15); }
+        .feature-icon.green { background: rgba(74, 222, 128, 0.15); }
+        .feature-icon.cyan { background: rgba(34, 211, 238, 0.15); }
+        .feature-icon.orange { background: rgba(251, 146, 60, 0.15); }
+        .feature-icon.pink { background: rgba(244, 114, 182, 0.15); }
+
+        .feature h3 {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .feature p {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        /* API Table */
+        .api-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .api-table th {
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .api-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(42, 42, 58, 0.5);
+            font-size: 14px;
+        }
+
+        .api-table tr:hover td {
+            background: var(--bg-card);
+        }
+
+        .api-table code {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            background: var(--accent-glow);
+            color: var(--accent);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .method {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .method.get { background: rgba(74, 222, 128, 0.15); color: var(--green); }
+        .method.ws { background: rgba(244, 114, 182, 0.15); color: var(--pink); }
+
+        .badge-public {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(74, 222, 128, 0.1);
+            color: var(--green);
+            border: 1px solid rgba(74, 222, 128, 0.2);
+        }
+
+        .badge-auth {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(251, 146, 60, 0.1);
+            color: var(--orange);
+            border: 1px solid rgba(251, 146, 60, 0.2);
+        }
+
+        /* Tech Stack */
+        .stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .stack-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .stack-item span {
+            color: var(--text-dim);
+            font-weight: 400;
+            font-size: 12px;
+            display: block;
+        }
+
+        /* Status */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 24px;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4); }
+            50% { opacity: 0.8; box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); }
+        }
+
+        .status-text {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status-text span {
+            color: var(--text-dim);
+            font-weight: 400;
+        }
+
+        .status-spacer { flex: 1; }
+
+        .status-version {
+            font-family: 'SF Mono', monospace;
+            font-size: 13px;
+            color: var(--text-dim);
+            background: rgba(255,255,255,0.05);
+            padding: 4px 12px;
+            border-radius: 6px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 48px 0;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 13px;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        /* Doc Cards */
+        .doc-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .doc-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .doc-card:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(108, 99, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .doc-card-icon {
+            width: 48px; height: 48px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+            margin-bottom: 16px;
+        }
+
+        .doc-card h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+        .doc-card p { font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+
+        .doc-card .doc-hint {
+            margin-top: 14px;
+            font-size: 12px;
+            color: var(--accent);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.82);
+            backdrop-filter: blur(12px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal-box {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 920px;
+            padding: 48px;
+            position: relative;
+            margin: auto;
+        }
+
+        .modal-close {
+            position: sticky;
+            top: 0;
+            float: right;
+            width: 38px; height: 38px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-dim);
+            font-size: 20px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+
+        .modal-close:hover { background: var(--bg-card-hover); color: var(--text); }
+
+        /* Rendered Markdown */
+        .md-content h1 { font-size: 28px; font-weight: 700; margin: 32px 0 16px; letter-spacing: -0.5px; }
+        .md-content h2 { font-size: 22px; font-weight: 600; margin: 28px 0 12px; color: var(--accent); }
+        .md-content h3 { font-size: 17px; font-weight: 600; margin: 20px 0 8px; }
+        .md-content h4 { font-size: 15px; font-weight: 600; margin: 16px 0 6px; color: var(--text-dim); }
+        .md-content p { margin: 8px 0; line-height: 1.7; color: var(--text-dim); }
+        .md-content strong { color: var(--text); }
+        .md-content em { color: var(--text-dim); font-style: italic; }
+        .md-content hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+        .md-content a { color: var(--accent); text-decoration: none; }
+        .md-content a:hover { text-decoration: underline; }
+
+        .md-content pre {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px 20px;
+            overflow-x: auto;
+            margin: 12px 0;
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text);
+        }
+
+        .md-content code {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            background: var(--accent-glow);
+            color: var(--accent);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .md-content pre code { background: none; color: var(--text); padding: 0; }
+
+        .md-content blockquote {
+            border-left: 3px solid var(--accent);
+            padding: 8px 16px;
+            margin: 12px 0;
+            background: var(--accent-glow);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .md-content ul, .md-content ol { padding-left: 24px; margin: 8px 0; }
+        .md-content li { margin: 4px 0; line-height: 1.6; color: var(--text-dim); }
+
+        .md-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 14px;
+        }
+
+        .md-content th {
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 2px solid var(--border);
+            color: var(--text);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .md-content td {
+            padding: 8px 14px;
+            border-bottom: 1px solid rgba(42, 42, 58, 0.5);
+            color: var(--text-dim);
+        }
+
+        .md-content tr:hover td { background: var(--bg-card); }
+
+        .md-loading {
+            text-align: center;
+            padding: 60px 0;
+            color: var(--text-dim);
+            font-size: 15px;
+        }
+
+        .md-loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px; height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            margin-left: 12px;
+            vertical-align: middle;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-dim);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s;
+            font-size: 18px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .theme-toggle:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 0 16px; }
+            .hero { padding: 60px 0 40px; }
+            .hero-stats { gap: 20px; }
+            .hero-stat .value { font-size: 26px; }
+            .arch-box { font-size: 10px; padding: 16px; line-height: 1.6; }
+            .architecture { padding: 30px 0; }
+            .features { grid-template-columns: 1fr; }
+            .section { padding: 40px 0; }
+            .section-title { font-size: 26px; margin-bottom: 32px; }
+            .doc-cards { grid-template-columns: 1fr; }
+            .modal-box { padding: 20px; }
+            .modal-overlay { padding: 16px 8px; }
+            .status-bar { flex-direction: column; text-align: center; gap: 8px; padding: 12px 16px; }
+            .api-table { font-size: 12px; display: block; overflow-x: auto; }
+            .api-table td, .api-table th { padding: 8px 6px; white-space: nowrap; }
+            .stack { justify-content: center; }
+            .stack-item { padding: 10px 14px; font-size: 13px; }
+            .feature { padding: 20px; }
+            .glow-orb { display: none; }
+            .theme-toggle { top: 12px; right: 12px; width: 38px; height: 38px; }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Theme: System"></button>
+    <div class="grain"></div>
+    <div class="glow-orb purple"></div>
+    <div class="glow-orb cyan"></div>
+    <div class="glow-orb pink"></div>
+
+    <div class="container">
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-dot"></div>
+            <div class="status-text">System Operational <span>| All services running</span></div>
+            <div class="status-spacer"></div>
+            <a href="/api/analytics/dashboard" style="color:var(--accent);text-decoration:none;font-size:13px;font-weight:600;padding:4px 12px;border:1px solid rgba(108,99,255,0.3);border-radius:6px;transition:all 0.2s;">Analytics</a>
+            <a href="/api/acme/dashboard" style="color:var(--green);text-decoration:none;font-size:13px;font-weight:600;padding:4px 12px;border:1px solid rgba(74,222,128,0.3);border-radius:6px;transition:all 0.2s;">ACME/TLS</a>
+            <a href="/.rss/" style="color:var(--cyan);text-decoration:none;font-size:13px;font-weight:600;padding:4px 12px;border:1px solid rgba(34,211,238,0.3);border-radius:6px;transition:all 0.2s;">Dashboard</a>
+            <div class="status-version">v0.3.8</div>
+        </div>
+
+        <!-- Release Banner -->
+        <div style="background: linear-gradient(135deg, rgba(108,99,255,0.12), rgba(74,222,128,0.08)); border: 1px solid rgba(108,99,255,0.25); border-radius: 12px; padding: 20px 28px; margin-bottom: 32px;">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <span style="background: var(--green); color: #0a0a0f; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 6px; letter-spacing: 0.5px;">FIRST PUBLIC RELEASE</span>
+                <span style="font-size: 15px; font-weight: 600;">v0.3.8 &mdash; Official Public Version</span>
+            </div>
+            <p style="color: var(--text-dim); font-size: 14px; margin-top: 10px; line-height: 1.6;">
+                Versions 0.1.0 through 0.3.7 were internal development builds &mdash; developed and tested daily since February 2025, with hundreds of bug fixes and countless iterations. This is the first version released for the public &mdash; stable, Docker-ready, and production-tested.
+            </p>
+        </div>
+
+        <!-- Hero -->
+        <section class="hero">
+            <div class="badge">All-in-One Server Infrastructure</div>
+            <h1>RUSH<span class="dot">.</span>SYNC<span class="dot">.</span>SERVER</h1>
+            <p class="subtitle">
+                Reverse Proxy, Multi-Server Management, Auto-TLS, API Authentication,
+                Hot Reload &mdash; one binary, zero dependencies.
+            </p>
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <div class="value">~10 MB</div>
+                    <div class="label">Binary Size</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="value">50</div>
+                    <div class="label">Max Servers</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="value">0</div>
+                    <div class="label">Dependencies</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="value">&lt;1s</div>
+                    <div class="label">Boot Time</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="value" id="lv-visitors">-</div>
+                    <div class="label">Visitors (7d)</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="value" id="lv-views">-</div>
+                    <div class="label">Page Views (7d)</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Download -->
+        <section class="section">
+            <div class="section-label">Download</div>
+            <h2 class="section-title">Get Started</h2>
+            <p style="color: var(--text-dim); font-size: 15px; margin-bottom: 28px; line-height: 1.7;">
+                Single binary, zero dependencies. Download, make executable, run. That's it.
+            </p>
+
+            <div class="features" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+                <a href="/downloads/rush-sync-linux-amd64.bin" download="rush-sync" style="text-decoration: none;">
+                    <div class="feature" style="border-color: rgba(251, 146, 60, 0.25); text-align: center;">
+                        <div class="feature-icon orange" style="margin: 0 auto 16px; width: 56px; height: 56px; font-size: 26px;">&#129504;</div>
+                        <h3 style="color: var(--orange);">Linux</h3>
+                        <p>x86_64 &middot; GNU/Linux</p>
+                        <div style="margin-top: 16px; padding: 10px 24px; background: var(--orange); color: #0a0a0f; border-radius: 8px; font-weight: 600; font-size: 14px; transition: opacity 0.2s;">Download</div>
+                        <div style="margin-top: 10px; font-size: 12px; color: var(--text-dim);">v0.3.8 &middot; 11 MB</div>
+                        <div style="margin-top: 6px; font-size: 11px; color: var(--text-dim); font-family: 'SF Mono', monospace;">chmod +x rush-sync</div>
+                    </div>
+                </a>
+                <a href="/downloads/rush-sync-macos-arm64.bin" download="rush-sync" style="text-decoration: none;">
+                    <div class="feature" style="border-color: rgba(108, 99, 255, 0.25); text-align: center;">
+                        <div class="feature-icon purple" style="margin: 0 auto 16px; width: 56px; height: 56px; font-size: 26px;">&#128187;</div>
+                        <h3 style="color: var(--accent);">macOS</h3>
+                        <p>Apple Silicon (M1/M2/M3/M4)</p>
+                        <div style="margin-top: 16px; padding: 10px 24px; background: var(--accent); color: white; border-radius: 8px; font-weight: 600; font-size: 14px; transition: opacity 0.2s;">Download</div>
+                        <div style="margin-top: 10px; font-size: 12px; color: var(--text-dim);">v0.3.8 &middot; 9.5 MB</div>
+                        <div style="margin-top: 6px; font-size: 11px; color: var(--text-dim); font-family: 'SF Mono', monospace;">chmod +x rush-sync</div>
+                    </div>
+                </a>
+                <a href="/downloads/rush-sync-windows-amd64.exe" download="rush-sync.exe" style="text-decoration: none;">
+                    <div class="feature" style="border-color: rgba(34, 211, 238, 0.25); text-align: center;">
+                        <div class="feature-icon cyan" style="margin: 0 auto 16px; width: 56px; height: 56px; font-size: 26px;">&#9638;</div>
+                        <h3 style="color: var(--cyan);">Windows</h3>
+                        <p>x86_64 &middot; Windows 10/11</p>
+                        <div style="margin-top: 16px; padding: 10px 24px; background: var(--cyan); color: #0a0a0f; border-radius: 8px; font-weight: 600; font-size: 14px; transition: opacity 0.2s;">Download</div>
+                        <div style="margin-top: 10px; font-size: 12px; color: var(--text-dim);">v0.3.8 &middot; 12 MB</div>
+                    </div>
+                </a>
+            </div>
+
+            <div style="margin-top: 16px; text-align: center;">
+                <a href="/downloads/README.md" download="README.md" style="color: var(--accent); text-decoration: none; font-size: 13px; font-weight: 500;">Installation Guide (README.md)</a>
+                <span style="color: var(--text-dim); font-size: 13px;"> &mdash; macOS Gatekeeper, Linux permissions, Windows Defender</span>
+            </div>
+
+            <div style="margin-top: 16px; padding: 16px 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;">
+                <pre style="margin: 0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; color: var(--text-dim); line-height: 1.8; overflow-x: auto;"><span style="color: var(--text-dim);"># Linux / macOS</span>
+<span style="color: var(--green);">xattr</span> -d com.apple.quarantine rush-sync  <span style="color: var(--text-dim);"># macOS only</span>
+<span style="color: var(--green);">chmod</span> +x rush-sync
+<span style="color: var(--green);">./rush-sync</span>
+
+<span style="color: var(--text-dim);"># Or with Docker</span>
+<span style="color: var(--green);">docker</span> pull ghcr.io/levogne/rush-sync-server
+<span style="color: var(--green);">docker</span> run -p 8000:8000 -p 3000:3000 rush-sync-server</pre>
+            </div>
+        </section>
+
+        <!-- Quick Start Video -->
+        <section class="section">
+            <div class="section-label">Quick Start</div>
+            <h2 class="section-title">From zero to server in 1 minute</h2>
+            <p style="color: var(--text-dim); font-size: 15px; margin-bottom: 28px; line-height: 1.7;">
+                Watch how to start a web server, create an HTML page, and see Hot Reload in action &mdash; all in under 60 seconds. No audio needed, just follow along.
+            </p>
+            <div class="video-container">
+                <video
+                    muted
+                    controls
+                    playsinline
+                    preload="metadata"
+                    style="width: 100%; border-radius: 14px; border: 1px solid var(--border); background: #000;"
+                >
+                    <source src="/downloads/startup.mp4" type="video/mp4">
+                    <source src="/downloads/startup.webm" type="video/webm">
+                    Your browser does not support video playback.
+                </video>
+                <div style="display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 14px 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; flex-wrap: wrap;">
+                    <span style="background: rgba(74, 222, 128, 0.15); color: var(--green); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; letter-spacing: 0.5px;">NO AUDIO</span>
+                    <span style="color: var(--text-dim); font-size: 14px;">Start binary &rarr; Create server &rarr; Edit HTML &rarr; Hot Reload updates the browser instantly</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Architecture -->
+        <section class="architecture">
+            <div class="arch-box"><span class="hl-dim">Internet</span>
+  <span class="hl-dim">│</span>
+  <span class="hl-dim">├──</span> <span class="hl-green">default</span>.rush-sync-server.com <span class="hl-dim">──┐</span>
+  <span class="hl-dim">├──</span> <span class="hl-cyan">myapp</span>.rush-sync-server.com <span class="hl-dim">────┤</span>
+  <span class="hl-dim">├──</span> <span class="hl-pink">blog</span>.rush-sync-server.com <span class="hl-dim">─────┤</span>
+  <span class="hl-dim">│                                    ▼</span>
+  <span class="hl-dim">│                         ┌───────────────────┐</span>
+  <span class="hl-dim">│                         │</span>   <span class="hl-purple">Reverse Proxy</span>     <span class="hl-dim">│</span>
+  <span class="hl-dim">│                         │</span>   <span class="hl-orange">:3000</span> HTTP         <span class="hl-dim">│</span>
+  <span class="hl-dim">│                         │</span>   <span class="hl-orange">:3443</span> HTTPS        <span class="hl-dim">│</span>
+  <span class="hl-dim">│                         └──┬──────┬──────┬───┘</span>
+  <span class="hl-dim">│                            │      │      │</span>
+  <span class="hl-dim">│                            ▼      ▼      ▼</span>
+  <span class="hl-dim">│                         </span><span class="hl-green">:8000</span>  <span class="hl-cyan">:8001</span>  <span class="hl-pink">:8002</span>
+  <span class="hl-dim">│                        </span> <span class="hl-green">default</span> <span class="hl-cyan">myapp</span>   <span class="hl-pink">blog</span></div>
+        </section>
+
+        <!-- Live Demo -->
+        <section class="section">
+            <div class="section-label">Live Demo</div>
+            <h2 class="section-title">See it in action</h2>
+            <p style="color: var(--text-dim); font-size: 15px; margin-bottom: 28px; line-height: 1.7;">
+                Every subdomain below is served by this Rush Sync Server instance. Click to explore &mdash; each one demonstrates a different capability.
+            </p>
+
+            <div class="features" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                <a href="https://default.rush-sync-server.com" target="_blank" style="text-decoration: none;">
+                    <div class="feature" style="border-color: rgba(74, 222, 128, 0.25);">
+                        <div class="feature-icon green">&#127968;</div>
+                        <h3 style="color: var(--green);">default.rush-sync-server.com</h3>
+                        <p>The landing page you're looking at right now. Served from the default server on port 8000.</p>
+                        <div style="margin-top: 12px; font-size: 12px; color: var(--green); letter-spacing: 0.5px; text-transform: uppercase;">Visit &rarr;</div>
+                    </div>
+                </a>
+                <a href="https://blog.rush-sync-server.com" target="_blank" style="text-decoration: none;">
+                    <div class="feature" style="border-color: rgba(244, 114, 182, 0.25);">
+                        <div class="feature-icon pink">&#128221;</div>
+                        <h3 style="color: var(--pink);">blog.rush-sync-server.com</h3>
+                        <p>Developer blog with the origin story, timeline, and technical insights. Built-in &mdash; no CMS, no database, just the proxy.</p>
+                        <div style="margin-top: 12px; font-size: 12px; color: var(--pink); letter-spacing: 0.5px; text-transform: uppercase;">Read the blog &rarr;</div>
+                    </div>
+                </a>
+                <a href="https://myapp.rush-sync-server.com" target="_blank" style="text-decoration: none;">
+                    <div class="feature" style="border-color: rgba(34, 211, 238, 0.25);">
+                        <div class="feature-icon cyan">&#127912;</div>
+                        <h3 style="color: var(--cyan);">myapp.rush-sync-server.com</h3>
+                        <p>Interactive showroom &mdash; this subdomain doesn't exist, so the proxy shows an animated demo with terminal, features, and stats.</p>
+                        <div style="margin-top: 12px; font-size: 12px; color: var(--cyan); letter-spacing: 0.5px; text-transform: uppercase;">See the showroom &rarr;</div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- HTTPS Links -->
+            <div style="margin-top: 28px; padding: 24px 28px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                    <span style="font-size: 20px;">&#128274;</span>
+                    <span style="font-size: 16px; font-weight: 600;">HTTPS &mdash; Let's Encrypt</span>
+                    <span style="background: rgba(74, 222, 128, 0.15); color: var(--green); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px;">ACTIVE</span>
+                </div>
+                <p style="color: var(--text-dim); font-size: 14px; line-height: 1.7; margin-bottom: 16px;">
+                    This server has a real, trusted TLS certificate from Let's Encrypt &mdash; auto-provisioned, auto-renewed, zero configuration. Just set <code style="background: var(--accent-glow); color: var(--accent); padding: 2px 6px; border-radius: 4px; font-size: 12px;">use_lets_encrypt = true</code> in <code style="background: var(--accent-glow); color: var(--accent); padding: 2px 6px; border-radius: 4px; font-size: 12px;">rush.toml</code>.
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <a href="https://rush-sync-server.com" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: rgba(74, 222, 128, 0.08); border: 1px solid rgba(74, 222, 128, 0.2); border-radius: 10px; color: var(--green); text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s;">
+                        &#128274; https://rush-sync-server.com
+                    </a>
+                    <a href="https://www.rush-sync-server.com" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: rgba(74, 222, 128, 0.08); border: 1px solid rgba(74, 222, 128, 0.2); border-radius: 10px; color: var(--green); text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s;">
+                        &#128274; https://www.rush-sync-server.com
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Core Features -->
+        <section class="section">
+            <div class="section-label">Features</div>
+            <h2 class="section-title">Everything built in</h2>
+
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon purple">&#9881;</div>
+                    <h3>Reverse Proxy</h3>
+                    <p>Subdomain-based routing with automatic service discovery. Each server gets its own subdomain, TLS certificate, and isolated environment.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon green">&#9889;</div>
+                    <h3>Multi-Server</h3>
+                    <p>Run up to 50 independent web servers simultaneously. Each with its own port, directory, logs, and configuration. Create, start, stop individually.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon cyan">&#128274;</div>
+                    <h3>Auto-TLS</h3>
+                    <p>Automatic certificate generation per server and proxy. Self-signed for development, Let's Encrypt ready for production. Zero manual setup.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon orange">&#128273;</div>
+                    <h3>API-Key Authentication</h3>
+                    <p>HMAC-SHA256 hashed keys with timing-safe comparison. Environment variable support. Rate limiting per IP on all API endpoints.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon pink">&#128260;</div>
+                    <h3>Hot Reload</h3>
+                    <p>File system watcher detects changes and pushes updates via WebSocket. Edit HTML/CSS/JS and see results instantly without manual refresh.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon purple">&#128202;</div>
+                    <h3>Logging &amp; Monitoring</h3>
+                    <p>Per-server log files with rotation, GZIP compression, and configurable retention. Request logging, security alerts, and performance metrics.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon green">&#128190;</div>
+                    <h3>Persistence</h3>
+                    <p>Server registry survives restarts. Auto-start marked servers on boot. Perfect for Docker containers and headless deployments.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon cyan">&#127760;</div>
+                    <h3>HTTP &rarr; HTTPS Redirect</h3>
+                    <p>Automatic redirect server on port 80. All HTTP traffic is seamlessly upgraded to HTTPS. Configurable target port.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon orange">&#128187;</div>
+                    <h3>Terminal UI &amp; Headless</h3>
+                    <p>Interactive TUI with themes, command history, and i18n (EN/DE). Or run as headless daemon for Docker and production servers.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- API Endpoints -->
+        <section class="section">
+            <div class="section-label">API</div>
+            <h2 class="section-title">Per-server endpoints</h2>
+
+            <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;">
+                <table class="api-table">
+                    <thead>
+                        <tr>
+                            <th>Method</th>
+                            <th>Endpoint</th>
+                            <th>Auth</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="method get">GET</span></td>
+                            <td><code>/api/health</code></td>
+                            <td><span class="badge-public">Public</span></td>
+                            <td>Health check &mdash; config, uptime, services status</td>
+                        </tr>
+                        <tr>
+                            <td><span class="method get">GET</span></td>
+                            <td><code>/api/status</code></td>
+                            <td><span class="badge-auth">API Key</span></td>
+                            <td>Full server status, URLs, cert info, version</td>
+                        </tr>
+                        <tr>
+                            <td><span class="method get">GET</span></td>
+                            <td><code>/api/stats</code></td>
+                            <td><span class="badge-auth">API Key</span></td>
+                            <td>Server statistics and performance metrics</td>
+                        </tr>
+                        <tr>
+                            <td><span class="method get">GET</span></td>
+                            <td><code>/api/logs</code></td>
+                            <td><span class="badge-auth">API Key</span></td>
+                            <td>Server log viewer with offset/limit pagination</td>
+                        </tr>
+                        <tr>
+                            <td><span class="method get">GET</span></td>
+                            <td><code>/api/metrics</code></td>
+                            <td><span class="badge-auth">API Key</span></td>
+                            <td>Performance metrics and resource usage</td>
+                        </tr>
+                        <tr>
+                            <td><span class="method ws">WS</span></td>
+                            <td><code>/ws/hot-reload</code></td>
+                            <td><span class="badge-public">Public</span></td>
+                            <td>WebSocket for live file change notifications</td>
+                        </tr>
+                        <tr>
+                            <td><span class="method get">GET</span></td>
+                            <td><code>/api/analytics</code></td>
+                            <td><span class="badge-public">Public</span></td>
+                            <td>Visitor analytics &mdash; page views, unique visitors, downloads</td>
+                        </tr>
+                        <tr>
+                            <td><span class="method get">GET</span></td>
+                            <td><code><a href="/api/analytics/dashboard" style="color:var(--accent);text-decoration:none;">/api/analytics/dashboard</a></code></td>
+                            <td><span class="badge-public">Public</span></td>
+                            <td>Visual analytics dashboard with charts and stats</td>
+                        </tr>
+                        <tr>
+                            <td><span class="method get">GET</span></td>
+                            <td><code>/api/acme/status</code></td>
+                            <td><span class="badge-public">Public</span></td>
+                            <td>ACME/TLS certificate status &mdash; Let's Encrypt provisioning state</td>
+                        </tr>
+                        <tr>
+                            <td><span class="method get">GET</span></td>
+                            <td><code><a href="/api/acme/dashboard" style="color:var(--accent);text-decoration:none;">/api/acme/dashboard</a></code></td>
+                            <td><span class="badge-public">Public</span></td>
+                            <td>Visual ACME/TLS dashboard with certificate details</td>
+                        </tr>
+                        <tr>
+                            <td><span class="method get">GET</span></td>
+                            <td><code>/.rss/</code></td>
+                            <td><span class="badge-auth">API Key</span></td>
+                            <td>Server dashboard &mdash; web-based management UI</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Security -->
+        <section class="section">
+            <div class="section-label">Security</div>
+            <h2 class="section-title">Hardened by default</h2>
+
+            <div class="features" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+                <div class="feature">
+                    <h3>HMAC-SHA256</h3>
+                    <p>API keys are hashed, never stored in plaintext. Generate with <code style="background: var(--accent-glow); color: var(--accent); padding: 2px 6px; border-radius: 4px; font-size: 12px;">--hash-key</code></p>
+                </div>
+                <div class="feature">
+                    <h3>Timing-Safe Compare</h3>
+                    <p>Constant-time key comparison prevents timing side-channel attacks.</p>
+                </div>
+                <div class="feature">
+                    <h3>Rate Limiting</h3>
+                    <p>Configurable per-IP rate limiting on all /api/* endpoints. Default: 100 req/s.</p>
+                </div>
+                <div class="feature">
+                    <h3>Path Traversal Guard</h3>
+                    <p>Middleware blocks directory traversal, null bytes, and suspicious request patterns.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tech Stack -->
+        <section class="section">
+            <div class="section-label">Built with</div>
+            <h2 class="section-title">Technology</h2>
+            <div class="stack">
+                <div class="stack-item">Rust <span>Language</span></div>
+                <div class="stack-item">Actix-Web <span>HTTP Framework</span></div>
+                <div class="stack-item">Tokio <span>Async Runtime</span></div>
+                <div class="stack-item">Rustls <span>TLS Library</span></div>
+                <div class="stack-item">Ratatui <span>Terminal UI</span></div>
+                <div class="stack-item">Hyper <span>Reverse Proxy</span></div>
+                <div class="stack-item">Ring <span>Cryptography</span></div>
+                <div class="stack-item">Docker <span>Deployment</span></div>
+            </div>
+        </section>
+
+        <!-- Roadmap -->
+        <section class="section">
+            <div class="section-label">Roadmap</div>
+            <h2 class="section-title">The vision: Self-Hosted PaaS</h2>
+
+            <p style="color: var(--text-dim); font-size: 16px; line-height: 1.7; max-width: 780px; margin-bottom: 40px;">
+                Rush Sync Server is more than a web server &mdash; it's the foundation for a <strong style="color: var(--text);">complete, self-hosted Platform as a Service</strong>. The vision: <strong style="color: var(--text);">100+ servers with full orchestration on a single machine</strong>, with absolute perfect performance. One Rust binary that replaces your entire infrastructure stack. No vendor lock-in. No monthly cloud bills. Full control.
+            </p>
+
+            <!-- Phase 1 -->
+            <div style="margin-bottom: 32px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <span style="background: var(--green); color: #0a0a0f; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; letter-spacing: 0.5px;">PHASE 1</span>
+                    <span style="font-size: 18px; font-weight: 600;">Data Layer</span>
+                </div>
+                <div class="features" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+                    <div class="feature">
+                        <div class="feature-icon green">&#128451;</div>
+                        <h3>SQLite Integration</h3>
+                        <p>Persistent storage per server &mdash; user sessions, analytics, form submissions, key-value store. Zero-config, embedded, serverless.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon cyan">&#128450;</div>
+                        <h3>PostgreSQL Support</h3>
+                        <p>Production-scale relational database with connection pooling, migrations, and multi-tenant isolation for large deployments.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon purple">&#9889;</div>
+                        <h3>Built-in KV Store</h3>
+                        <p>Fast in-memory cache with disk persistence &mdash; like Redis, but built into the binary. No external services required.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 2 -->
+            <div style="margin-bottom: 32px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <span style="background: var(--cyan); color: #0a0a0f; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; letter-spacing: 0.5px;">PHASE 2</span>
+                    <span style="font-size: 18px; font-weight: 600;">Dynamic Server</span>
+                </div>
+                <div class="features" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+                    <div class="feature">
+                        <div class="feature-icon orange">&#128296;</div>
+                        <h3>Embedded Scripting (Rhai/Lua)</h3>
+                        <p>Server-side scripting directly inside the server. Define custom API routes, business logic, and dynamic pages &mdash; no external runtime needed.</p>
+                    </div>
+                    <div class="feature" style="border-color: rgba(108, 99, 255, 0.3);">
+                        <div class="feature-icon purple">&#9889;</div>
+                        <h3>WASM Runtime</h3>
+                        <p>Execute WebAssembly modules server-side with near-native speed. Write server logic in Rust, Go, C, or any language that compiles to WASM. Sandboxed, secure, blazing fast.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon pink">&#9200;</div>
+                        <h3>Cron &amp; Task Scheduler</h3>
+                        <p>Schedule recurring jobs &mdash; automated backups, database cleanup, webhook triggers, report generation. All built-in.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon green">&#128233;</div>
+                        <h3>Form Handler &amp; Webhooks</h3>
+                        <p>Process HTML forms natively, store in DB, send email notifications. Incoming/outgoing webhooks with retry logic and event queuing.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon cyan">&#128196;</div>
+                        <h3>Template Engine (SSR)</h3>
+                        <p>Server-Side Rendering with Tera/Handlebars templates. Dynamic pages, layouts, partials &mdash; full SSR without a JavaScript framework.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 3 -->
+            <div style="margin-bottom: 32px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <span style="background: var(--orange); color: #0a0a0f; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; letter-spacing: 0.5px;">PHASE 3</span>
+                    <span style="font-size: 18px; font-weight: 600;">Platform Features</span>
+                </div>
+                <div class="features" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+                    <div class="feature">
+                        <div class="feature-icon purple">&#128101;</div>
+                        <h3>User Management &amp; Auth</h3>
+                        <p>Built-in registration, login, JWT tokens, OAuth2 provider, and role-based access control (RBAC). Multi-tenant ready.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon green">&#128200;</div>
+                        <h3>Real-Time Analytics</h3>
+                        <p>Page views, unique visitors, geolocation, error tracking, performance profiling &mdash; all built-in, no third-party scripts.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon cyan">&#128230;</div>
+                        <h3>Asset Pipeline</h3>
+                        <p>CSS/JS minification, image optimization, Gzip/Brotli pre-compression. Automatic cache-busting with content hashes.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon orange">&#128268;</div>
+                        <h3>Git Deploy</h3>
+                        <p>Push-to-deploy via built-in Git server or webhook. Automatic builds on <code style="background: var(--accent-glow); color: var(--accent); padding: 2px 6px; border-radius: 4px; font-size: 12px;">git push</code> &mdash; your own mini CI/CD.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon pink">&#128190;</div>
+                        <h3>Automated Backups</h3>
+                        <p>Scheduled snapshots of databases, configs, and files. S3-compatible upload, encrypted storage, one-click restore.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 4 -->
+            <div style="margin-bottom: 32px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <span style="background: var(--pink); color: #0a0a0f; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; letter-spacing: 0.5px;">PHASE 4</span>
+                    <span style="font-size: 18px; font-weight: 600;">The Future</span>
+                </div>
+                <div class="features" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+                    <div class="feature">
+                        <div class="feature-icon purple">&#127758;</div>
+                        <h3>Edge Functions</h3>
+                        <p>Execute code at the edge &mdash; Cloudflare Workers-style, but self-hosted. WASM-powered, millisecond cold starts.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon green">&#128279;</div>
+                        <h3>Multi-Node Clustering</h3>
+                        <p>Distribute workloads across multiple servers. Load balancing, failover, zero-downtime deployments.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon cyan">&#128268;</div>
+                        <h3>Plugin System (WASM)</h3>
+                        <p>Community-extensible via WebAssembly plugins. Sandboxed, secure, language-agnostic. Build and share extensions.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon orange">&#128187;</div>
+                        <h3>Web IDE</h3>
+                        <p>Edit code directly in the browser. Syntax highlighting, file explorer, terminal &mdash; deploy without leaving the dashboard.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon pink">&#9993;</div>
+                        <h3>Transactional Email</h3>
+                        <p>Built-in SMTP server for sending emails directly from your applications. Templates, tracking, bounce handling.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Investor CTA -->
+            <div style="margin-top: 48px; background: linear-gradient(135deg, rgba(108,99,255,0.1), rgba(244,114,182,0.08)); border: 1px solid rgba(108,99,255,0.25); border-radius: 16px; padding: 40px; text-align: center;">
+                <div style="font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); margin-bottom: 12px;">Looking for Investors</div>
+                <h3 style="font-size: 28px; font-weight: 700; margin-bottom: 16px; letter-spacing: -0.5px;">Help build the future of self-hosted infrastructure</h3>
+                <p style="color: var(--text-dim); font-size: 16px; line-height: 1.7; max-width: 680px; margin: 0 auto 24px;">
+                    Rush Sync Server has the potential to become a <strong style="color: var(--text);">complete alternative to Vercel, Netlify, and Heroku</strong> &mdash; fully self-hosted, powered by Rust, with zero vendor lock-in. The foundation is built and production-tested. Now it's time to scale.
+                </p>
+                <p style="color: var(--text-dim); font-size: 15px; line-height: 1.7; max-width: 680px; margin: 0 auto 28px;">
+                    We are actively seeking investors and strategic partners to accelerate development of the roadmap above. If you believe in open-source infrastructure and the power of Rust &mdash; let's talk.
+                </p>
+                <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
+                    <a href="mailto:l.ersen@icloud.com?subject=Rush%20Sync%20Server%20-%20Investment%20Inquiry" style="display: inline-flex; align-items: center; gap: 8px; padding: 14px 32px; background: var(--accent); color: white; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 15px; transition: all 0.2s;">
+                        &#9993; Contact for Investment
+                    </a>
+                    <a href="https://github.com/LEVOGNE/rush.sync.server" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; padding: 14px 32px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text); text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 15px; transition: all 0.2s;">
+                        View on GitHub
+                    </a>
+                </div>
+                <p style="margin-top: 20px; font-size: 13px; color: var(--text-dim);">
+                    <a href="mailto:l.ersen@icloud.com" style="color: var(--accent); text-decoration: none;">l.ersen@icloud.com</a>
+                    <span style="margin: 0 8px; color: #333;">&bull;</span>
+                    Levogne (Levent Ersen)
+                    <span style="margin: 0 8px; color: #333;">&bull;</span>
+                    Germany
+                </p>
+            </div>
+
+            <!-- Development note -->
+            <div style="margin-top: 24px; padding: 20px 28px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; font-size: 14px; color: var(--text-dim); line-height: 1.7;">
+                <p><strong style="color: var(--text);">Development approach:</strong> The roadmap is driven by community feedback and real-world demand. Features are prioritized based on user requests and investor backing. If you need a specific feature &mdash; reach out, and it moves up the list.</p>
+            </div>
+        </section>
+
+        <!-- Documentation -->
+        <section class="section">
+            <div class="section-label">Documentation</div>
+            <h2 class="section-title">Learn more</h2>
+
+            <div class="doc-cards">
+                <div class="doc-card" onclick="openDoc('readme')">
+                    <div class="doc-card-icon" style="background: rgba(108, 99, 255, 0.15);">&#128214;</div>
+                    <h3>README</h3>
+                    <p>Complete documentation — features, API endpoints, commands, configuration, architecture, security, and tech stack.</p>
+                    <div class="doc-hint">Click to read &rarr;</div>
+                </div>
+                <div class="doc-card" onclick="openDoc('startup')">
+                    <div class="doc-card-icon" style="background: rgba(74, 222, 128, 0.15);">&#128640;</div>
+                    <h3>Setup Guide</h3>
+                    <p>Step-by-step production setup — Docker, native installation, DNS configuration, home server with Fritz!Box, and troubleshooting.</p>
+                    <div class="doc-hint">Click to read &rarr;</div>
+                </div>
+                <div class="doc-card" onclick="openDoc('benchmark')">
+                    <div class="doc-card-icon" style="background: rgba(34, 211, 238, 0.15);">&#128200;</div>
+                    <h3>Benchmark</h3>
+                    <p>Resource footprint analysis — memory usage, linear scaling, Docker performance, and comparison with nginx, Caddy, and Node.js.</p>
+                    <div class="doc-hint">Click to read &rarr;</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Licensing -->
+        <section class="section">
+            <div class="section-label">License</div>
+            <h2 class="section-title">Dual-Licensing Model</h2>
+
+            <div class="features" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                <div class="feature" style="border-color: rgba(74, 222, 128, 0.25);">
+                    <div class="feature-icon green">&#9997;</div>
+                    <h3 style="color: var(--green);">Community License (GPLv3)</h3>
+                    <p>Free for private and non-commercial use. Open-source under the GNU General Public License v3. Use it, learn from it, contribute to it.</p>
+                    <div style="margin-top: 16px; padding: 12px 16px; background: rgba(74, 222, 128, 0.06); border: 1px solid rgba(74, 222, 128, 0.15); border-radius: 8px; font-size: 13px; color: var(--text-dim);">
+                        <span style="color: var(--green); font-weight: 600;">Includes:</span> Personal projects, education, research, non-commercial hosting
+                    </div>
+                </div>
+                <div class="feature" style="border-color: rgba(251, 146, 60, 0.25);">
+                    <div class="feature-icon orange">&#128188;</div>
+                    <h3 style="color: var(--orange);">Commercial License</h3>
+                    <p>Required for commercial applications including SaaS, paid hosting, resale, or integration into proprietary software. License fees are individually negotiable.</p>
+                    <div style="margin-top: 16px; padding: 12px 16px; background: rgba(251, 146, 60, 0.06); border: 1px solid rgba(251, 146, 60, 0.15); border-radius: 8px; font-size: 13px; color: var(--text-dim);">
+                        <span style="color: var(--orange); font-weight: 600;">Contact:</span>
+                        <a href="mailto:l.ersen@icloud.com" style="color: var(--accent); text-decoration: none;">l.ersen@icloud.com</a>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 24px; padding: 20px 28px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; font-size: 14px; color: var(--text-dim); line-height: 1.7;">
+                <p>&copy; 2025 <strong style="color: var(--text);">Levogne</strong> (Levent Ersen). All rights reserved.</p>
+                <p style="margin-top: 8px;">Any commercial use without a written, paid license agreement is not permitted. This includes but is not limited to: SaaS platforms, managed hosting services, resale of the software, and integration into proprietary products.</p>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <p>RUSH.SYNC.SERVER v0.3.8 &mdash; First Official Public Release &mdash; Built with Rust</p>
+            <p style="margin-top: 6px; font-size: 12px; color: #555566;">v0.1.0 &ndash; v0.3.7: Internal development &bull; v0.3.8: Official public release</p>
+            <p style="margin-top: 8px;">
+                <a href="https://github.com/LEVOGNE/rush.sync.server">GitHub</a>
+                <span style="margin: 0 8px; color: #333;">|</span>
+                <a href="mailto:l.ersen@icloud.com">Commercial Licensing</a>
+            </p>
+        </footer>
+
+    </div>
+
+    <!-- Doc Modals -->
+    <div class="modal-overlay" id="modal-readme" onclick="if(event.target===this)closeDoc()">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeDoc()">&times;</button>
+            <div class="md-content" id="md-readme"><div class="md-loading">Loading documentation</div></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="modal-startup" onclick="if(event.target===this)closeDoc()">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeDoc()">&times;</button>
+            <div class="md-content" id="md-startup"><div class="md-loading">Loading documentation</div></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="modal-benchmark" onclick="if(event.target===this)closeDoc()">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeDoc()">&times;</button>
+            <div class="md-content" id="md-benchmark"><div class="md-loading">Loading documentation</div></div>
+        </div>
+    </div>
+
+    <script>
+    const docCache = {};
+    const docFiles = { readme: 'README.md', startup: 'STARTUP.md', benchmark: 'BENCHMARK.md' };
+
+    function openDoc(name) {
+        const overlay = document.getElementById('modal-' + name);
+        const content = document.getElementById('md-' + name);
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        if (docCache[name]) { content.innerHTML = docCache[name]; return; }
+        fetch('/' + docFiles[name])
+            .then(function(r) { return r.text(); })
+            .then(function(md) {
+                var html = renderMd(md);
+                docCache[name] = html;
+                content.innerHTML = html;
+            })
+            .catch(function() {
+                content.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:40px;">Could not load documentation file.</p>';
+            });
+    }
+
+    function closeDoc() {
+        document.querySelectorAll('.modal-overlay').forEach(function(m) { m.classList.remove('active'); });
+        document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeDoc(); });
+
+    /* ---- Minimal Markdown to HTML renderer ---- */
+    function renderMd(text) {
+        var lines = text.split('\n');
+        var html = '', inCode = false, inTable = false, inUl = false, inOl = false;
+
+        for (var i = 0; i < lines.length; i++) {
+            var raw = lines[i];
+
+            /* Code blocks */
+            if (raw.substring(0, 3) === '```') {
+                if (inCode) { html += '</code></pre>'; inCode = false; }
+                else { cL(); cT(); inCode = true; html += '<pre><code>'; }
+                continue;
+            }
+            if (inCode) { html += esc(raw) + '\n'; continue; }
+
+            var t = raw.trim();
+            if (!t) { cL(); cT(); continue; }
+
+            /* HR */
+            if (/^-{3,}$/.test(t) || /^\*{3,}$/.test(t)) { cL(); cT(); html += '<hr>'; continue; }
+
+            /* Headers */
+            if (t.substring(0, 5) === '#### ') { cL(); cT(); html += '<h4>' + il(t.substring(5)) + '</h4>'; continue; }
+            if (t.substring(0, 4) === '### ')  { cL(); cT(); html += '<h3>' + il(t.substring(4)) + '</h3>'; continue; }
+            if (t.substring(0, 3) === '## ')   { cL(); cT(); html += '<h2>' + il(t.substring(3)) + '</h2>'; continue; }
+            if (t.substring(0, 2) === '# ')    { cL(); cT(); html += '<h1>' + il(t.substring(2)) + '</h1>'; continue; }
+
+            /* Table */
+            if (t.charAt(0) === '|' && t.charAt(t.length - 1) === '|') {
+                var cells = t.split('|').slice(1, -1).map(function(c) { return c.trim(); });
+                if (cells.every(function(c) { return /^[-:\s]+$/.test(c); })) continue;
+                if (!inTable) {
+                    cL(); inTable = true;
+                    html += '<table><thead><tr>' + cells.map(function(c) { return '<th>' + il(c) + '</th>'; }).join('') + '</tr></thead><tbody>';
+                } else {
+                    html += '<tr>' + cells.map(function(c) { return '<td>' + il(c) + '</td>'; }).join('') + '</tr>';
+                }
+                continue;
+            }
+
+            /* Blockquote */
+            if (t.substring(0, 2) === '> ') { html += '<blockquote>' + il(t.substring(2)) + '</blockquote>'; continue; }
+            if (t === '>') { html += '<blockquote>&nbsp;</blockquote>'; continue; }
+
+            /* Checkbox list */
+            if (/^- \[[ x]\] /.test(t)) {
+                if (!inUl) { cL(); inUl = true; html += '<ul>'; }
+                var ck = t.charAt(3) === 'x';
+                html += '<li>' + (ck ? '&#9745; ' : '&#9744; ') + il(t.replace(/^- \[[ x]\]\s*/, '')) + '</li>';
+                continue;
+            }
+
+            /* Unordered list */
+            if (t.substring(0, 2) === '- ' || t.substring(0, 2) === '* ') {
+                if (!inUl) { cOl(); cT(); inUl = true; html += '<ul>'; }
+                html += '<li>' + il(t.substring(2)) + '</li>';
+                continue;
+            }
+
+            /* Ordered list */
+            if (/^\d+\.\s/.test(t)) {
+                if (!inOl) { cUl(); cT(); inOl = true; html += '<ol>'; }
+                html += '<li>' + il(t.replace(/^\d+\.\s/, '')) + '</li>';
+                continue;
+            }
+
+            /* Paragraph */
+            cT();
+            html += '<p>' + il(t) + '</p>';
+        }
+
+        cL(); cT();
+        if (inCode) html += '</code></pre>';
+        return html;
+
+        function cUl() { if (inUl) { html += '</ul>'; inUl = false; } }
+        function cOl() { if (inOl) { html += '</ol>'; inOl = false; } }
+        function cL()  { cUl(); cOl(); }
+        function cT()  { if (inTable) { html += '</tbody></table>'; inTable = false; } }
+    }
+
+    /* Inline markdown */
+    function il(t) {
+        return t
+            .replace(/\\([*`_\[\]\\])/g, '\x00$1')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+            .replace(/\x00(.)/g, '$1');
+    }
+
+    function esc(t) {
+        return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    </script>
+    <script>
+    (function(){
+        var t=document.getElementById('themeToggle');
+        var modes=['system','dark','light'];
+        var icons={
+            system:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+            dark:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+            light:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>'
+        };
+        function sys(){return window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'}
+        function apply(m){
+            var eff=m==='system'?sys():m;
+            document.documentElement.setAttribute('data-theme',eff);
+            localStorage.setItem('rss-theme',m);
+            t.innerHTML=icons[m];
+            t.title='Theme: '+m.charAt(0).toUpperCase()+m.slice(1);
+        }
+        apply(localStorage.getItem('rss-theme')||'system');
+        t.addEventListener('click',function(){
+            var c=localStorage.getItem('rss-theme')||'system';
+            apply(modes[(modes.indexOf(c)+1)%modes.length]);
+        });
+        window.matchMedia('(prefers-color-scheme:light)').addEventListener('change',function(){
+            if((localStorage.getItem('rss-theme')||'system')==='system')apply('system');
+        });
+    })();
+    </script>
+    <script>
+    (function(){
+      fetch('/api/analytics').then(function(r){return r.json()}).then(function(d){
+        var w=d.last_7_days||{};
+        var ve=document.getElementById('lv-visitors');
+        var vv=document.getElementById('lv-views');
+        if(ve)ve.textContent=(w.unique_visitors||0).toLocaleString();
+        if(vv)vv.textContent=(w.page_views||0).toLocaleString();
+      }).catch(function(){});
+    })();
+    </script>
+</body>
+</html>

@@ -35,6 +35,10 @@
   "system.commands.help.category.system.display_text": "HELP",
   "system.commands.help.category.system.category": "info",
 
+  "system.commands.help.category.deployment.text": "Deployment & Sync",
+  "system.commands.help.category.deployment.display_text": "HELP",
+  "system.commands.help.category.deployment.category": "info",
+
   "system.commands.help.category.other.text": "Other",
   "system.commands.help.category.other.display_text": "HELP",
   "system.commands.help.category.other.category": "info",
@@ -135,5 +139,13 @@
 
   "system.commands.exit.description.text": "Exit the application",
   "system.commands.exit.description.display_text": "HELP",
-  "system.commands.exit.description.category": "info"
+  "system.commands.exit.description.category": "info",
+
+  "system.commands.remote.description.text": "Manage SSH remote profiles for sync/deploy",
+  "system.commands.remote.description.display_text": "HELP",
+  "system.commands.remote.description.category": "info",
+
+  "system.commands.sync.description.text": "Sync files and run remote deployment actions",
+  "system.commands.sync.description.display_text": "HELP",
+  "system.commands.sync.description.category": "info"
 }

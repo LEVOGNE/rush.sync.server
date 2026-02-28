@@ -1,4 +1,5 @@
 // src/core/config.rs - Cleaned and simplified
+use crate::core::api_key::ApiKey;
 use crate::core::constants::{DEFAULT_BUFFER_SIZE, DEFAULT_POLL_RATE};
 use crate::core::prelude::*;
 use crate::proxy::types::{ProxyConfig, ProxyConfigToml};
@@ -54,6 +55,8 @@ struct ServerConfigToml {
     workers: usize,
     #[serde(default = "default_auto_open_browser")]
     auto_open_browser: bool,
+    #[serde(default = "default_bind_address")]
+    bind_address: String,
 
     // TLS Configuration
     #[serde(default = "default_enable_https")]
@@ -72,6 +75,18 @@ struct ServerConfigToml {
     use_lets_encrypt: bool,
     #[serde(default = "default_production_domain")]
     production_domain: String,
+    #[serde(default)]
+    acme_email: String,
+
+    // Security
+    #[serde(default)]
+    api_key: String,
+
+    // Rate Limiting
+    #[serde(default = "default_rate_limit_rps")]
+    rate_limit_rps: u32,
+    #[serde(default = "default_rate_limit_enabled")]
+    rate_limit_enabled: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -130,10 +145,10 @@ fn default_port_start() -> u16 {
     8080
 }
 fn default_port_end() -> u16 {
-    8180
+    8999
 }
 fn default_max_concurrent() -> usize {
-    10
+    50
 }
 fn default_shutdown_timeout() -> u64 {
     5
@@ -169,6 +184,15 @@ fn default_use_lets_encrypt() -> bool {
 }
 fn default_production_domain() -> String {
     "localhost".to_string()
+}
+fn default_bind_address() -> String {
+    "127.0.0.1".to_string()
+}
+fn default_rate_limit_rps() -> u32 {
+    100
+}
+fn default_rate_limit_enabled() -> bool {
+    true
 }
 
 // Logging Defaults
@@ -219,6 +243,7 @@ pub struct ServerConfig {
     pub startup_delay_ms: u64,
     pub workers: usize,
     pub auto_open_browser: bool,
+    pub bind_address: String,
 
     // TLS Configuration
     pub enable_https: bool,
@@ -228,6 +253,14 @@ pub struct ServerConfig {
     pub cert_validity_days: u32,
     pub use_lets_encrypt: bool,
     pub production_domain: String,
+    pub acme_email: String,
+
+    // Security
+    pub api_key: ApiKey,
+
+    // Rate Limiting
+    pub rate_limit_rps: u32,
+    pub rate_limit_enabled: bool,
 }
 
 #[derive(Clone)]
@@ -273,12 +306,13 @@ impl Default for ServerConfig {
     fn default() -> Self {
         Self {
             port_range_start: 8080,
-            port_range_end: 8180,
-            max_concurrent: 10,
+            port_range_end: 8999,
+            max_concurrent: 50,
             shutdown_timeout: 5,
             startup_delay_ms: 500,
             workers: 1,
             auto_open_browser: true,
+            bind_address: "127.0.0.1".to_string(),
             enable_https: true,
             https_port_offset: 1000,
             cert_dir: ".rss/certs".to_string(),
@@ -286,6 +320,10 @@ impl Default for ServerConfig {
             cert_validity_days: 365,
             use_lets_encrypt: false,
             production_domain: "localhost".to_string(),
+            acme_email: String::new(),
+            api_key: ApiKey::empty(),
+            rate_limit_rps: 100,
+            rate_limit_enabled: true,
         }
     }
 }
@@ -349,21 +387,39 @@ impl Config {
         // Load server config
         let server = file
             .server
-            .map_or_else(ServerConfig::default, |s| ServerConfig {
-                port_range_start: s.port_range_start,
-                port_range_end: s.port_range_end,
-                max_concurrent: s.max_concurrent,
-                shutdown_timeout: s.shutdown_timeout,
-                startup_delay_ms: s.startup_delay_ms,
-                workers: s.workers,
-                auto_open_browser: s.auto_open_browser,
-                enable_https: s.enable_https,
-                https_port_offset: s.https_port_offset,
-                cert_dir: s.cert_dir,
-                auto_cert: s.auto_cert,
-                cert_validity_days: s.cert_validity_days,
-                use_lets_encrypt: s.use_lets_encrypt,
-                production_domain: s.production_domain,
+            .map_or_else(ServerConfig::default, |s| {
+                // Env-var override for API key (RSS_API_KEY takes precedence over TOML)
+                let api_key = if let Ok(env_val) = std::env::var("RSS_API_KEY") {
+                    if !env_val.is_empty() {
+                        ApiKey::from_env(&env_val)
+                    } else {
+                        ApiKey::from_toml(&s.api_key)
+                    }
+                } else {
+                    ApiKey::from_toml(&s.api_key)
+                };
+
+                ServerConfig {
+                    port_range_start: s.port_range_start,
+                    port_range_end: s.port_range_end,
+                    max_concurrent: s.max_concurrent,
+                    shutdown_timeout: s.shutdown_timeout,
+                    startup_delay_ms: s.startup_delay_ms,
+                    workers: s.workers,
+                    auto_open_browser: s.auto_open_browser,
+                    bind_address: s.bind_address,
+                    enable_https: s.enable_https,
+                    https_port_offset: s.https_port_offset,
+                    cert_dir: s.cert_dir,
+                    auto_cert: s.auto_cert,
+                    cert_validity_days: s.cert_validity_days,
+                    use_lets_encrypt: s.use_lets_encrypt,
+                    production_domain: s.production_domain,
+                    acme_email: s.acme_email,
+                    api_key,
+                    rate_limit_rps: s.rate_limit_rps,
+                    rate_limit_enabled: s.rate_limit_enabled,
+                }
             });
 
         // Load logging config
@@ -390,9 +446,15 @@ impl Config {
             current_theme_name: file.general.current_theme,
             language: file.language.current,
             debug_info: None,
+            proxy: {
+                let mut proxy = file.proxy.map(ProxyConfig::from).unwrap_or_default();
+                // Inject server-level settings so the proxy doesn't need to re-load config
+                proxy.production_domain = server.production_domain.clone();
+                proxy.use_lets_encrypt = server.use_lets_encrypt;
+                proxy
+            },
             server,
             logging,
-            proxy: file.proxy.map(ProxyConfig::from).unwrap_or_default(),
         };
 
         // Auto-save corrected values
@@ -427,6 +489,7 @@ impl Config {
                 startup_delay_ms: self.server.startup_delay_ms,
                 workers: self.server.workers,
                 auto_open_browser: self.server.auto_open_browser,
+                bind_address: self.server.bind_address.clone(),
                 enable_https: self.server.enable_https,
                 https_port_offset: self.server.https_port_offset,
                 cert_dir: self.server.cert_dir.clone(),
@@ -434,6 +497,10 @@ impl Config {
                 cert_validity_days: self.server.cert_validity_days,
                 use_lets_encrypt: self.server.use_lets_encrypt,
                 production_domain: self.server.production_domain.clone(),
+                acme_email: self.server.acme_email.clone(),
+                api_key: self.server.api_key.to_toml_value(),
+                rate_limit_rps: self.server.rate_limit_rps,
+                rate_limit_enabled: self.server.rate_limit_enabled,
             }),
             logging: Some(LoggingConfigToml {
                 max_file_size_mb: self.logging.max_file_size_mb,

@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: commands/mod.rs - CLEAN VERSION OHNE UNNÖTIGE PLUGINS
-// =====================================================
-
 pub mod cleanup;
 pub mod clear;
 pub mod command;
@@ -13,12 +9,16 @@ pub mod history;
 pub mod lang;
 pub mod list;
 pub mod log_level;
+#[cfg(feature = "memory")]
 pub mod memory;
+pub mod parsing;
 pub mod recovery;
 pub mod registry;
+pub mod remote;
 pub mod restart;
 pub mod start;
 pub mod stop;
+pub mod sync;
 pub mod theme;
 pub mod version;
 
@@ -30,5 +30,7 @@ pub use help::HelpCommand;
 pub use list::ListCommand;
 pub use recovery::RecoveryCommand;
 pub use registry::CommandRegistry;
+pub use remote::RemoteCommand;
 pub use start::StartCommand;
 pub use stop::StopCommand;
+pub use sync::SyncCommand;
