@@ -54,7 +54,7 @@ impl TerminalManager {
     }
 
     pub async fn cleanup(&mut self) -> Result<()> {
-        log::info!("🔄 Starting terminal cleanup...");
+        log::info!("Starting terminal cleanup...");
 
         if self.raw_mode_enabled {
             self.disable_full_raw_mode().await?;
@@ -119,7 +119,7 @@ impl TerminalManager {
 
     pub async fn force_raw_mode(&mut self) -> Result<()> {
         if !self.raw_mode_enabled {
-            log::warn!("🚨 Raw mode was lost, re-enabling...");
+            log::warn!("Raw mode was lost, re-enabling...");
             self.enable_full_raw_mode().await?;
         }
         Ok(())
@@ -136,7 +136,7 @@ impl Drop for TerminalManager {
                 cursor::Show,
                 ResetColor
             );
-            log::warn!("🚨 Emergency terminal cleanup in destructor");
+            log::warn!("Emergency terminal cleanup in destructor");
         }
     }
 }

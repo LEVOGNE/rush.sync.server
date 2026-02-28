@@ -1,5 +1,5 @@
 use crate::memory;
-use crate::{matches_exact, Result};
+use crate::Result;
 
 #[derive(Debug)]
 pub struct MemoryCommand;
@@ -27,7 +27,7 @@ impl crate::commands::command::Command for MemoryCommand {
     }
 
     fn description(&self) -> &'static str {
-        "Zeigt Memory-Registry/Snapshot und Prozessdetails an"
+        "Show memory registry snapshot and process details"
     }
 
     fn matches(&self, command: &str) -> bool {
@@ -38,11 +38,11 @@ impl crate::commands::command::Command for MemoryCommand {
     }
 
     async fn execute(&self, args: &[&str]) -> Result<String> {
-        // Beispiele:
-        // - ["mem"] → Help
+        // Examples:
+        // - ["mem"] -> Help
         // - ["mem","help"]
         // - ["mem","info","--top","10","--json","--all"]
-        // - ["info","--all"] (wenn Handler "mem" schon abgeschnitten hat)
+        // - ["info","--all"] (if handler already stripped "mem")
         let sub = parse_from_args(args);
 
         match sub {
@@ -112,7 +112,7 @@ impl crate::commands::command::Command for MemoryCommand {
                         pct_rss_over_totalram
                     ));
 
-                    // --all: zusätzliche Prozessinfos als JSON-Felder anhängen
+                    // --all: additional process info as JSON fields
                     if all {
                         let fds = fd_summary();
                         out.push_str(",\n  \"fd_summary\": {\n");
@@ -139,7 +139,7 @@ impl crate::commands::command::Command for MemoryCommand {
                     return Ok(out);
                 }
 
-                // ===== TUI/CLI-Textausgabe =====
+                // TUI/CLI text output
                 let mut rows: Vec<(&str, &str, u64)> = items
                     .iter()
                     .map(|r| (r.id.as_str(), kind_str(&r.kind), r.bytes))
@@ -197,7 +197,7 @@ impl crate::commands::command::Command for MemoryCommand {
                 );
                 out.push_str("VMS:      virtueller Adressraum (nicht gleich realer RAM)\n");
 
-                // ✅ referenziert das bereits existierende `items` (lebt bis zum Funktionsende)
+                // reuse the existing `items` vec (lives until function end)
                 let mut phases: Vec<_> = items
                     .iter()
                     .filter(|r| matches!(r.kind, crate::memory::ResourceKind::Phase))
@@ -255,7 +255,7 @@ impl crate::commands::command::Command for MemoryCommand {
                     "RSS / Total RAM", "", pct_rss_over_totalram
                 ));
 
-                // --all: tiefe Prozessinfos
+                // --all: deep process info
                 if all {
                     let fds = fd_summary();
                     out.push_str("\nOPEN FILE DESCRIPTORS\n");
@@ -290,10 +290,10 @@ impl crate::commands::command::Command for MemoryCommand {
     }
 }
 
-// ---------- intern: Parser & Helpers (nur in dieser Datei) ----------
+// --- Parser & Helpers ---
 
 fn parse_from_args(args: &[&str]) -> MemorySubcommand {
-    // Falls args mit "mem" beginnt, Index verschieben
+    // If args starts with "mem", shift index
     let offset = if args
         .first()
         .map(|s| s.eq_ignore_ascii_case("mem"))
@@ -313,7 +313,7 @@ fn parse_from_args(args: &[&str]) -> MemorySubcommand {
     let mut all = false;
     let mut top: Option<usize> = None;
 
-    // Flags ab offset+1 einsammeln
+    // Collect flags from offset+1
     let mut i = offset + 1;
     while i < args.len() {
         let a = args[i];
@@ -324,7 +324,7 @@ fn parse_from_args(args: &[&str]) -> MemorySubcommand {
         }
         if a == "--all" {
             all = true;
-            i += 1; // <— Deins hatte hier i = 1; (Bug)
+            i += 1;
             continue;
         }
         if a.starts_with("--top=") {
@@ -376,7 +376,7 @@ fn fmt_bytes(b: u64) -> (String, String) {
     (format!("{b}"), format!("{kb:.2} KB / {mb:.3} MB"))
 }
 
-// ---------- Help ----------
+// --- Help ---
 fn help_text() -> String {
     let mut s = String::new();
     s.push_str("mem – Memory & Prozess-Introspektion\n");
@@ -390,7 +390,7 @@ fn help_text() -> String {
     s
 }
 
-// ---------- FD-Summary mit feineren Kategorien ----------
+// --- FD summary with fine-grained categories ---
 #[derive(Debug, Clone, Copy)]
 struct FdSummary {
     total: usize,
@@ -429,7 +429,7 @@ fn fd_summary() -> FdSummary {
         for e in entries.flatten() {
             s.total += 1;
             if let Ok(md) = e.metadata() {
-                // md.mode(): u32, libc::S_IF* kann u16 sein → nach u32 casten
+                // md.mode(): u32, libc::S_IF* may be u16 -> cast to u32
                 let m = md.mode() & (libc::S_IFMT as u32);
 
                 if m == (libc::S_IFSOCK as u32) {

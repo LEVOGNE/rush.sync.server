@@ -23,11 +23,12 @@ current = "en"
 # Port Management
 port_range_start = 8000      # Starting port for auto-allocation
 port_range_end = 8200        # Maximum port for auto-allocation
-max_concurrent = 10          # Maximum simultaneous servers
+max_concurrent = 50          # Maximum simultaneous servers
 shutdown_timeout = 5         # Graceful shutdown timeout (seconds)
 startup_delay_ms = 500       # Delay after server creation (milliseconds)
 workers = 1                  # Actix workers per server
 auto_open_browser = true     # Automatically open browser
+bind_address = "127.0.0.1"   # Server bind address ("0.0.0.0" for public access)
 
 # HTTPS/TLS Configuration
 enable_https = true          # Enable HTTPS support
@@ -39,6 +40,15 @@ cert_validity_days = 365     # Certificate validity (days)
 # Production Settings
 use_lets_encrypt = false     # Use Let's Encrypt (requires public domain)
 production_domain = "localhost"  # Production domain name
+acme_email = ""              # Email for Let's Encrypt notifications (optional)
+
+# Security: plaintext, hash ($hmac-sha256$...), or RSS_API_KEY env var
+# Generate hash: rush-sync --hash-key <your-key>
+api_key = ""                 # API key for /api/*, /.rss/*, /ws/* endpoints (empty = no auth)
+
+# Rate Limiting
+rate_limit_rps = 100         # Max requests per second per IP for /api/* endpoints
+rate_limit_enabled = true    # Enable rate limiting
 
 # =====================================================
 # REVERSE PROXY CONFIGURATION
@@ -46,7 +56,7 @@ production_domain = "localhost"  # Production domain name
 [proxy]
 enabled = true                  # Enable integrated reverse proxy
 port = 3000                     # Proxy listening port
-https_port_offset = 443         # Neu hinzufügen
+https_port_offset = 443         # Added for HTTPS offset
 bind_address = "127.0.0.1"      # Proxy bind address
 health_check_interval = 30      # Health check interval (seconds)
 timeout_ms = 5000               # Request timeout (milliseconds)

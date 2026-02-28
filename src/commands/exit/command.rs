@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: commands/exit/exit.rs - TRAIT IMPL
-// =====================================================
-
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 use crate::i18n::get_command_translation;
@@ -23,11 +19,12 @@ impl Command for ExitCommand {
     }
 
     fn execute_sync(&self, _args: &[&str]) -> Result<String> {
+        use crate::core::constants::{SIG_CONFIRM_PREFIX, SIG_EXIT};
         let msg = get_command_translation("system.input.confirm_exit", &[]);
-        Ok(format!("__CONFIRM:__EXIT__{}", msg))
+        Ok(format!("{}{}{}", SIG_CONFIRM_PREFIX, SIG_EXIT, msg))
     }
 
     fn priority(&self) -> u8 {
-        100 // Höchste Priorität für Exit
+        100
     }
 }

@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: commands/history/mod.rs - KORRIGIERT
-// =====================================================
-
 pub mod command;
 pub mod config;
 pub mod events;

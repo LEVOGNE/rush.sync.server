@@ -4,7 +4,7 @@ use actix_web::{web, HttpResponse, Result as ActixResult};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,7 +27,7 @@ pub async fn status_handler(data: web::Data<ServerDataWithConfig>) -> ActixResul
         "server_id": data.server.id,
         "server_name": data.server.name,
         "port": data.server.port,
-        "proxy_port": data.proxy_https_port, // Verwende https proxy port
+        "proxy_port": data.proxy_https_port,
         "server": config::get_server_name(),
         "version": config::get_server_version(),
         "uptime_seconds": uptime,
@@ -55,7 +55,7 @@ pub async fn info_handler(data: web::Data<ServerDataWithConfig>) -> ActixResult<
         "server_id": data.server.id,
         "server_name": data.server.name,
         "port": data.server.port,
-        "proxy_port": data.proxy_https_port, // Verwende https proxy port
+        "proxy_port": data.proxy_https_port,
         "static_files_enabled": true,
         "template_system": "enabled",
         "hot_reload_enabled": true,
@@ -177,19 +177,18 @@ pub async fn health_handler(_data: web::Data<ServerDataWithConfig>) -> ActixResu
 pub async fn ping_handler() -> ActixResult<HttpResponse> {
     Ok(HttpResponse::Ok().json(json!({
         "status": "pong",
-        "timestamp": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+        "timestamp": SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
         "server": "rush-sync-server",
         "message": "Ping received successfully"
     })))
 }
 
-// Static Message Store (In-Memory für Demo)
-lazy_static::lazy_static! {
-    static ref MESSAGES: Arc<Mutex<VecDeque<Message>>> = Arc::new(Mutex::new(VecDeque::new()));
-    static ref MESSAGE_COUNTER: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
-}
+// Static Message Store (In-Memory)
+static MESSAGES: LazyLock<Arc<Mutex<VecDeque<Message>>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(VecDeque::new())));
+static MESSAGE_COUNTER: LazyLock<Arc<Mutex<u32>>> = LazyLock::new(|| Arc::new(Mutex::new(0)));
 
-// POST /api/message - Nachricht empfangen
+// POST /api/message - receive a message
 pub async fn message_handler(body: web::Json<serde_json::Value>) -> ActixResult<HttpResponse> {
     let message_text = body
         .get("message")
@@ -207,46 +206,40 @@ pub async fn message_handler(body: web::Json<serde_json::Value>) -> ActixResult<
         .map(|s| s.to_string())
         .unwrap_or_else(|| chrono::Local::now().to_rfc3339());
 
-    // Message speichern
-    {
-        let mut messages = MESSAGES.lock().unwrap();
-        let mut counter = MESSAGE_COUNTER.lock().unwrap();
+    // Store message
+    let message_id = {
+        let mut messages = MESSAGES.lock().unwrap_or_else(|p| p.into_inner());
+        let mut counter = MESSAGE_COUNTER.lock().unwrap_or_else(|p| p.into_inner());
         *counter += 1;
+        let id = *counter;
 
-        let message = Message {
+        messages.push_back(Message {
             message: message_text.to_string(),
             from: from.to_string(),
             timestamp: timestamp.to_string(),
-            id: *counter,
-        };
+            id,
+        });
 
-        messages.push_back(message);
-
-        // Max 100 Messages behalten
+        // Keep at most 100 messages
         if messages.len() > 100 {
             messages.pop_front();
         }
-    }
-
-    // Message ID für Response merken
-    let message_id = {
-        let counter = MESSAGE_COUNTER.lock().unwrap();
-        *counter
+        id
     };
 
     log::info!("Message received from {}: {}", from, message_text);
 
     Ok(HttpResponse::Ok().json(json!({
         "status": "received",
-        "timestamp": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+        "timestamp": SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
         "message_id": message_id
     })))
 }
 
-// GET /api/messages - Alle Nachrichten abrufen
+// GET /api/messages - retrieve all messages
 pub async fn messages_handler() -> ActixResult<HttpResponse> {
     let messages = {
-        let messages_lock = MESSAGES.lock().unwrap();
+        let messages_lock = MESSAGES.lock().unwrap_or_else(|p| p.into_inner());
         messages_lock.iter().cloned().collect::<Vec<_>>()
     };
 
@@ -265,4 +258,234 @@ document.write('<h1>Server stopped - closing...</h1>');
 </script>
 "#;
     Ok(HttpResponse::Ok().content_type("text/html").body(html))
+}
+
+// PUT /api/files/{path} — Upload/create a file
+pub async fn upload_file(
+    data: web::Data<ServerDataWithConfig>,
+    path: web::Path<String>,
+    body: web::Bytes,
+) -> ActixResult<HttpResponse> {
+    let file_path = path.into_inner();
+
+    if file_path.is_empty() {
+        return Ok(HttpResponse::BadRequest().json(json!({"error": "Path required"})));
+    }
+
+    let base_dir = crate::core::helpers::get_base_dir().map_err(|e| {
+        actix_web::error::ErrorInternalServerError(format!("Base dir error: {}", e))
+    })?;
+    let server_dir = base_dir
+        .join("www")
+        .join(format!("{}-[{}]", data.server.name, data.server.port));
+
+    // Reject path traversal attempts early
+    if file_path.contains("..") {
+        return Ok(HttpResponse::Forbidden().json(json!({"error": "Path traversal blocked"})));
+    }
+
+    let target = server_dir.join(&file_path);
+
+    // Create parent directories
+    if let Some(parent) = target.parent() {
+        tokio::fs::create_dir_all(parent).await.map_err(|e| {
+            actix_web::error::ErrorInternalServerError(format!("Directory creation failed: {}", e))
+        })?;
+    }
+
+    // Path traversal protection (verify resolved path is within server dir)
+    let canonical_server = server_dir
+        .canonicalize()
+        .unwrap_or_else(|_| server_dir.clone());
+    if let Some(canonical_parent) = target.parent().and_then(|p| p.canonicalize().ok()) {
+        if !canonical_parent.starts_with(&canonical_server) {
+            return Ok(HttpResponse::Forbidden().json(json!({"error": "Path traversal blocked"})));
+        }
+    }
+
+    let size = body.len();
+    tokio::fs::write(&target, &body)
+        .await
+        .map_err(|e| actix_web::error::ErrorInternalServerError(format!("Write failed: {}", e)))?;
+
+    log::info!(
+        "File uploaded: {} ({} bytes) to {}-[{}]",
+        file_path,
+        size,
+        data.server.name,
+        data.server.port
+    );
+
+    Ok(HttpResponse::Ok().json(json!({
+        "status": "uploaded",
+        "path": file_path,
+        "size": size
+    })))
+}
+
+// GET /api/files — List files in server directory
+pub async fn list_files(
+    data: web::Data<ServerDataWithConfig>,
+    query: web::Query<std::collections::HashMap<String, String>>,
+) -> ActixResult<HttpResponse> {
+    let base_dir = crate::core::helpers::get_base_dir().map_err(|e| {
+        actix_web::error::ErrorInternalServerError(format!("Base dir error: {}", e))
+    })?;
+    let server_dir = base_dir
+        .join("www")
+        .join(format!("{}-[{}]", data.server.name, data.server.port));
+
+    let subpath = query.get("path").map(|s| s.as_str()).unwrap_or("");
+
+    if subpath.contains("..") {
+        return Ok(HttpResponse::Forbidden().json(json!({"error": "Path traversal blocked"})));
+    }
+
+    let target = if subpath.is_empty() {
+        server_dir.clone()
+    } else {
+        server_dir.join(subpath)
+    };
+
+    // Path traversal protection
+    let canonical_server = server_dir
+        .canonicalize()
+        .unwrap_or_else(|_| server_dir.clone());
+    if let Ok(canonical_target) = target.canonicalize() {
+        if !canonical_target.starts_with(&canonical_server) {
+            return Ok(HttpResponse::Forbidden().json(json!({"error": "Path traversal blocked"})));
+        }
+    }
+
+    if !target.exists() {
+        return Ok(HttpResponse::NotFound().json(json!({"error": "Directory not found"})));
+    }
+
+    let mut entries = vec![];
+    if let Ok(mut dir) = tokio::fs::read_dir(&target).await {
+        while let Ok(Some(entry)) = dir.next_entry().await {
+            let name = entry.file_name().to_string_lossy().to_string();
+            let metadata = entry.metadata().await.ok();
+            entries.push(json!({
+                "name": name,
+                "is_dir": metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false),
+                "size": metadata.as_ref().map(|m| m.len()).unwrap_or(0),
+            }));
+        }
+    }
+
+    Ok(HttpResponse::Ok().json(json!({
+        "server_name": data.server.name,
+        "port": data.server.port,
+        "path": subpath,
+        "files": entries,
+        "count": entries.len()
+    })))
+}
+
+// DELETE /api/files/{path} — Delete a file or directory
+pub async fn delete_file(
+    data: web::Data<ServerDataWithConfig>,
+    path: web::Path<String>,
+) -> ActixResult<HttpResponse> {
+    let file_path = path.into_inner();
+
+    if file_path.is_empty() {
+        return Ok(HttpResponse::BadRequest().json(json!({"error": "Path required"})));
+    }
+
+    if file_path.contains("..") {
+        return Ok(HttpResponse::Forbidden().json(json!({"error": "Path traversal blocked"})));
+    }
+
+    let base_dir = crate::core::helpers::get_base_dir().map_err(|e| {
+        actix_web::error::ErrorInternalServerError(format!("Base dir error: {}", e))
+    })?;
+    let server_dir = base_dir
+        .join("www")
+        .join(format!("{}-[{}]", data.server.name, data.server.port));
+
+    let target = server_dir.join(&file_path);
+
+    // Path traversal protection
+    let canonical_server = server_dir
+        .canonicalize()
+        .unwrap_or_else(|_| server_dir.clone());
+    if let Ok(canonical_target) = target.canonicalize() {
+        if !canonical_target.starts_with(&canonical_server) {
+            return Ok(HttpResponse::Forbidden().json(json!({"error": "Path traversal blocked"})));
+        }
+    }
+
+    if !target.exists() {
+        return Ok(HttpResponse::NotFound().json(json!({"error": "File not found"})));
+    }
+
+    if target.is_dir() {
+        tokio::fs::remove_dir_all(&target).await.map_err(|e| {
+            actix_web::error::ErrorInternalServerError(format!("Delete failed: {}", e))
+        })?;
+    } else {
+        tokio::fs::remove_file(&target).await.map_err(|e| {
+            actix_web::error::ErrorInternalServerError(format!("Delete failed: {}", e))
+        })?;
+    }
+
+    log::info!(
+        "File deleted: {} from {}-[{}]",
+        file_path,
+        data.server.name,
+        data.server.port
+    );
+
+    Ok(HttpResponse::Ok().json(json!({
+        "status": "deleted",
+        "path": file_path
+    })))
+}
+
+// ACME challenge handler for Let's Encrypt HTTP-01 validation
+pub async fn acme_challenge_handler(path: web::Path<String>) -> ActixResult<HttpResponse> {
+    let token = path.into_inner();
+    if let Some(key_auth) = crate::server::acme::get_challenge_response(&token) {
+        Ok(HttpResponse::Ok().content_type("text/plain").body(key_auth))
+    } else {
+        Ok(HttpResponse::NotFound().body("Challenge not found"))
+    }
+}
+
+// GET /api/acme/status — ACME/TLS certificate status
+pub async fn acme_status_handler() -> ActixResult<HttpResponse> {
+    let status = crate::server::acme::get_acme_status();
+    Ok(HttpResponse::Ok().json(status))
+}
+
+// GET /api/acme/dashboard — ACME/TLS status dashboard
+pub async fn acme_dashboard_handler() -> ActixResult<HttpResponse> {
+    let status = crate::server::acme::get_acme_status();
+    let json_data = serde_json::to_string(&status)
+        .unwrap_or_else(|_| "{}".to_string())
+        .replace("</", "<\\/"); // Prevent XSS in inline script
+    let html = crate::server::acme::ACME_DASHBOARD_HTML.replace("__ACME_DATA__", &json_data);
+    Ok(HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(html))
+}
+
+// GET /api/analytics — Analytics summary JSON
+pub async fn analytics_handler() -> ActixResult<HttpResponse> {
+    let summary = crate::server::analytics::get_summary();
+    Ok(HttpResponse::Ok().json(summary))
+}
+
+// GET /api/analytics/dashboard — Embedded analytics dashboard
+pub async fn analytics_dashboard_handler() -> ActixResult<HttpResponse> {
+    let summary = crate::server::analytics::get_summary();
+    let json_data = serde_json::to_string(&summary)
+        .unwrap_or_else(|_| "{}".to_string())
+        .replace("</", "<\\/"); // Prevent XSS in inline script
+    let html = crate::server::analytics::DASHBOARD_HTML.replace("__ANALYTICS_DATA__", &json_data);
+    Ok(HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(html))
 }

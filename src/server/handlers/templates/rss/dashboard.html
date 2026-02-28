@@ -35,6 +35,8 @@
           <button class="header-btn" data-action="refresh-stats" title="Refresh Stats">
             REFRESH
           </button>
+          <a href="/api/analytics/dashboard" class="header-btn" title="Visitor Analytics" style="text-decoration:none;text-align:center;">ANALYTICS</a>
+          <a href="/api/acme/dashboard" class="header-btn" title="ACME/TLS Certificate Status" style="text-decoration:none;text-align:center;">ACME</a>
         </div>
 
         <div class="quick-stats">
@@ -176,6 +178,22 @@
                     <span class="feature-icon">⚡</span>
                     <span>High Performance</span>
                   </div>
+                </div>
+              </div>
+
+              <!-- Visitor Analytics Summary -->
+              <div class="card compact full-width" id="analytics-overview-card">
+                <h3>Visitor Analytics</h3>
+                <div class="config-items" id="analytics-overview-content">
+                  <div class="config-item"><span>Today</span><span id="av-today-views">-</span></div>
+                  <div class="config-item"><span>Unique Visitors (today)</span><span id="av-today-unique">-</span></div>
+                  <div class="config-item"><span>Last 7 Days</span><span id="av-week-views">-</span></div>
+                  <div class="config-item"><span>Unique Visitors (7d)</span><span id="av-week-unique">-</span></div>
+                  <div class="config-item"><span>Last 30 Days</span><span id="av-month-views">-</span></div>
+                  <div class="config-item"><span>Downloads (30d)</span><span id="av-month-downloads">-</span></div>
+                </div>
+                <div style="margin-top:12px">
+                  <a href="/api/analytics/dashboard" style="color:#6c63ff;font-size:13px;">Full Analytics Dashboard &rarr;</a>
                 </div>
               </div>
             </div>
@@ -427,6 +445,20 @@
                 </div>
               </div>
 
+              <!-- ACME / Let's Encrypt Status (loaded dynamically) -->
+              <div class="card full-width" id="acme-card">
+                <h3>Let's Encrypt / ACME</h3>
+                <div id="acme-status-content" class="config-items">
+                  <div class="config-item">
+                    <span>Status</span>
+                    <span id="acme-status-val">Loading...</span>
+                  </div>
+                </div>
+                <div style="margin-top:12px">
+                  <a href="/api/acme/dashboard" style="color:#6c63ff;font-size:13px;">Open ACME Dashboard &rarr;</a>
+                </div>
+              </div>
+
               <!-- URL Testing - KORREKTE PORTS -->
               <div class="card full-width">
                 <h3>URL Testing</h3>
@@ -539,5 +571,39 @@
         </div>
       </main>
     </div>
+    <script>
+    (function(){
+      fetch('/api/acme/status').then(function(r){return r.json()}).then(function(d){
+        var el=document.getElementById('acme-status-content');
+        if(!el)return;
+        var s=d.status||'not_configured';
+        var cert=d.certificate||{};
+        var colors={'success':'#00d4aa','failed':'#ff4466','provisioning':'#ffaa00','idle':'#6c63ff','not_configured':'#888'};
+        var labels={'success':'Active','failed':'Failed','provisioning':'Provisioning...','idle':'Idle','not_configured':'Not Configured'};
+        var h='';
+        h+='<div class="config-item"><span>Status</span><span style="color:'+colors[s]+'">'+labels[s]+'</span></div>';
+        if(d.domain)h+='<div class="config-item"><span>Domain</span><code>'+d.domain+'</code></div>';
+        if(cert.exists){
+          if(cert.age_days!=null)h+='<div class="config-item"><span>Certificate Age</span><span>'+cert.age_days+' days</span></div>';
+          if(cert.days_until_renewal!=null)h+='<div class="config-item"><span>Renewal In</span><span style="color:'+(cert.days_until_renewal>14?'#00d4aa':'#ffaa00')+'">'+cert.days_until_renewal+' days</span></div>';
+          if(cert.sans&&cert.sans.length)h+='<div class="config-item"><span>SANs</span><span>'+cert.sans.length+' domains</span></div>';
+        }
+        if(d.last_error)h+='<div class="config-item"><span>Last Error</span><span style="color:#ff4466;font-size:12px">'+d.last_error+'</span></div>';
+        el.innerHTML=h;
+      }).catch(function(){});
+    })();
+    (function(){
+      fetch('/api/analytics').then(function(r){return r.json()}).then(function(d){
+        var t=d.today||{},w=d.last_7_days||{},m=d.last_30_days||{};
+        var s=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
+        s('av-today-views',(t.page_views||0).toLocaleString()+' views');
+        s('av-today-unique',(t.unique_visitors||0).toLocaleString());
+        s('av-week-views',(w.page_views||0).toLocaleString()+' views');
+        s('av-week-unique',(w.unique_visitors||0).toLocaleString());
+        s('av-month-views',(m.page_views||0).toLocaleString()+' views');
+        s('av-month-downloads',(m.downloads||0).toLocaleString());
+      }).catch(function(){});
+    })();
+    </script>
   </body>
 </html>

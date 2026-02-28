@@ -1,0 +1,21 @@
+# Rust build artifacts
+target/
+
+# Git
+.git/
+
+# Claude Code
+.claude/
+
+# IDE
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+
+# German doc versions (English versions needed for build)
+*_de.md
+
+# Non-essential files
+_sh/

@@ -15,10 +15,7 @@ pub struct TlsManager {
 
 impl TlsManager {
     pub fn new(cert_dir: &str, validity_days: u32) -> Result<Self> {
-        let exe_path = std::env::current_exe().map_err(AppError::Io)?;
-        let base_dir = exe_path.parent().ok_or_else(|| {
-            AppError::Validation("Cannot determine executable directory".to_string())
-        })?;
+        let base_dir = crate::core::helpers::get_base_dir()?;
 
         let cert_path = base_dir.join(cert_dir);
         fs::create_dir_all(&cert_path).map_err(AppError::Io)?;
@@ -30,19 +27,28 @@ impl TlsManager {
     }
 
     pub fn get_rustls_config(&self, server_name: &str, port: u16) -> Result<Arc<ServerConfig>> {
+        self.get_rustls_config_for_domain(server_name, port, "localhost")
+    }
+
+    pub fn get_rustls_config_for_domain(
+        &self,
+        server_name: &str,
+        port: u16,
+        production_domain: &str,
+    ) -> Result<Arc<ServerConfig>> {
         let cert_file = self.get_cert_path(server_name, port);
         let key_file = self.get_key_path(server_name, port);
 
-        // Zertifikat erstellen falls nicht vorhanden
+        // Generate certificate if it doesn't exist
         if !cert_file.exists() || !key_file.exists() {
-            self.generate_certificate(server_name, port)?;
+            self.generate_certificate_with_domain(server_name, port, production_domain)?;
         }
 
-        // Zertifikat und Key laden
+        // Load certificate and key
         let cert_chain = self.load_certificates(&cert_file)?;
         let private_key = self.load_private_key(&key_file)?;
 
-        // Rustls Konfiguration erstellen
+        // Build rustls configuration
         let config = ServerConfig::builder()
             .with_safe_defaults()
             .with_no_client_auth()
@@ -52,42 +58,63 @@ impl TlsManager {
         Ok(Arc::new(config))
     }
 
-    fn generate_certificate(&self, server_name: &str, port: u16) -> Result<()> {
+    fn generate_certificate_with_domain(
+        &self,
+        server_name: &str,
+        port: u16,
+        production_domain: &str,
+    ) -> Result<()> {
         log::info!("Generating TLS certificate for {}:{}", server_name, port);
 
-        // Subject Alternative Names - Wildcard für Proxy, spezifisch für Server
-        let subject_alt_names = if server_name == "proxy" {
+        // SANs: wildcard for proxy, specific subdomain for individual servers
+        let mut subject_alt_names = if server_name == "proxy" {
             vec![
                 "localhost".to_string(),
                 "127.0.0.1".to_string(),
-                "*.localhost".to_string(), // Wildcard für alle Subdomains
+                "*.localhost".to_string(),
                 "proxy.localhost".to_string(),
             ]
         } else {
             vec![
                 "localhost".to_string(),
                 "127.0.0.1".to_string(),
-                format!("{}.localhost", server_name), // spezifische Subdomain
+                format!("{}.localhost", server_name),
                 format!("{}:{}", server_name, port),
             ]
         };
 
+        // Add production domain SANs if configured
+        if production_domain != "localhost" {
+            subject_alt_names.push(production_domain.to_string());
+            subject_alt_names.push(format!("*.{}", production_domain));
+            if server_name != "proxy" {
+                subject_alt_names.push(format!("{}.{}", server_name, production_domain));
+            }
+        }
+
         let mut params = CertificateParams::new(subject_alt_names);
 
-        // Distinguished Name - Korrekte Common Names
+        // Distinguished Name
         let mut dn = DistinguishedName::new();
         dn.push(rcgen::DnType::OrganizationName, "Rush Sync Server");
 
-        let common_name = if server_name == "proxy" {
-            "*.localhost" // Wildcard CN für Proxy
+        let common_name = if production_domain != "localhost" {
+            if server_name == "proxy" {
+                format!("*.{}", production_domain)
+            } else {
+                format!("{}.{}", server_name, production_domain)
+            }
+        } else if server_name == "proxy" {
+            "*.localhost".to_string()
         } else {
-            &format!("{}.localhost", server_name)
+            format!("{}.localhost", server_name)
         };
+        let common_name = &common_name;
 
         dn.push(rcgen::DnType::CommonName, common_name);
         params.distinguished_name = dn;
 
-        // Rest der Funktion bleibt gleich...
+        // Validity period and key usage
         params.not_before = time::OffsetDateTime::now_utc() - time::Duration::days(1);
         params.not_after =
             time::OffsetDateTime::now_utc() + time::Duration::days(self.validity_days as i64);
@@ -99,7 +126,7 @@ impl TlsManager {
 
         params.extended_key_usages = vec![rcgen::ExtendedKeyUsagePurpose::ServerAuth];
 
-        // Zertifikat generieren
+        // Generate and serialize certificate
         let cert = Certificate::from_params(params)
             .map_err(|e| AppError::Validation(format!("Certificate generation failed: {}", e)))?;
 
@@ -218,7 +245,7 @@ impl TlsManager {
 
             if path.extension().and_then(|s| s.to_str()) == Some("cert") {
                 if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    // Parse server-port aus Dateiname
+                    // Parse server-port from filename
                     if let Some((server, port_str)) = stem.rsplit_once('-') {
                         if let Ok(port) = port_str.parse::<u16>() {
                             if let Some(info) = self.get_certificate_info(server, port) {
@@ -235,29 +262,62 @@ impl TlsManager {
     }
 
     pub fn get_production_config(&self, domain: &str) -> Result<Arc<ServerConfig>> {
-        // Prüfen ob bereits Let's Encrypt Zertifikat existiert
+        // Check for existing Let's Encrypt certificate
         let cert_file = self.cert_dir.join(format!("{}.fullchain.pem", domain));
         let key_file = self.cert_dir.join(format!("{}.privkey.pem", domain));
 
         if cert_file.exists() && key_file.exists() {
-            log::info!("Loading existing Let's Encrypt certificate for {}", domain);
-            let cert_chain = self.load_certificates(&cert_file)?;
-            let private_key = self.load_private_key(&key_file)?;
+            log::info!("Loading Let's Encrypt certificate for {}", domain);
+            let cert_chain = match self.load_certificates(&cert_file) {
+                Ok(c) => c,
+                Err(e) => {
+                    log::error!("LE cert corrupt for {}: {} — deleting for re-provision", domain, e);
+                    let _ = fs::remove_file(&cert_file);
+                    let _ = fs::remove_file(&key_file);
+                    return Err(e);
+                }
+            };
+            let private_key = match self.load_private_key(&key_file) {
+                Ok(k) => k,
+                Err(e) => {
+                    log::error!("LE key corrupt for {}: {} — deleting for re-provision", domain, e);
+                    let _ = fs::remove_file(&cert_file);
+                    let _ = fs::remove_file(&key_file);
+                    return Err(e);
+                }
+            };
 
-            let config = ServerConfig::builder()
+            match ServerConfig::builder()
                 .with_safe_defaults()
                 .with_no_client_auth()
                 .with_single_cert(cert_chain, private_key)
-                .map_err(|e| AppError::Validation(format!("TLS config error: {}", e)))?;
-
-            return Ok(Arc::new(config));
+            {
+                Ok(config) => return Ok(Arc::new(config)),
+                Err(e) => {
+                    // Cert/key mismatch (e.g. key was overwritten by a failed ACME attempt).
+                    // Delete both files so ACME will re-provision on the next cycle.
+                    log::error!(
+                        "LE cert/key mismatch for {}: {} — deleting for re-provision",
+                        domain, e
+                    );
+                    let _ = fs::remove_file(&cert_file);
+                    let _ = fs::remove_file(&key_file);
+                    return Err(AppError::Validation(format!(
+                        "Cert/key mismatch for {}: {}",
+                        domain, e
+                    )));
+                }
+            }
         }
 
         log::warn!("No Let's Encrypt certificate found for {}", domain);
-        log::info!("Using self-signed certificate for development");
 
-        // Fallback zu self-signed
-        self.get_rustls_config("proxy", 443)
+        // Return error so the caller can generate a proper self-signed cert
+        // with the correct production domain SANs (not *.localhost)
+        Err(AppError::Validation(format!(
+            "No Let's Encrypt certificate found for {}",
+            domain
+        )))
     }
 }
 

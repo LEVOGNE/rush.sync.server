@@ -1,5 +1,5 @@
-// Enhanced src/commands/stop/command.rs - RANGE & BULK SUPPORT
 use crate::commands::command::Command;
+use crate::commands::parsing::{parse_bulk_args, BulkMode};
 use crate::core::prelude::*;
 use crate::server::types::{ServerContext, ServerStatus};
 use crate::server::utils::validation::find_server;
@@ -29,19 +29,20 @@ impl Command for StopCommand {
 
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
         if args.is_empty() {
-            return Err(AppError::Validation(
-                "Server-ID/Name fehlt! Verwende 'stop <ID>', 'stop 1-3', 'stop all'".to_string(),
-            ));
+            return Err(AppError::Validation(get_translation(
+                "server.error.id_missing",
+                &[],
+            )));
         }
 
         let config = get_config()?;
         let ctx = crate::server::shared::get_shared_context();
 
-        match self.parse_stop_args(args) {
-            StopMode::Single(identifier) => self.stop_single_server(&config, ctx, &identifier),
-            StopMode::Range(start, end) => self.stop_range_servers(&config, ctx, start, end),
-            StopMode::All => self.stop_all_servers(&config, ctx),
-            StopMode::Invalid(error) => Err(AppError::Validation(error)),
+        match parse_bulk_args(args) {
+            BulkMode::Single(identifier) => self.stop_single_server(&config, ctx, &identifier),
+            BulkMode::Range(start, end) => self.stop_range_servers(&config, ctx, start, end),
+            BulkMode::All => self.stop_all_servers(&config, ctx),
+            BulkMode::Invalid(error) => Err(AppError::Validation(error)),
         }
     }
 
@@ -50,54 +51,8 @@ impl Command for StopCommand {
     }
 }
 
-#[derive(Debug)]
-enum StopMode {
-    Single(String),
-    Range(u32, u32),
-    All,
-    Invalid(String),
-}
-
 impl StopCommand {
-    // Parse different stop argument patterns
-    fn parse_stop_args(&self, args: &[&str]) -> StopMode {
-        if args.len() != 1 {
-            return StopMode::Invalid("Too many arguments".to_string());
-        }
-
-        let arg = args[0];
-
-        // "stop all"
-        if arg.eq_ignore_ascii_case("all") {
-            return StopMode::All;
-        }
-
-        // "stop 1-3" or "stop 001-005"
-        if let Some((start_str, end_str)) = arg.split_once('-') {
-            match (start_str.parse::<u32>(), end_str.parse::<u32>()) {
-                (Ok(start), Ok(end)) => {
-                    if start == 0 || end == 0 {
-                        return StopMode::Invalid("Range indices must be > 0".to_string());
-                    }
-                    if start > end {
-                        return StopMode::Invalid("Start must be <= end in range".to_string());
-                    }
-                    if end - start > 20 {
-                        return StopMode::Invalid(
-                            "Maximum 20 servers in range operation".to_string(),
-                        );
-                    }
-                    StopMode::Range(start, end)
-                }
-                _ => StopMode::Single(arg.to_string()),
-            }
-        } else {
-            // Single server by ID/name/number
-            StopMode::Single(arg.to_string())
-        }
-    }
-
-    // Stop single server (enhanced from original)
+    // Stop single server
     fn stop_single_server(
         &self,
         config: &Config,
@@ -119,7 +74,7 @@ impl StopCommand {
                 ));
             }
 
-            // Handle atomisch entfernen
+            // Atomically remove the handle
             let handle = {
                 let mut handles_guard = ctx.handles.write().map_err(|_| {
                     AppError::Validation("Handle-Context lock poisoned".to_string())
@@ -136,24 +91,24 @@ impl StopCommand {
             server_info.port
         );
 
-        // Status sofort auf "Stopped" setzen
+        // Set status to Stopped immediately
         self.update_server_status(ctx, &server_info.id, ServerStatus::Stopped);
 
-        // Browser-Benachrichtigung
+        // Notify browser to close
         self.notify_browser_shutdown(&server_info);
 
         if let Some(handle) = handle {
             // Graceful shutdown
             self.shutdown_server_gracefully(handle, server_info.id.clone(), config);
 
-            // Persistence update (nicht blockierend)
+            // Persist status update (non-blocking)
             let server_id = server_info.id.clone();
             tokio::spawn(async move {
                 crate::server::shared::persist_server_update(&server_id, ServerStatus::Stopped)
                     .await;
             });
 
-            // Kurze Pause für konsistente Timing
+            // Brief pause for consistent timing
             std::thread::sleep(Duration::from_millis(
                 config.server.startup_delay_ms.min(500),
             ));
@@ -174,7 +129,7 @@ impl StopCommand {
                 server_info.name, running_count, config.server.max_concurrent
             ))
         } else {
-            // Handle war bereits weg - nur Status updaten
+            // Handle was already removed - just update status
             let server_id = server_info.id.clone();
             tokio::spawn(async move {
                 crate::server::shared::persist_server_update(&server_id, ServerStatus::Stopped)
@@ -234,7 +189,7 @@ impl StopCommand {
     // Stop all running servers
     fn stop_all_servers(&self, config: &Config, ctx: &ServerContext) -> Result<String> {
         let running_servers: Vec<_> = {
-            let servers = ctx.servers.read().unwrap();
+            let servers = read_lock(&ctx.servers, "servers")?;
             servers
                 .values()
                 .filter(|s| s.status == ServerStatus::Running)
@@ -289,7 +244,7 @@ impl StopCommand {
         Ok(format!("{}\n\nResults:\n{}", summary, results.join("\n")))
     }
 
-    // Browser notification (from original)
+    // Browser notification
     fn notify_browser_shutdown(&self, server_info: &crate::server::types::ServerInfo) {
         let server_port = server_info.port;
         let server_name = server_info.name.clone();
@@ -315,7 +270,7 @@ impl StopCommand {
         });
     }
 
-    // Graceful shutdown (from original)
+    // Graceful shutdown
     fn shutdown_server_gracefully(
         &self,
         handle: actix_web::dev::ServerHandle,

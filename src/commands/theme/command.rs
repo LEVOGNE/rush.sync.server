@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: src/commands/theme/command.rs - I18N VERSION
-// =====================================================
-
 use super::ThemeSystem;
 use crate::commands::command::Command;
 use crate::core::prelude::*;
@@ -44,18 +40,17 @@ impl Command for ThemeCommand {
     }
 
     fn execute_sync(&self, args: &[&str]) -> Result<String> {
-        log::info!("🎨 ThemeCommand::execute_sync called with args: {:?}", args);
+        log::info!("ThemeCommand::execute_sync called with args: {:?}", args);
 
-        // Theme-System laden mit i18n Error-Handling
         let mut guard = match self.get_or_init_theme_system() {
             Ok(guard) => {
-                log::info!("✅ ThemeSystem loaded successfully");
+                log::info!("ThemeSystem loaded successfully");
                 guard
             }
             Err(e) => {
-                log::error!("❌ ThemeSystem load failed: {}", e);
+                log::error!("ThemeSystem load failed: {}", e);
                 return Ok(format!(
-                    "{} {}\n\n💡 {}",
+                    "{} {}\n\n{}",
                     get_command_translation("system.commands.theme.load_failed", &[&e.to_string()]),
                     get_command_translation("system.commands.theme.no_themes_hint", &[]),
                     get_command_translation("system.commands.theme.add_sections_hint", &[])
@@ -67,16 +62,16 @@ impl Command for ThemeCommand {
 
         match args.first() {
             None => {
-                log::info!("🎨 Calling theme_system.show_status()");
+                log::info!("Calling theme_system.show_status()");
                 let result = theme_system.show_status_i18n();
-                log::info!("🎨 show_status result: '{}'", result);
+                log::info!("show_status result: '{}'", result);
                 Ok(result)
             }
             Some(&"--help" | &"-h") => {
-                log::info!("🎨 Calling create_help_text()");
+                log::info!("Calling create_help_text()");
                 let result = Self::create_help_text_i18n(theme_system);
                 log::info!(
-                    "🎨 create_help_text result length: {} chars",
+                    "create_help_text result length: {} chars",
                     result.chars().count()
                 );
                 Ok(result)
@@ -96,7 +91,7 @@ impl Command for ThemeCommand {
                 )),
             },
             Some(&theme_name) => {
-                log::info!("🎨 Calling change_theme({})", theme_name);
+                log::info!("Calling change_theme({})", theme_name);
                 theme_system.change_theme_i18n(theme_name)
             }
         }
@@ -143,10 +138,6 @@ impl Default for ThemeCommand {
     }
 }
 
-// =====================================================
-// ERWEITERTE THEMESYSTEM METHODEN MIT I18N
-// =====================================================
-
 impl ThemeSystem {
     pub fn show_status_i18n(&self) -> String {
         if self.themes.is_empty() {
@@ -180,7 +171,7 @@ impl ThemeSystem {
         // Log cursor details
         if let Some(theme_def) = self.themes.get(&theme_name_lower) {
             log::info!(
-                "🎨 Theme '{}': input_cursor='{}' ({}), output_cursor='{}' ({}), prefix='{}'",
+                "Theme '{}': input_cursor='{}' ({}), output_cursor='{}' ({}), prefix='{}'",
                 theme_name_lower.to_uppercase(),
                 theme_def.input_cursor,
                 theme_def.input_cursor_color,

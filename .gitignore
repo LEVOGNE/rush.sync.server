@@ -1,1 +1,28 @@
+# Rust build artifacts
 /target
+
+# Runtime data (generated at startup)
+.rss/
+www/
+
+# Environment secrets
+.env
+.env.local
+.env.production
+
+# Claude Code
+.claude/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log

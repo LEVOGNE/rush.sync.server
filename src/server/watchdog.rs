@@ -47,10 +47,7 @@ impl WatchdogManager {
     }
 
     pub fn start_watching(&self, server_name: &str, port: u16) -> Result<()> {
-        let exe_path = std::env::current_exe().map_err(AppError::Io)?;
-        let base_dir = exe_path.parent().ok_or_else(|| {
-            AppError::Validation("Cannot determine executable directory".to_string())
-        })?;
+        let base_dir = crate::core::helpers::get_base_dir()?;
 
         let watch_path = base_dir
             .join("www")
@@ -82,7 +79,7 @@ impl WatchdogManager {
             .watch(&watch_path, RecursiveMode::Recursive)
             .map_err(|e| AppError::Validation(format!("Failed to start watching: {}", e)))?;
 
-        let mut watchers = self.watchers.write().unwrap();
+        let mut watchers = self.watchers.write().unwrap_or_else(|p| p.into_inner());
         watchers.insert(server_key.clone(), watcher);
 
         log::info!(
@@ -96,7 +93,7 @@ impl WatchdogManager {
 
     pub fn stop_watching(&self, server_name: &str, port: u16) -> Result<()> {
         let server_key = format!("{}:{}", server_name, port);
-        let mut watchers = self.watchers.write().unwrap();
+        let mut watchers = self.watchers.write().unwrap_or_else(|p| p.into_inner());
 
         if let Some(_watcher) = watchers.remove(&server_key) {
             log::info!(
@@ -110,7 +107,7 @@ impl WatchdogManager {
     }
 
     pub fn get_active_watchers(&self) -> Vec<String> {
-        let watchers = self.watchers.read().unwrap();
+        let watchers = self.watchers.read().unwrap_or_else(|p| p.into_inner());
         watchers.keys().cloned().collect()
     }
 }
@@ -121,16 +118,16 @@ fn handle_file_event(
     port: u16,
     sender: &broadcast::Sender<FileChangeEvent>,
 ) -> Result<()> {
-    // Nur relevante Events verarbeiten
+    // Only process relevant events
     let event_type = match event.kind {
         EventKind::Create(_) => "created",
         EventKind::Modify(_) => "modified",
         EventKind::Remove(_) => "deleted",
-        _ => return Ok(()), // Ignore andere Events
+        _ => return Ok(()),
     };
 
     for path in &event.paths {
-        // Skip temporäre Dateien und Backups
+        // Skip temporary files and backups
         if let Some(file_name) = path.file_name() {
             let name = file_name.to_string_lossy();
             if name.starts_with('.')
@@ -147,7 +144,7 @@ fn handle_file_event(
             .and_then(|ext| ext.to_str())
             .map(|s| s.to_string());
 
-        // Nur Web-relevante Dateien
+        // Only web-relevant file types
         if let Some(ref ext) = file_extension {
             if ![
                 "html", "css", "js", "json", "txt", "md", "svg", "png", "jpg", "jpeg", "gif", "ico",
@@ -178,7 +175,7 @@ fn handle_file_event(
     Ok(())
 }
 
-// WebSocket Actor für Hot Reload
+// WebSocket actor for hot reload
 pub struct HotReloadWs {
     receiver: Option<broadcast::Receiver<FileChangeEvent>>,
     server_filter: Option<String>, // Format: "name:port"
@@ -211,7 +208,7 @@ impl Actor for HotReloadWs {
             });
         }
 
-        // Ping alle 30 Sekunden
+        // Ping every 30 seconds to keep connection alive
         ctx.run_interval(Duration::from_secs(30), |_, ctx| {
             ctx.ping(b"");
         });
@@ -243,7 +240,7 @@ impl Handler<FileChangeEvent> for HotReloadWs {
     type Result = ();
 
     fn handle(&mut self, msg: FileChangeEvent, ctx: &mut Self::Context) -> Self::Result {
-        // Filter nach Server wenn gesetzt
+        // Filter by server if a filter is set
         if let Some(ref filter) = self.server_filter {
             let event_key = format!("{}:{}", msg.server_name, msg.port);
             if *filter != event_key {
@@ -264,10 +261,12 @@ impl Handler<FileChangeEvent> for HotReloadWs {
 }
 
 // WebSocket Endpoint Handler
+// Note: app_data registers Data::from(Arc<WatchdogManager>) which yields Data<WatchdogManager>,
+// so the parameter type must match exactly (not Data<Arc<WatchdogManager>>).
 pub async fn ws_hot_reload(
     req: HttpRequest,
     stream: web::Payload,
-    data: web::Data<Arc<WatchdogManager>>,
+    data: web::Data<WatchdogManager>,
 ) -> std::result::Result<HttpResponse, actix_web::Error> {
     let server_filter = req
         .query_string()
@@ -289,7 +288,7 @@ pub async fn ws_hot_reload(
     ws::start(ws_actor, &req, stream)
 }
 
-// Static globals für Manager
+// Global watchdog manager singleton
 use std::sync::OnceLock;
 static WATCHDOG_MANAGER: OnceLock<Arc<WatchdogManager>> = OnceLock::new();
 

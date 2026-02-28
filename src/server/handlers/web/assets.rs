@@ -1,10 +1,20 @@
-// src/server/handlers/web/assets.rs
 use super::ServerDataWithConfig;
 use actix_web::{web, HttpResponse, Result as ActixResult};
 
+/// Escape a string for safe embedding inside JavaScript string literals.
+fn js_escape(input: &str) -> String {
+    input
+        .replace('\\', "\\\\")
+        .replace('\'', "\\'")
+        .replace('"', "\\\"")
+        .replace('<', "\\x3c")
+        .replace('>', "\\x3e")
+        .replace('&', "\\x26")
+}
+
 pub async fn serve_rss_js(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
     let js_content = include_str!("../templates/rss/rss.js")
-        .replace("{{SERVER_NAME}}", &data.server.name)
+        .replace("{{SERVER_NAME}}", &js_escape(&data.server.name))
         .replace("{{PORT}}", &data.server.port.to_string())
         .replace("{{PROXY_PORT}}", &data.proxy_http_port.to_string())
         .replace("{{PROXY_HTTPS_PORT}}", &data.proxy_https_port.to_string());
@@ -18,7 +28,7 @@ pub async fn serve_rss_js(data: web::Data<ServerDataWithConfig>) -> ActixResult<
 // App Controller Module
 pub async fn serve_rush_app_js(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
     let js_content = include_str!("../templates/rss/js/rush-app.js")
-        .replace("{{SERVER_NAME}}", &data.server.name)
+        .replace("{{SERVER_NAME}}", &js_escape(&data.server.name))
         .replace("{{PORT}}", &data.server.port.to_string())
         .replace("{{PROXY_PORT}}", &data.proxy_http_port.to_string())
         .replace("{{PROXY_HTTPS_PORT}}", &data.proxy_https_port.to_string());
@@ -30,7 +40,7 @@ pub async fn serve_rush_app_js(data: web::Data<ServerDataWithConfig>) -> ActixRe
 
 pub async fn serve_rush_api_js(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
     let js_content = include_str!("../templates/rss/js/rush-api.js")
-        .replace("{{SERVER_NAME}}", &data.server.name)
+        .replace("{{SERVER_NAME}}", &js_escape(&data.server.name))
         .replace("{{PORT}}", &data.server.port.to_string())
         .replace("{{PROXY_PORT}}", &data.proxy_http_port.to_string())
         .replace("{{PROXY_HTTPS_PORT}}", &data.proxy_https_port.to_string());
@@ -43,7 +53,7 @@ pub async fn serve_rush_api_js(data: web::Data<ServerDataWithConfig>) -> ActixRe
 
 pub async fn serve_rush_ui_js(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
     let js_content = include_str!("../templates/rss/js/rush-ui.js")
-        .replace("{{SERVER_NAME}}", &data.server.name)
+        .replace("{{SERVER_NAME}}", &js_escape(&data.server.name))
         .replace("{{PORT}}", &data.server.port.to_string())
         .replace("{{PROXY_PORT}}", &data.proxy_http_port.to_string())
         .replace("{{PROXY_HTTPS_PORT}}", &data.proxy_https_port.to_string());
@@ -119,4 +129,56 @@ pub async fn serve_global_reset_css() -> ActixResult<HttpResponse> {
         .content_type("text/css; charset=utf-8")
         .insert_header(("Cache-Control", "public, max-age=3600"))
         .body(reset_css))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_js_escape_basic() {
+        assert_eq!(js_escape("hello"), "hello");
+    }
+
+    #[test]
+    fn test_js_escape_quotes() {
+        assert_eq!(js_escape(r#"it's a "test""#), r#"it\'s a \"test\""#);
+    }
+
+    #[test]
+    fn test_js_escape_backslash() {
+        assert_eq!(js_escape(r"path\to\file"), r"path\\to\\file");
+    }
+
+    #[test]
+    fn test_js_escape_html_tags() {
+        assert_eq!(js_escape("<script>"), "\\x3cscript\\x3e");
+        assert_eq!(js_escape("</script>"), "\\x3c/script\\x3e");
+    }
+
+    #[test]
+    fn test_js_escape_ampersand() {
+        assert_eq!(js_escape("a&b"), "a\\x26b");
+    }
+
+    #[test]
+    fn test_js_escape_xss_payload() {
+        let payload = r#"</script><script>alert('xss')</script>"#;
+        let escaped = js_escape(payload);
+        assert!(!escaped.contains('<'));
+        assert!(!escaped.contains('>'));
+        assert!(escaped.contains("\\x3c"));
+        assert!(escaped.contains("\\x3e"));
+    }
+
+    #[test]
+    fn test_js_escape_empty() {
+        assert_eq!(js_escape(""), "");
+    }
+
+    #[test]
+    fn test_js_escape_server_name() {
+        assert_eq!(js_escape("my-server-01"), "my-server-01");
+        assert_eq!(js_escape("test<>server"), "test\\x3c\\x3eserver");
+    }
 }

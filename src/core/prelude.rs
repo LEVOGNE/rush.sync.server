@@ -1,36 +1,36 @@
-// ✅ CORE ESSENTIALS - überall gebraucht
+// Core essentials
 pub use crate::core::config::Config;
 pub use crate::core::error::{AppError, Result};
-pub use crate::core::helpers::get_config;
+pub use crate::core::helpers::{get_config, read_lock, write_lock};
 
-// ✅ STANDARD LIBRARY ESSENTIALS
+// Standard library essentials
 pub use std::collections::HashMap;
 pub use std::io::{self, Write};
 pub use std::time::{Duration, Instant};
 
-// ✅ CROSSTERM BASICS (nur die wichtigsten)
+// Crossterm basics
 pub use crossterm::event::{KeyCode, KeyEvent};
 
-// ✅ RATATUI BASICS
+// Ratatui basics
 pub use ratatui::style::Color;
 
-// ✅ i18n INTEGRATION - VOLLSTÄNDIG
+// i18n integration
 pub use crate::i18n::{
     clear_translation_cache, get_available_languages, get_color_category_for_display,
     get_command_translation, get_current_language, get_translation, has_translation, set_language,
     TranslationError,
 };
 
-// ✅ i18n MAKROS - für einfache Nutzung
+// i18n macros
 pub use crate::{t, tc};
 
-// ✅ ZUSÄTZLICHE UTILITIES für häufige Operationen
+// Additional utilities
 pub use crate::ui::color::AppColor;
 
-// ✅ LOGGING INTEGRATION - damit log! Makros i18n nutzen können
+// Logging integration
 pub use log::{debug, error, info, trace, warn};
 
-// ✅ RE-EXPORTS für bessere API
+// Re-exports
 pub use crate::commands::{Command, CommandHandler, CommandRegistry};
 pub use crate::input::keyboard::KeyAction;
 pub use crate::output::display::MessageDisplay;

@@ -7,18 +7,13 @@ pub enum PortStatus {
     OccupiedByOther,
 }
 
-pub fn check_port_status(port: u16) -> PortStatus {
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener};
-
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
-
-    // frei?
-    if let Ok(listener) = TcpListener::bind(addr) {
-        drop(listener);
+pub fn check_port_status(port: u16, bind_address: &str) -> PortStatus {
+    // free?
+    if is_port_available(port, bind_address) {
         return PortStatus::Available;
     }
 
-    // belegt – prüfen ob von uns
+    // occupied - check if by us
     let ctx = crate::server::shared::get_shared_context();
     if let Ok(servers) = ctx.servers.read() {
         if servers.values().any(|s| s.port == port) {
@@ -29,8 +24,8 @@ pub fn check_port_status(port: u16) -> PortStatus {
     PortStatus::OccupiedByOther
 }
 
-pub fn is_port_available(port: u16) -> bool {
-    std::net::TcpListener::bind(("127.0.0.1", port))
+pub fn is_port_available(port: u16, bind_address: &str) -> bool {
+    std::net::TcpListener::bind((bind_address, port))
         .map(|l| {
             drop(l);
             true
@@ -40,7 +35,7 @@ pub fn is_port_available(port: u16) -> bool {
 
 pub fn find_next_available_port(config: &Config) -> Result<u16> {
     let ctx = crate::server::shared::get_shared_context();
-    let servers = ctx.servers.read().unwrap();
+    let servers = crate::core::helpers::read_lock(&ctx.servers, "servers")?;
     let mut used_ports: Vec<u16> = servers.values().map(|s| s.port).collect();
     used_ports.sort();
 
@@ -55,32 +50,12 @@ pub fn find_next_available_port(config: &Config) -> Result<u16> {
             )));
         }
 
-        if !used_ports.contains(&candidate_port) && is_port_available(candidate_port) {
+        if !used_ports.contains(&candidate_port)
+            && is_port_available(candidate_port, &config.server.bind_address)
+        {
             return Ok(candidate_port);
         }
 
         candidate_port += 1;
-    }
-}
-
-pub fn find_next_available_port_legacy() -> Result<u16> {
-    let ctx = crate::server::shared::get_shared_context();
-    let servers = ctx.servers.read().unwrap();
-    let mut used_ports: Vec<u16> = servers.values().map(|s| s.port).collect();
-    used_ports.sort();
-
-    let mut candidate_port = 8080;
-
-    loop {
-        if !used_ports.contains(&candidate_port) && is_port_available(candidate_port) {
-            return Ok(candidate_port);
-        }
-
-        candidate_port += 1;
-        if candidate_port > 8180 {
-            return Err(AppError::Validation(
-                "No available ports found in default range 8080-8180".to_string(),
-            ));
-        }
     }
 }

@@ -1,0 +1,19 @@
+services:
+  rush-sync:
+    build: .
+    env_file: .env.docker
+    ports:
+      - "80:80"        # HTTP redirect + ACME challenges (Let's Encrypt)
+      - "443:3443"     # HTTPS standard port → Proxy HTTPS
+      - "8000:8000"    # HTTP Server
+      - "8001:8001"    # Second server (optional)
+      - "3000:3000"    # Reverse Proxy HTTP
+      - "3443:3443"    # Reverse Proxy HTTPS (direct)
+    volumes:
+      - rush-data:/app/.rss     # Config, Certs, Logs persistent
+      - rush-www:/app/www       # Website files persistent
+    restart: unless-stopped
+
+volumes:
+  rush-data:
+  rush-www:

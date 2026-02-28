@@ -4,27 +4,34 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyConfig {
     pub enabled: bool,
-    pub port: u16,              // HTTP Proxy Port (3000)
-    pub https_port_offset: u16, // NEU: HTTPS Offset (443)
+    pub port: u16,
+    pub https_port_offset: u16,
     pub bind_address: String,
     pub health_check_interval: u64,
     pub timeout_ms: u64,
+    // Populated from [server] config — avoids re-loading config in proxy context
+    #[serde(default)]
+    pub production_domain: String,
+    #[serde(default)]
+    pub use_lets_encrypt: bool,
 }
 
 impl Default for ProxyConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            port: 3000,             // HTTP Proxy
-            https_port_offset: 443, // HTTPS = 3000 + 443 = 3443
+            port: 3000,
+            https_port_offset: 443, // HTTPS port = port + offset (e.g. 3443)
             bind_address: "127.0.0.1".to_string(),
             health_check_interval: 30,
             timeout_ms: 5000,
+            production_domain: "localhost".to_string(),
+            use_lets_encrypt: false,
         }
     }
 }
 
-// NEU: TOML-spezifische Struktur für Serialisierung
+// TOML-specific struct for serialization
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProxyConfigToml {
     pub enabled: bool,
@@ -35,7 +42,6 @@ pub struct ProxyConfigToml {
     pub https_port_offset: u16,
 }
 
-// FEHLEND: Default für ProxyConfigToml
 impl Default for ProxyConfigToml {
     fn default() -> Self {
         Self {
@@ -71,6 +77,9 @@ impl From<ProxyConfigToml> for ProxyConfig {
             bind_address: config.bind_address,
             health_check_interval: config.health_check_interval,
             timeout_ms: config.timeout_ms,
+            // These are populated later from [server] config, not from TOML
+            production_domain: "localhost".to_string(),
+            use_lets_encrypt: false,
         }
     }
 }

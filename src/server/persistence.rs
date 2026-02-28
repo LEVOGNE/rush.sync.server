@@ -1,4 +1,4 @@
-// ## FILE: src/server/persistence.rs - OPTIMIERT
+// src/server/persistence.rs
 use crate::core::prelude::*;
 use crate::server::types::{ServerInfo, ServerStatus};
 use serde::{Deserialize, Serialize};
@@ -53,10 +53,7 @@ pub struct ServerRegistry {
 
 impl ServerRegistry {
     pub fn new() -> Result<Self> {
-        let exe_path = std::env::current_exe().map_err(AppError::Io)?;
-        let base_dir = exe_path.parent().ok_or_else(|| {
-            AppError::Validation("Cannot determine executable directory".to_string())
-        })?;
+        let base_dir = crate::core::helpers::get_base_dir()?;
 
         let file_path = base_dir.join(".rss").join("servers.list");
 
@@ -65,6 +62,18 @@ impl ServerRegistry {
         }
 
         Ok(Self { file_path })
+    }
+
+    /// Fallback constructor that never fails — uses temp dir if base_dir is unavailable
+    pub fn with_fallback() -> Self {
+        match Self::new() {
+            Ok(registry) => registry,
+            Err(_) => {
+                let path = std::env::temp_dir().join(".rss").join("servers.list");
+                let _ = std::fs::create_dir_all(path.parent().unwrap_or(&path));
+                Self { file_path: path }
+            }
+        }
     }
 
     pub fn get_file_path(&self) -> &PathBuf {
@@ -110,7 +119,7 @@ impl ServerRegistry {
         Ok(())
     }
 
-    // Vereinfachte Update-Methoden mit weniger Boilerplate
+    // Generic update helper to reduce boilerplate
     async fn update_server(
         &self,
         server_id: &str,
@@ -204,12 +213,9 @@ impl ServerRegistry {
             .collect()
     }
 
-    // Utility-Methoden mit besserer Error-Behandlung
+    // Directory cleanup utilities
     pub async fn cleanup_server_directory(&self, server_name: &str, port: u16) -> Result<()> {
-        let exe_path = std::env::current_exe().map_err(AppError::Io)?;
-        let base_dir = exe_path.parent().ok_or_else(|| {
-            AppError::Validation("Cannot determine executable directory".to_string())
-        })?;
+        let base_dir = crate::core::helpers::get_base_dir()?;
 
         let server_dir = base_dir
             .join("www")
@@ -223,10 +229,7 @@ impl ServerRegistry {
     }
 
     pub fn list_www_directories(&self) -> Result<Vec<PathBuf>> {
-        let exe_path = std::env::current_exe().map_err(AppError::Io)?;
-        let base_dir = exe_path.parent().ok_or_else(|| {
-            AppError::Validation("Cannot determine executable directory".to_string())
-        })?;
+        let base_dir = crate::core::helpers::get_base_dir()?;
 
         let www_dir = base_dir.join("www");
         if !www_dir.exists() {

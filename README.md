@@ -1,599 +1,587 @@
 # Rush Sync Server
 
-![Rust](https://img.shields.io/badge/Rust-1.80+-orange)
+![Rust](https://img.shields.io/badge/Rust-1.83+-orange)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-120%20passing-brightgreen)
+![Clippy](https://img.shields.io/badge/clippy-zero%20warnings-brightgreen)
+![Docker](https://img.shields.io/badge/docker-ready-blue)
 ![License](https://img.shields.io/badge/license-Dual--License-blue)
-![Crates.io](https://img.shields.io/crates/v/rush-sync-server)
 
-> **NOTE**: Version `0.2.2` on crates.io has a critical bug in language file loading (`*.json` not embedded correctly).
-> Please use **version `0.3.6+`** for a stable release!
+**Rush Sync Server** is a multi-server orchestration platform written in Rust. It combines a terminal UI (TUI) with automatic HTTPS/TLS, a reverse proxy with subdomain routing, WebSocket-based hot reload, structured logging, and a live dashboard — all managed through an interactive command interface.
 
-**Rush Sync Server** is a professional web server orchestration platform written in Rust. It combines a robust Terminal UI (TUI) with internationalization, theming, a modular command system, production HTTPS/TLS, reverse proxy, WebSocket-based hot reload, and a live dashboard.
+One binary. Zero external dependencies. No nginx, no caddy, no certbot.
 
-**NEW in v0.3.6**: Anti-Flicker color mapping for display labels, hardened terminal lifecycle (TerminalManager + safe restart flow), unified widget/input system with viewported rendering and blinking cursor, multi-terminal cursor coloring (Apple Terminal/iTerm/tmux), minimal dashboard CSS reset, viewport safety guards, and extended logging/i18n.
-
----
-
-## Project Vision
-
-Rush Sync Server development phases:
-
-- **Phase 0** ✅: Terminal UI foundation with command system
-- **Phase 1** ✅ **COMPLETE**: Production-ready server orchestration with enterprise features
-- **Phase 2**: Advanced automation & centralized management dashboard
-- **Phase 3**: Redis clustering & distributed communication
-- **Phase 4**: AI-powered monitoring & predictive scaling
-
----
-
-## What's New in v0.3.6
-
-### **🖍 Anti-Flicker Display Colors**
-
-A pre-compiled **DISPLAY → Color** mapping eliminates per-frame lookups and flicker when rendering label texts (e.g., `ERROR`, `DEBUG`, `THEME`, `VERSION`). Includes helpers like `available_display_texts()` and ANSI-aware color conversion for the renderer.
-
-### **🖥 Terminal Stability & Safe Restart**
-
-A new `TerminalManager` coordinates raw-mode setup/cleanup with emergency destructors. `restart` now performs a full-screen re-init (terminal, input state, message area) after a confirm prompt, with `--force` bypass support.
-
-### **⌨️ Unified Widget/Input System**
-
-`InputState` implements `Widget`, `CursorWidget`, `StatefulWidget`, and `AnimatedWidget`. Text input renders through a **viewport** (no overflow), with a **blinking cursor** and selection-safe drawing logic. Widgets are easier to compose/test and reuse across app screens.
-
-### **🎯 Cursor Styling & Cross-Terminal Coloring**
-
-Cursor shapes: **PIPE**, **BLOCK**, **UNDERSCORE**. Optional **RGB cursor color** across terminals (Apple Terminal, iTerm, tmux) with graceful fallbacks if true-color is not supported.
-
-### **🧰 System Commands w/ Confirmation**
-
-Centralized internal command processor adds `__CLEAR__`, `__EXIT__`, `__RESTART__`, `__CLEAR_HISTORY__` with structured confirm prompts (incl. cleanup actions). Exposed user commands: `clear`, `restart [-f|--force]`.
-
-### **🗺 Viewport Safety & Render Guards**
-
-Safer layout math and bounds checks to avoid rendering outside terminal area; improved messaging for tiny terminals; emergency fallback render for extreme cases.
-
-### **🖼 Dashboard UX & Minimal CSS Reset**
-
-The aggressive global reset was replaced by a **minimal reset**; dashboard styles were tuned for consistency and resilience. A graceful **server-shutdown page** was added. Monitoring can be paused/resumed; real logs integrate more cleanly.
-
-### **📝 Logging & i18n Extensions**
-
-The server logger uses rotation configuration derived from `LoggingConfig`. Numerous i18n strings were added for screen/theme/viewport/restart diagnostics and user feedback.
+```
+Internet
+  │
+  ├── default.example.com ──┐
+  ├── myapp.example.com ────┤
+  ├── blog.example.com ─────┤
+  │                          ▼
+  │                 ┌─────────────────┐
+  │                 │  Reverse Proxy  │
+  │                 │  :80 / :443     │
+  │                 └──┬────┬────┬────┘
+  │                    ▼    ▼    ▼
+  │                 :8000 :8001 :8002
+  │                 default myapp blog
+```
 
 ---
 
-## 🚀 Production-Ready Server Infrastructure (recap from v0.3.5)
+## Features
 
-Version 0.3.5 introduced the complete production platform:
-
-- **🔐 Enterprise HTTPS/TLS** — Automatic certificate generation with RSA‑2048 and wildcard/SAN support
-- **🌍 Reverse Proxy System** — nginx‑style proxy with SSL termination on port 8443
-- **⚡ Hot Reload Development** — Real-time file watching with WebSocket-based browser refresh
-- **🛡️ Advanced Security Suite** — Intrusion detection, rate limiting, and audit logging
-- **📊 Live Dashboard Interface** — Professional web UI with metrics, logs, TLS management
-- **🔄 Intelligent Performance** — Optimized middleware pipeline for faster request handling
+- **Multi-Server Management** — Create, start, stop, and monitor up to 50 web servers from a single instance
+- **Production Ready** — Configurable bind address (`0.0.0.0`), real domain support, headless/daemon mode
+- **Automatic HTTPS/TLS** — Dual HTTP+HTTPS binding per server, self-signed certificates with production domain SANs
+- **Let's Encrypt Integration** — Automatic ACME certificate provisioning with HTTP-01 challenges and background renewal
+- **File Upload API** — Upload, list, and delete website files via REST API — no `scp` or `rsync` needed
+- **Reverse Proxy** — Subdomain-based routing (`myapp.example.com` -> backend port)
+- **Headless Mode** — Run without terminal via `--headless` / `--daemon` with auto-start of marked servers
+- **Docker Ready** — Multi-stage Dockerfile, docker-compose, automatic config generation
+- **Hot Reload** — File watching with WebSocket-based browser refresh
+- **Live Dashboard** — Web UI with server status, metrics, and API documentation
+- **API-Key Authentication** — HMAC-SHA256 hashed keys, `.env`/env-var support, timing-safe comparison
+- **Rate Limiting** — Per-IP sliding-window rate limiter for API endpoints (configurable RPS)
+- **Security Middleware** — Path traversal detection, XSS prevention, SQL injection detection
+- **Structured Logging** — JSON log files with rotation and compression
+- **Internationalization** — Multi-language TUI with i18n support (English, German)
+- **Theming** — Configurable colors, cursor styles, and input prefixes
 
 ---
 
-## 🔐 Advanced HTTPS/TLS System
+## Quick Start
 
-**Automatic Certificate Management:**
-
-- **Self-Signed Certificates** — RSA‑2048 encryption with 365‑day validity
-- **Wildcard Support** — `*.localhost` certificates for seamless subdomain routing
-- **Subject Alternative Names** — Multi-domain support (localhost, 127.0.0.1, custom domains)
-- **Auto-Generation** — Certificates created on-demand per server
-- **Secure Key Storage** — `0600` permissions on private keys with organized directories
-
-**Certificate Structure:**
+### Docker (recommended)
 
 ```bash
-.rss/certs/myserver-8080.cert    # Server-specific certificate
-.rss/certs/myserver-8080.key     # Private key (0600)
-.rss/certs/proxy-8443.cert       # Proxy wildcard certificate
-.rss/certs/proxy-8443.key        # Proxy private key
+git clone https://github.com/LEVOGNE/rush.sync.server
+cd rush.sync.server
+docker compose up
 ```
 
-**Sample Details:**
+This will:
+1. Compile the Rust binary on Linux (multi-stage build)
+2. Generate a Docker-optimized `rush.toml` with `bind_address = "0.0.0.0"`
+3. Create a default server on port 8000 with auto-start
+4. Start the reverse proxy on ports 3000 (HTTP) and 3443 (HTTPS)
 
-```code
-Common Name: myserver.localhost
-Subject Alt Names: localhost, 127.0.0.1, myserver.localhost
-Key Type: RSA-2048
-Validity: 365 days
-Organization: Rush Sync Server
-```
+Access: `http://localhost:8000`
 
----
-
-## 🌍 Professional Reverse Proxy
-
-**Enterprise-Grade Features:**
-
-- **SSL Termination** — HTTPS proxy on :8443 with automatic certificates
-- **Dynamic Routing** — Subdomain routing (e.g., api.localhost → 127.0.0.1:8080)
-- **Load Balancing** — Round-robin across multiple instances
-- **Health Checks** — Upstream monitoring with failover
-- **Request Rewriting** — Header injection and path manipulation
-
-**Proxy Usage Example:**
+### Install from crates.io
 
 ```bash
-# Start servers
-create api 8080
-create admin 8081
+cargo install rush-sync-server
+rush-sync
+```
 
-# Access via proxy (automatic HTTPS)
-https://api.localhost:8443      # → 127.0.0.1:8080
-https://admin.localhost:8443    # → 127.0.0.1:8081
+### Run from source
 
-# Optional hosts entries for clarity
-127.0.0.1 api.localhost
-127.0.0.1 admin.localhost
+```bash
+git clone https://github.com/LEVOGNE/rush.sync.server
+cd rush.sync.server
+cargo run
+```
+
+### Headless / Daemon Mode
+
+```bash
+# Run without terminal (for Linux servers, systemd, Docker)
+rush-sync --headless
+
+# Or from source:
+cargo run -- --headless
+```
+
+The headless mode auto-starts servers marked for auto-start, initializes the reverse proxy, and waits for `SIGINT`/`SIGTERM` for graceful shutdown.
+
+### Use as a library
+
+```toml
+[dependencies]
+rush-sync-server = "0.3.8"
+tokio = { version = "1.36", features = ["full"] }
+```
+
+```rust
+use rush_sync_server::*;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    run().await
+}
 ```
 
 ---
 
-## ⚡ Hot Reload Development System
+## Docker Deployment
 
-**Real-Time Development:**
+### Files
 
-- **File Watching** — HTML, CSS, JS, JSON, SVG, images
-- **WebSocket Integration** — Instant browser refresh
-- **Intelligent Filtering** — Ignores temp/hidden files
-- **Debounced Reloading** — Prevents duplicate refreshes
-- **Dev Notifications** — Visual change feedback
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | Multi-stage build: `rust:1.83-bookworm` (builder) → `debian:bookworm-slim` (runtime) |
+| `docker-compose.yml` | Service definition with ports, volumes, env |
+| `docker-entrypoint.sh` | Auto-generates config, seeds default server, starts headless |
+| `.env.docker` | Example env with `RSS_API_KEY` |
+| `.dockerignore` | Excludes `target/`, `.git/`, etc. |
 
-**Injection & Endpoint:**
+### Architecture
 
-```html
-<script src="/rss.js"></script>
-<link rel="stylesheet" href="/.rss/global-reset.css" />
+```
+┌─────────────────────────────────────────────┐
+│  Docker Container                           │
+│                                             │
+│  docker-entrypoint.sh                       │
+│    ├── Generates /app/.rss/rush.toml        │
+│    ├── Seeds default server (auto-start)    │
+│    └── exec rush-sync --headless            │
+│                                             │
+│  Ports:                                     │
+│    8000  ─── HTTP Server (default)          │
+│    8001  ─── HTTP Server (optional)         │
+│    3000  ─── Reverse Proxy HTTP             │
+│    3443  ─── Reverse Proxy HTTPS            │
+│                                             │
+│  Volumes:                                   │
+│    /app/.rss  ─── Config, certs, logs       │
+│    /app/www   ─── Website files             │
+└─────────────────────────────────────────────┘
 ```
 
-```code
-ws://127.0.0.1:8080/ws/hot-reload
+### Commands
+
+```bash
+# Build and start
+docker compose up
+
+# Build and start (detached)
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop
+docker compose down
+
+# Full reset (removes config + data)
+docker compose down -v
+
+# Hash an API key
+docker compose run --rm --entrypoint /app/rush-sync rush-sync --hash-key my-secret-key
+
+# Shell into container
+docker compose exec rush-sync sh
 ```
 
-**Event Example:**
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `RSS_API_KEY` | API key for authentication (overrides `rush.toml`) |
+
+---
+
+## Production Deployment
+
+Rush can host real domains on a public server without a reverse proxy like nginx.
+
+### 1. Configure `rush.toml`
+
+```toml
+[server]
+bind_address = "0.0.0.0"           # Listen on all interfaces
+port_range_start = 8000
+port_range_end = 8999              # Increase range for production
+max_concurrent = 200
+production_domain = "example.com"  # Your real domain
+api_key = "$hmac-sha256$..."       # Hash via: rush-sync --hash-key <your-key>
+rate_limit_rps = 100               # API rate limiting
+
+# Let's Encrypt (automatic HTTPS certificates)
+use_lets_encrypt = true            # Enable automatic certificate provisioning
+acme_email = "admin@example.com"   # Notification email (optional)
+
+[proxy]
+enabled = true
+port = 80                          # Standard HTTP (required for Let's Encrypt)
+https_port_offset = 443            # HTTPS on port 443+80 = 523 (or set port=443)
+bind_address = "0.0.0.0"           # Public proxy
+```
+
+> **Important:** When using `bind_address = "0.0.0.0"`, always set `api_key` (or `RSS_API_KEY` env var) to prevent unauthorized access to management endpoints. Use `rush-sync --hash-key <your-key>` to avoid storing plaintext keys.
+>
+> **Let's Encrypt:** Requires the proxy on port 80 and DNS pointing to your server. Certificates are provisioned automatically on startup and renewed 30 days before expiry.
+
+### 2. DNS Setup
+
+Point a wildcard DNS record to your server:
+
+```
+*.example.com  A  <your-server-ip>
+example.com    A  <your-server-ip>
+```
+
+### 3. Run
+
+```bash
+# With Docker (recommended):
+docker compose up -d
+
+# Or directly with sudo for ports 80/443:
+sudo rush-sync --headless
+
+# Or use higher ports without sudo:
+rush-sync --headless
+```
+
+### 4. Home Server (Fritz!Box example)
+
+You can also run rush-sync-server at home behind a router:
+
+```
+# Fritz!Box Port Forwarding:
+Port 80  (extern) → 192.168.x.x:3000  (Proxy HTTP)
+Port 443 (extern) → 192.168.x.x:3443  (Proxy HTTPS)
+
+# DNS at your domain provider:
+example.com    A    <your-public-ip>
+*.example.com  A    <your-public-ip>
+```
+
+Enable DynDNS in your Fritz!Box if your ISP assigns dynamic IPs.
+
+### 5. Access
+
+```
+http://myapp.example.com   ->  backend on auto-assigned port
+http://api.example.com     ->  backend on auto-assigned port
+```
+
+---
+
+## Commands
+
+| Command    | Description                          | Examples                                    |
+|------------|--------------------------------------|---------------------------------------------|
+| `create`   | Create a new web server              | `create`, `create api`, `create docs 8090`  |
+| `start`    | Start server(s)                      | `start 1`, `start api`, `start 1-100`, `start all` |
+| `stop`     | Stop server(s)                       | `stop 1`, `stop api`, `stop 1-50`, `stop all` |
+| `list`     | Show all servers with status         | `list`                                      |
+| `cleanup`  | Remove stopped/failed servers        | `cleanup`, `cleanup all`                    |
+| `recovery` | Recover servers from disk            | `recovery`                                  |
+| `restart`  | Restart the TUI application          | `restart`, `restart -f`                     |
+| `clear`    | Clear the screen                     | `clear`, `cls`                              |
+| `history`  | Show command history                 | `history`                                   |
+| `remote`   | Manage SSH remote profiles           | `remote add prod user@host /opt/app`        |
+| `sync`     | Push/pull/exec over SSH              | `sync push prod ./www`, `sync exec prod uptime` |
+| `theme`    | Change the UI theme                  | `theme dark`, `theme light`                 |
+| `lang`     | Change language                      | `lang en`, `lang de`                        |
+| `loglevel` | Change log verbosity                 | `loglevel debug`, `loglevel info`           |
+| `version`  | Show version info                    | `version`, `ver`                            |
+| `help`     | Show available commands              | `help`                                      |
+| `exit`     | Exit the application                 | `exit`, `quit`                              |
+
+Bulk operations support ranges up to 500 servers (e.g. `start 1-200`).
+
+With the `memory` feature enabled:
+
+| Command | Description                          | Examples                        |
+|---------|--------------------------------------|---------------------------------|
+| `mem`   | Memory & process introspection       | `mem info`, `mem info --all`    |
+
+---
+
+## Server Workflow
+
+```bash
+# Create a server (auto-assigns port from configured range)
+create myapp
+
+# Start it
+start myapp
+
+# Access it
+# Direct:    http://<bind_address>:8000
+# Proxy:     http://myapp.<domain>:<proxy_port>
+# Dashboard: http://<bind_address>:8000/.rss/
+
+# Create more servers
+create api
+create docs 8090
+
+# Bulk operations
+start all
+start 1-50
+
+# List everything
+list
+
+# Stop and clean up
+stop all
+cleanup
+```
+
+---
+
+## API Endpoints
+
+Every server exposes these endpoints. When `api_key` is configured, endpoints marked with a lock require authentication (via `X-API-Key` header or `?api_key=` query parameter):
+
+| Endpoint              | Method | Auth | Description                     |
+|-----------------------|--------|------|---------------------------------|
+| `/`                   | GET    |      | Static files / index.html       |
+| `/api/health`         | GET    |      | Health check (always public)    |
+| `/.well-known/acme-challenge/{token}` | GET | | Let's Encrypt HTTP-01 challenge |
+| `/.rss/`              | GET    | \*   | Live dashboard                  |
+| `/api/status`         | GET    | \*   | Server status and configuration |
+| `/api/info`           | GET    | \*   | API documentation               |
+| `/api/metrics`        | GET    | \*   | Performance metrics             |
+| `/api/stats`          | GET    | \*   | Request statistics              |
+| `/api/logs`           | GET    | \*   | Log viewer (HTML)               |
+| `/api/logs/raw`       | GET    | \*   | Log data (JSON, incremental)    |
+| `/api/ping`           | POST   | \*   | Ping/pong echo                  |
+| `/api/message`        | POST   | \*   | Send a message                  |
+| `/api/messages`       | GET    | \*   | Retrieve stored messages        |
+| `/api/files`          | GET    | \*   | List files in server directory  |
+| `/api/files/{path}`   | PUT    | \*   | Upload/create a file            |
+| `/api/files/{path}`   | DELETE | \*   | Delete a file or directory      |
+| `/ws/hot-reload`      | WS     | \*   | WebSocket file change events    |
+
+\* Protected when `api_key` is set. Returns `401 Unauthorized` without valid key.
+
+### File Upload API
+
+Deploy website files remotely without `scp` or `rsync`:
+
+```bash
+# Upload a file
+curl -X PUT -H "X-API-Key: your-key" \
+  --data-binary @index.html \
+  http://localhost:8080/api/files/index.html
+
+# Upload to subdirectory
+curl -X PUT -H "X-API-Key: your-key" \
+  --data-binary @logo.png \
+  http://localhost:8080/api/files/images/logo.png
+
+# List files
+curl -H "X-API-Key: your-key" http://localhost:8080/api/files
+
+# List subdirectory
+curl -H "X-API-Key: your-key" "http://localhost:8080/api/files?path=images"
+
+# Delete a file
+curl -X DELETE -H "X-API-Key: your-key" \
+  http://localhost:8080/api/files/old-page.html
+```
+
+Subdirectories are created automatically. Path traversal is blocked.
+
+---
+
+## Reverse Proxy
+
+The integrated reverse proxy maps subdomains to server ports:
+
+```
+myapp.example.com:80   ->  127.0.0.1:8080
+api.example.com:80     ->  127.0.0.1:8081
+docs.example.com:80    ->  127.0.0.1:8082
+```
+
+Works with any domain — `localhost` for development, real domains for production. Routes are registered automatically when a server starts and removed when it stops. The proxy supports both HTTP and HTTPS with automatic TLS certificate generation.
+
+CORS is automatically configured to allow your `production_domain` in addition to `localhost`.
+
+---
+
+## Hot Reload
+
+Servers watch their `www/{name}-[{port}]/` directory for file changes. When HTML, CSS, JS, JSON, SVG, or image files change, a WebSocket event is broadcast to all connected browsers:
 
 ```json
 {
   "event_type": "modified",
-  "file_path": "www/myserver-[8080]/index.html",
-  "server_name": "myserver",
+  "file_path": "www/myapp-[8080]/index.html",
+  "server_name": "myapp",
   "port": 8080,
   "timestamp": 1703875457,
   "file_extension": "html"
 }
 ```
 
+The `rss.js` module is automatically injected into served HTML files and connects to the WebSocket endpoint to trigger page reloads.
+
 ---
 
-## 📊 Professional Dashboard Interface
+## HTTPS/TLS
 
-**Comprehensive Management UI:**
+When enabled, each web server binds on both HTTP and HTTPS simultaneously:
 
-- **Live Overview** — Status, metrics, performance
-- **Interactive API Testing** — Inline request/response
-- **Live Log Viewer** — Streaming with filters
-- **TLS Manager** — Certificate status and renewal info
-- **Hot Reload Monitor** — WebSocket status & file changes
-- **Performance Metrics** — Response times, error rates, traffic
+```
+HTTP:   http://127.0.0.1:8080
+HTTPS:  https://127.0.0.1:9080   (port + https_port_offset)
+```
 
-**Endpoints:**
+Certificates are automatically generated per server:
 
-```bash
-http://127.0.0.1:8080/.rss/         # Main dashboard
-http://127.0.0.1:8080/api/status    # Server status API
-http://127.0.0.1:8080/api/metrics   # Performance metrics
-http://127.0.0.1:8080/api/logs/raw  # Live log stream
-http://127.0.0.1:8080/ws/hot-reload # WebSocket hot reload
+```
+.rss/certs/myapp-8080.cert    # Server certificate
+.rss/certs/myapp-8080.key     # Private key
+.rss/certs/proxy-3000.cert    # Proxy wildcard certificate
+```
+
+Certificates include Subject Alternative Names for:
+- `localhost`, `127.0.0.1`, `{name}.localhost` (always)
+- `{production_domain}`, `*.{production_domain}`, `{name}.{production_domain}` (when configured)
+
+If the HTTPS bind fails (e.g. port conflict), the server continues with HTTP only.
+
+### Let's Encrypt (Automatic)
+
+Enable automatic certificate provisioning via ACME HTTP-01 challenges:
+
+```toml
+[server]
+use_lets_encrypt = true
+production_domain = "example.com"
+acme_email = "admin@example.com"
+
+[proxy]
+port = 80    # Required for Let's Encrypt verification
+```
+
+On startup, rush.sync.server will:
+1. Register an ACME account (key stored in `.rss/certs/acme-account.key`)
+2. Request a certificate for `production_domain`
+3. Serve the HTTP-01 challenge via the proxy on port 80
+4. Download and store the certificate
+5. Check for renewal every 24 hours (renews 30 days before expiry)
+
+Certificates are stored as:
+```
+.rss/certs/example.com.fullchain.pem
+.rss/certs/example.com.privkey.pem
+```
+
+### Manual Certificates
+
+Alternatively, place certificate files manually in the cert directory:
+
+```
+.rss/certs/example.com.fullchain.pem
+.rss/certs/example.com.privkey.pem
 ```
 
 ---
 
-## 🛡️ Enterprise Security Suite
+## Security
 
-**Monitoring & Protections:**
+### API-Key Authentication
 
-- **Intrusion Detection** — Detects traversal, XSS, SSRF patterns
-- **Request Size Limits** — Prevent simple DoS via large bodies
-- **Suspicious Pattern Detection** — Header/path analysis
-- **Security Audit Logging** — Detailed, structured logs
-- **Rate Limiting** — Per-IP throttling with thresholds
+Management endpoints (`/api/*`, `/.rss/*`, `/ws/*`) can be protected with an API key. When `api_key` is set in `rush.toml`, all requests to these endpoints require authentication — except `/api/health` which always remains public.
 
-**Security Event Format:**
+All key comparisons are **timing-safe** (via `ring::hmac`), preventing timing side-channel attacks.
+
+#### Three ways to set the key
+
+**1. Plaintext in TOML** (simplest):
+
+```toml
+[server]
+api_key = "my-secret-key-123"
+```
+
+**2. HMAC-SHA256 hash in TOML** (recommended — key never stored in cleartext):
+
+```bash
+# Generate hash
+rush-sync --hash-key my-secret-key-123
+# Output: $hmac-sha256$<base64>
+
+# Paste into rush.toml
+```
+
+```toml
+[server]
+api_key = "$hmac-sha256$aBcDeFgH..."
+```
+
+**3. Environment variable** (CI/CD, Docker, `.env` — never written back to TOML):
+
+```bash
+# .env file (loaded automatically via dotenvy)
+RSS_API_KEY=my-secret-key-123
+
+# Or export directly
+export RSS_API_KEY=my-secret-key-123
+
+# Or via docker-compose (.env.docker)
+RSS_API_KEY=my-secret-key-123
+```
+
+The `RSS_API_KEY` env var overrides whatever is in `rush.toml`. When the config is saved, env-var keys are never persisted — `api_key` stays `""` in TOML.
+
+#### Authentication
+
+Authenticate via header or query parameter:
+
+```bash
+# Header (recommended)
+curl -H "X-API-Key: my-secret-key-123" http://localhost:8080/api/status
+
+# Query parameter (for WebSocket clients, browser testing)
+curl http://localhost:8080/api/status?api_key=my-secret-key-123
+```
+
+When `api_key` is empty and no `RSS_API_KEY` is set (default), all endpoints are open — backwards-compatible with existing setups.
+
+### Rate Limiting
+
+Per-IP sliding-window rate limiting protects `/api/*` endpoints from abuse:
+
+```toml
+[server]
+rate_limit_rps = 100       # Max requests per second per IP
+rate_limit_enabled = true  # Toggle rate limiting
+```
+
+Exceeding the limit returns `429 Too Many Requests` with a `Retry-After: 1` header.
+
+### Middleware Stack
+
+The full middleware pipeline (in execution order, outermost first):
+
+1. **CORS** — Origin validation (`localhost` + `production_domain`)
+2. **Compression** — Response compression
+3. **API-Key Auth** — Key validation on management endpoints
+4. **Rate Limiter** — Per-IP request throttling on `/api/*`
+5. **Logging** — Structured request logging with security alerts
+
+### Detection & Prevention
+
+- **Path Traversal Protection** — Canonicalized path validation with percent-decoding (`%2e%2e` etc.)
+- **XSS Prevention** — HTML and JavaScript escaping for all template variables
+- **SQL Injection Detection** — Pattern matching for common injection signatures
+- **Header Filtering** — Sensitive headers (`authorization`, `cookie`, `x-api-key`) are redacted in logs
+
+Security alerts are logged when suspicious requests are detected:
 
 ```json
 {
   "event_type": "SecurityAlert",
-  "ip_address": "192.168.1.100",
-  "alert_reason": "Path Traversal Attempt",
-  "alert_details": "Path contains '../' sequence: /../../etc/passwd",
-  "timestamp": "2025-01-20 14:30:25.123",
-  "headers": {
-    "user-agent": "Mozilla/5.0...",
-    "referer": "http://malicious-site.com"
-  }
-}
-```
-
----
-
-## 🎯 Performance Optimizations
-
-- **Optimized Middleware** — Reduced overhead
-- **Efficient Memory** — Buffer reuse and allocation trims
-- **Concurrency** — Tuned worker pool
-- **Intelligent Caching** — Static asset cache headers
-- **DB Connection Pooling** — Efficient registry access
-
----
-
-## 🚀 Installation & Usage
-
-### 📦 **As Binary — Version 0.3.6+**
-
-```bash
-# Install from crates.io
-cargo install rush-sync-server
-
-# Run with full production features
-rush-sync
-```
-
-### 📚 **As Library — Version 0.3.6+**
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-rush-sync-server = "0.3.6"
-tokio = { version = "1.36", features = ["full"] }
-```
-
-#### **Quick Start Examples:**
-
-```rust
-use rush_sync_server::*;
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    // Run with full production features (HTTPS, Proxy, Hot Reload)
-    run().await?;
-    Ok(())
-}
-```
-
-```rust
-use rush_sync_server::*;
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    // Custom configuration with enhanced security
-    let mut config = load_config().await?;
-    config.server.enable_https = true;
-    config.proxy.enabled = true;
-    config.logging.log_security_alerts = true;
-
-    run_with_config(config).await?;
-    Ok(())
-}
-```
-
----
-
-## 🌟 Enterprise Features (v0.3.6)
-
-The configuration surface remains consistent with v0.3.5. The sections below summarize the production-related knobs and the new **terminal/UI** aspects of v0.3.6.
-
-### **🔐 HTTPS/TLS Configuration**
-
-```toml
-# rush.toml
-[server]
-enable_https = true
-auto_cert = true
-cert_dir = ".rss/certs"
-cert_validity_days = 365
-https_port_offset = 1000
-
-[proxy]
-enabled = true
-port = 8443
-ssl_termination = true
-health_check_interval = 30
-```
-
-### **🌍 Reverse Proxy System**
-
-```toml
-[proxy]
-enabled = true
-port = 8443
-max_connections = 1000
-timeout_seconds = 30
-buffer_size_kb = 64
-worker_threads = 4
-
-[proxy.health_check]
-enabled = true
-interval_seconds = 30
-timeout_seconds = 5
-unhealthy_threshold = 3
-healthy_threshold = 2
-```
-
-**Dynamic Routing Examples:**
-
-```bash
-# Create multiple servers
-create api 8080
-create admin 8081
-create docs 8082
-
-# Access via proxy (automatic HTTPS + routing)
-https://api.localhost:8443    → 127.0.0.1:8080
-https://admin.localhost:8443  → 127.0.0.1:8081
-https://docs.localhost:8443   → 127.0.0.1:8082
-```
-
-### **⚡ Hot Reload Development**
-
-```toml
-[development]
-hot_reload = true
-watch_extensions = ["html", "css", "js", "json", "svg", "png", "jpg", "ico"]
-ignore_patterns = ["*.tmp", "*.swp", ".*", "*~"]
-debounce_ms = 250
-auto_refresh_browser = true
-
-[development.notifications]
-enabled = true
-duration_ms = 3000
-position = "top-right"
-```
-
-### **📊 Advanced Logging System**
-
-```toml
-[logging]
-max_file_size_mb = 100          # Log rotation size
-max_archive_files = 9           # Number of compressed archives
-compress_archives = true        # GZIP compressed archives
-log_requests = true
-log_security_alerts = true
-log_performance = true
-log_format = "json"
-```
-
-**Log Entry Structure:**
-
-```json
-{
-  "timestamp": "2025-01-20 14:30:25.123",
-  "timestamp_unix": 1705757425,
-  "event_type": "Request",
   "ip_address": "127.0.0.1",
-  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)...",
-  "method": "GET",
-  "path": "/api/status",
-  "status_code": 200,
-  "response_time_ms": 15,
-  "bytes_sent": 1024,
-  "referer": "https://myserver.localhost:8443/",
-  "headers": {
-    "accept": "application/json",
-    "host": "myserver.localhost:8443",
-    "x-forwarded-for": "127.0.0.1",
-    "x-forwarded-proto": "https"
-  },
-  "session_id": "sess_abc123",
-  "tls_version": "TLSv1.3",
-  "cipher_suite": "TLS_AES_256_GCM_SHA384"
+  "alert_reason": "Suspicious Request",
+  "alert_details": "Suspicious path: /../../etc/passwd"
 }
 ```
 
 ---
 
-## 💻 Enhanced Server Management Commands
+## Configuration
 
-### **🌍 Production Server Commands**
-
-| Command   | Description                     | Examples                                   |
-| --------- | ------------------------------- | ------------------------------------------ |
-| `create`  | Create server with HTTPS/TLS    | `create`, `create api`, `create docs 8090` |
-| `list`    | Show servers with TLS status    | `list`                                     |
-| `start`   | Start with proxy registration   | `start 1`, `start api`, `start abc123`     |
-| `stop`    | Stop with proxy cleanup         | `stop 1`, `stop api`, `stop abc123`        |
-| `cleanup` | Remove servers and certificates | `cleanup`, `cleanup failed`, `cleanup all` |
-
-### **🔐 TLS Management Commands**
-
-| Command        | Description                 | Examples              |
-| -------------- | --------------------------- | --------------------- |
-| `cert list`    | Show all certificates       | `cert list`           |
-| `cert info`    | Certificate details         | `cert info myserver`  |
-| `cert renew`   | Regenerate certificate      | `cert renew myserver` |
-| `cert cleanup` | Remove expired certificates | `cert cleanup`        |
-
-### **🌍 Proxy Management Commands**
-
-| Command        | Description                | Examples       |
-| -------------- | -------------------------- | -------------- |
-| `proxy status` | Show proxy status          | `proxy status` |
-| `proxy routes` | List all proxy routes      | `proxy routes` |
-| `proxy start`  | Start proxy server         | `proxy start`  |
-| `proxy stop`   | Stop proxy server          | `proxy stop`   |
-| `proxy reload` | Reload proxy configuration | `proxy reload` |
-
-### **⚡ Development Commands**
-
-| Command        | Description               | Examples              |
-| -------------- | ------------------------- | --------------------- |
-| `dev mode on`  | Enable development mode   | `dev mode on`         |
-| `dev mode off` | Disable development mode  | `dev mode off`        |
-| `dev watch`    | Show file watching status | `dev watch`           |
-| `dev reload`   | Trigger manual reload     | `dev reload myserver` |
-
-### **🧰 New System Commands (v0.3.6)**
-
-| Command   | Description             | Examples                |
-| --------- | ----------------------- | ----------------------- |
-| `restart` | Restart the application | `restart`, `restart -f` |
-| `clear`   | Clear the screen        | `clear`, `cls`          |
-
----
-
-## 📊 Advanced Server Examples
-
-### **🚀 Production Server Deployment**
-
-```bash
-# Create production API server with HTTPS
-create api 8080
-# Result: Server created: 'api' (ID: abc12345) on Port 8080
-# HTTPS: https://api.localhost:8443 (via proxy)
-# HTTP: http://127.0.0.1:8080 (direct)
-# Certificate: .rss/certs/api-8080.cert
-# Hot Reload: WebSocket on ws://127.0.0.1:8080/ws/hot-reload
-
-# Enhanced server list with production details
-list
-# Result:
-# Server List (Production Mode - Max: 10 concurrent):
-#   1. api - abc12345 (Port: 8080) [Running] 🔒 HTTPS
-#      URLs: https://api.localhost:8443 | http://127.0.0.1:8080
-#      Certificate: Valid (362 days remaining)
-#      Hot Reload: Active | Proxy: Registered
-#      Log: .rss/servers/api-[8080].log (23.4MB, 2 archives)
-#      Requests: 5,847 | Errors: 12 | Security Alerts: 0
-#      Avg Response: 18ms | Uptime: 4h 32m
-#
-#   2. admin - def67890 (Port: 8081) [Running] 🔒 HTTPS
-#      URLs: https://admin.localhost:8443 | http://127.0.0.1:8081
-#      Certificate: Valid (364 days remaining)
-#      Hot Reload: Active | Proxy: Registered
-```
-
-### **📊 Advanced Monitoring & Statistics**
-
-```bash
-curl https://api.localhost:8443/api/metrics
-{
-  "server_info": {
-    "id": "abc12345",
-    "name": "api",
-    "port": 8080,
-    "status": "running",
-    "uptime_seconds": 16320,
-    "version": "0.3.6"
-  },
-  "security": {
-    "tls_enabled": true,
-    "certificate_valid": true,
-    "certificate_expires": "2025-12-31T23:59:59Z",
-    "security_alerts_24h": 0,
-    "blocked_ips": []
-  },
-  "performance": {
-    "total_requests": 5847,
-    "requests_per_second": 1.2,
-    "avg_response_time_ms": 18,
-    "max_response_time_ms": 245,
-    "error_rate_percent": 0.21
-  },
-  "proxy": {
-    "registered": true,
-    "health_check_status": "healthy",
-    "last_health_check": "2025-01-20T14:29:55Z",
-    "proxy_requests": 4203,
-    "direct_requests": 1644
-  },
-  "hot_reload": {
-    "enabled": true,
-    "websocket_connections": 2,
-    "file_changes_24h": 47,
-    "last_reload": "2025-01-20T13:15:32Z"
-  },
-  "logging": {
-    "log_file_size_mb": 23.4,
-    "archive_count": 2,
-    "log_entries_24h": 5847,
-    "security_events_24h": 0,
-    "error_events_24h": 12
-  }
-}
-```
-
-### **🔐 TLS Certificate Management**
-
-```bash
-# View all certificates
-cert list
-# Result:
-# TLS Certificate List:
-#   api-8080.cert
-#     Common Name: api.localhost
-#     Valid Until: 2025-12-31 (362 days)
-#     Key Type: RSA-2048
-#     File Size: 1.2KB
-#
-#   proxy-8443.cert
-#     Common Name: *.localhost (Wildcard)
-#     Valid Until: 2025-12-31 (364 days)
-#     Key Type: RSA-2048
-#     File Size: 1.3KB
-
-# Detailed certificate information
-cert info api
-# Result:
-# Certificate Details: api-8080.cert
-# ====================================
-# Subject: CN=api.localhost, O=Rush Sync Server
-# Issuer: CN=api.localhost, O=Rush Sync Server (Self-Signed)
-# Valid From: 2025-01-20 00:00:00 UTC
-# Valid Until: 2025-12-31 23:59:59 UTC (362 days remaining)
-# Serial Number: 1a:2b:3c:4d:5e:6f
-# Key Algorithm: RSA-2048
-# Signature Algorithm: SHA256-RSA
-# Subject Alt Names:
-#   - DNS: localhost
-#   - DNS: api.localhost
-#   - IP: 127.0.0.1
-# Certificate File: .rss/certs/api-8080.cert (1,247 bytes)
-# Private Key File: .rss/certs/api-8080.key (1,679 bytes, 0600)
-```
-
----
-
-## ⚙️ Production Configuration
-
-### 📁 File Structure
-
-```bash
-.rss/
-├── rush.toml                    # Main configuration
-├── rush.history                 # Command history
-├── rush.logs                    # Application logs
-├── servers.list                 # Server registry
-├── certs/                       # TLS certificates
-│   ├── api-8080.cert
-│   ├── api-8080.key             # Private keys (0600)
-│   ├── proxy-8443.cert
-│   └── proxy-8443.key
-├── servers/                     # Individual server logs
-│   ├── api-[8080].log           # Current log file
-│   ├── api-[8080].1.log.gz      # Compressed archive
-│   └── api-[8080].2.log.gz      # Older archives
-└── proxy/                       # Proxy configuration
-    ├── routes.json              # Dynamic routing table
-    ├── health_checks.json       # Health check results
-    └── access.log               # Proxy access logs
-```
-
-### 🛠 Complete Configuration (v0.3.6)
+Configuration lives in `rush.toml` (auto-generated on first run):
 
 ```toml
 [general]
@@ -608,40 +596,35 @@ current_theme = "dark"
 [language]
 current = "en"
 
-# Server Configuration
 [server]
-port_range_start = 8080
-port_range_end = 8180
-max_concurrent = 10
+port_range_start = 8000
+port_range_end = 8200              # Port range for auto-allocation
+max_concurrent = 50                # Up to 50 simultaneous servers (configurable)
 shutdown_timeout = 5
 startup_delay_ms = 500
 workers = 1
-
-# HTTPS/TLS Configuration
+auto_open_browser = true
+bind_address = "127.0.0.1"         # "0.0.0.0" for public access
 enable_https = true
 auto_cert = true
 cert_dir = ".rss/certs"
 cert_validity_days = 365
 https_port_offset = 1000
+production_domain = "localhost"    # Set to your real domain for production
+use_lets_encrypt = false           # Automatic Let's Encrypt certificates
+acme_email = ""                    # Email for Let's Encrypt (optional)
+api_key = ""                       # Plaintext, $hmac-sha256$... hash, or use RSS_API_KEY env var
+rate_limit_rps = 100               # Max requests/sec per IP for /api/*
+rate_limit_enabled = true          # Enable rate limiting
 
-# Reverse Proxy Configuration
 [proxy]
 enabled = true
-port = 8443
-max_connections = 1000
-timeout_seconds = 30
-buffer_size_kb = 64
-worker_threads = 4
-ssl_termination = true
+port = 3000
+https_port_offset = 443
+bind_address = "127.0.0.1"        # "0.0.0.0" for public access
+health_check_interval = 30
+timeout_ms = 5000
 
-[proxy.health_check]
-enabled = true
-interval_seconds = 30
-timeout_seconds = 5
-unhealthy_threshold = 3
-healthy_threshold = 2
-
-# Advanced Logging
 [logging]
 max_file_size_mb = 100
 max_archive_files = 9
@@ -649,30 +632,7 @@ compress_archives = true
 log_requests = true
 log_security_alerts = true
 log_performance = true
-log_format = "json"
 
-# Development
-[development]
-hot_reload = true
-watch_extensions = ["html", "css", "js", "json", "svg", "png", "jpg", "ico"]
-ignore_patterns = ["*.tmp", "*.swp", ".*", "*~"]
-debounce_ms = 250
-auto_refresh_browser = true
-
-[development.notifications]
-enabled = true
-duration_ms = 3000
-position = "top-right"
-
-# Security
-[security]
-max_request_size_mb = 10
-rate_limit_requests_per_minute = 60
-enable_intrusion_detection = true
-log_security_events = true
-block_suspicious_ips = false
-
-# Theme
 [theme.dark]
 output_bg = "Black"
 output_text = "White"
@@ -685,157 +645,218 @@ input_cursor = "PIPE"
 input_cursor_color = "Black"
 ```
 
+### Key Configuration Options
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `server.bind_address` | `127.0.0.1` | `0.0.0.0` to listen on all interfaces |
+| `server.production_domain` | `localhost` | Your real domain (e.g. `example.com`) |
+| `server.use_lets_encrypt` | `false` | Automatic Let's Encrypt certificates |
+| `server.acme_email` | `""` | Email for Let's Encrypt notifications |
+| `server.max_concurrent` | `50` | Maximum simultaneous servers |
+| `server.port_range_start` | `8000` | Lower port for auto-allocation |
+| `server.port_range_end` | `8200` | Upper port for auto-allocation |
+| `server.api_key` | `""` | Plaintext, `$hmac-sha256$...` hash, or `RSS_API_KEY` env var |
+| `server.rate_limit_rps` | `100` | Max requests per second per IP on `/api/*` |
+| `server.rate_limit_enabled` | `true` | Enable/disable rate limiting |
+| `proxy.bind_address` | `127.0.0.1` | `0.0.0.0` for public proxy access |
+| `proxy.port` | `3000` | Set to `80` for production / Let's Encrypt |
+
 ---
 
-## 🧪 Quality Assurance & Testing
+## File Structure
 
-### 📈 Performance Benchmarks (v0.3.5 baseline)
-
-```bash
-Server Creation: ~300ms (40% faster than v0.3.3)
-TLS Certificate Generation: ~150ms per certificate
-Proxy Route Registration: ~50ms per server
-Hot Reload WebSocket Setup: ~25ms
-
-Concurrent Users: 1000+ users per server
-Request Throughput: 5000+ requests/second
-Memory Usage: <50MB per server instance
-CPU Usage: <5% under normal load
-
-HTTPS Handshake: ~15ms average
-Certificate Validation: ~2ms average
-SSL Termination Overhead: <5% vs HTTP
 ```
+.rss/
+├── rush.toml                    # Configuration
+├── rush.history                 # Command history
+├── servers.list                 # Server registry (JSON)
+├── certs/                       # TLS certificates
+│   ├── myapp-8080.cert
+│   ├── myapp-8080.key
+│   ├── proxy-3000.cert
+│   └── proxy-3000.key
+└── servers/                     # Server log files
+    ├── myapp-[8080].log
+    └── myapp-[8080].1.log.gz    # Rotated + compressed
 
-## _(v0.3.6 does not change these baseline numbers; focus was stability, UI/UX, and DX.)_
-
-### 🛡️ Testing Suite
-
-```bash
-# Core functionality tests
-cargo test server_lifecycle_with_tls
-cargo test proxy_routing_and_ssl
-cargo test hot_reload_websocket
-cargo test security_monitoring
-cargo test certificate_management
-
-# Load and stress testing
-cargo test --release concurrent_https_servers
-cargo test --release proxy_load_balancing
-cargo test --release tls_performance_under_load
-cargo test --release hot_reload_stress_test
-
-# Security testing
-cargo test intrusion_detection_patterns
-cargo test rate_limiting_enforcement
-cargo test certificate_validation
-cargo test suspicious_request_blocking
+www/
+├── myapp-[8080]/                # Server document root
+│   ├── index.html
+│   ├── README.md
+│   └── robots.txt
+└── api-[8081]/
+    └── ...
 ```
 
 ---
 
-## 📊 Version History
+## Testing
 
-### **v0.3.6 (Current) — UI/Terminal & DX Enhancements**
+120 tests across unit, integration, and handler layers:
 
-- **Anti-Flicker Color System** for display labels (zero-delay color mapping).
-- **TerminalManager** with raw-mode tracking, safe cleanup, emergency destructor.
-- **Safe Restart Flow** (`restart`, confirm prompts, re-init of terminal & UI).
-- **Widget/Input Unification** with viewported rendering & blinking cursor.
-- **Cursor Styling** (PIPE/BLOCK/UNDERSCORE + RGB across terminals/tmux).
-- **Dashboard UX**: minimal reset CSS, shutdown screen, improved monitoring.
-- **Logging**: Server logger API w/ rotation config; **i18n** keys expanded.
+```bash
+cargo test                     # Run all 120 tests
+cargo test --features memory   # Include memory module tests
+cargo clippy -- -D warnings    # Zero warnings
+```
 
-### **v0.3.5 — Production Infrastructure**
+### Test Coverage
 
-- Complete HTTPS/TLS system, enterprise reverse proxy with SSL termination, advanced hot reload, security monitoring suite, professional dashboard, and performance pipeline optimizations.
-
-### **v0.3.3 — Optimized Architecture & Logging**
-
-- **35% Code Reduction** while preserving functionality
-- **Structured Logging** with rotation and compression
-- **Performance Improvements** (~40% faster request processing)
-
-### **v0.3.2 — Complete Server Management**
-
-- **Actix-Web Integration**: production web server creation and management
-- **Dynamic Server Lifecycle**: full orchestration capabilities
-
----
-
-## 🏆 Code Quality Metrics (v0.3.6)
-
-- ✅ **Zero Cargo errors** on full feature set
-- ✅ **Hardened terminal lifecycle** (raw-mode detection, emergency cleanup)
-- ✅ **UI stability** via viewport checks & anti-flicker colors
-- ✅ **Thread/Memory Safety** (Rust guarantees; async-safe state)
-- ✅ **Enterprise Logging** (structured JSON + rotation)
-- ✅ **Performance-Optimized** (no regressions vs 0.3.5)
-- ✅ **Comprehensive Testing** (incl. TLS, proxy, security)
-- ✅ **Professional UI** (modern dashboard with live metrics & TLS status)
-- ✅ **Cross-Platform** (macOS, Linux, Windows)
-
-## **Security**
-
-- TLS 1.3 with modern cipher suites
-- Proper certificate validation
-- Intrusion detection & rate limiting
-- Security audit logging
+| Area                    | Tests | What's tested                                              |
+|-------------------------|-------|------------------------------------------------------------|
+| API Key (crypto)        | 8     | Empty, plaintext match/mismatch, HMAC hash match/mismatch, env/toml roundtrip, hash format |
+| Middleware Security     | 16    | percent_decode, path traversal, XSS, SQL injection, encoding |
+| JS Escape (XSS)        | 8     | Quotes, backslash, HTML tags, ampersand, XSS payloads      |
+| HTML Escape (XSS)      | 7     | Tags, quotes, ampersand, full XSS payloads                 |
+| Script Injection        | 6     | CSS/JS insertion position, head/body/fallback, no duplicates |
+| API Handlers            | 14    | health, ping, status, info, message, close-browser          |
+| Asset Handlers          | 7     | CSS, favicon, fonts (valid/invalid/all 4), JS templates     |
+| XSS Prevention          | 1     | Malicious server name in JS template                        |
+| Proxy Manager           | 9     | Route add/remove/overwrite, multiple routes, config          |
+| Server Types            | 4     | ServerStatus display, ServerInfo defaults, ServerContext      |
+| Command System          | 7     | Core commands, registry, metadata, empty/whitespace input    |
+| Bulk Parsing            | 6     | Single, all, range, invalid range, name-with-dash            |
+| Config & i18n           | 5     | Default values, translations, available languages            |
+| Cursor & Widget         | 4     | Cursor types, position, color, widget system                 |
 
 ---
 
-## 📜 License
+## Feature Flags
+
+```toml
+[features]
+default = []
+memory = ["dep:sysinfo"]    # Memory introspection (mem command, process metrics)
+scss = ["sass-rs"]           # SCSS compilation for themes
+```
+
+Build with memory support:
+
+```bash
+cargo build --features memory
+```
+
+---
+
+## Architecture
+
+```
+src/
+├── main.rs             # Entry point: TUI mode or --headless daemon mode
+├── lib.rs              # Library exports
+├── bootstrap.rs        # Application bootstrap and initialization
+│
+├── commands/           # Command system (16 commands)
+│   ├── handler.rs      # Input parsing and command dispatch
+│   ├── registry.rs     # Command registry
+│   ├── command.rs      # Command trait definition
+│   ├── parsing.rs      # Shared parsing utilities (BulkMode, ranges up to 500)
+│   └── */command.rs    # Individual command implementations
+│                       #   cleanup, clear, create, exit, help, history,
+│                       #   lang, list, log_level, memory, recovery,
+│                       #   remote, restart, start, stop, sync, theme, version
+├── core/
+│   ├── api_key.rs      # Opaque API key type (HMAC-SHA256 hash, timing-safe verify, env override)
+│   ├── config.rs       # TOML configuration loader (ServerConfig, ProxyConfig)
+│   ├── constants.rs    # System constants and signal strings
+│   ├── error.rs        # Error types (AppError, Result)
+│   ├── helpers.rs      # Lock helpers, config loader, base_dir (OnceLock), html_escape
+│   └── prelude.rs      # Common imports
+│
+├── i18n/               # Internationalization (en, de)
+├── embedded/           # Embedded static resources
+├── memory/             # Memory introspection (optional feature)
+│
+├── input/
+│   ├── keyboard.rs     # Key event handling, security filtering
+│   └── state.rs        # Input state, system command processor
+│
+├── output/
+│   └── display.rs      # Display rendering
+│
+├── proxy/              # Reverse proxy (hyper-based)
+│   ├── config.rs       # Proxy configuration types
+│   ├── handler.rs      # HTTP/HTTPS proxy with configurable bind address
+│   ├── manager.rs      # Route management
+│   └── types.rs        # ProxyRoute, ProxyTarget
+│
+├── server/
+│   ├── acme.rs         # Let's Encrypt ACME client (HTTP-01, auto-renewal)
+│   ├── config.rs       # Server version and metadata
+│   ├── manager.rs      # Server lifecycle management
+│   ├── shared.rs       # Global singletons (context, registry, proxy manager, auto-start)
+│   ├── types.rs        # ServerInfo, ServerStatus, ServerContext
+│   ├── persistence.rs  # Server registry (servers.list) with fallback
+│   ├── middleware.rs    # Middleware stack (API-Key auth, rate limiting, logging, detection)
+│   ├── redirect.rs     # HTTP -> HTTPS redirect server
+│   ├── tls.rs          # TLS certificate generation with production domain SANs
+│   ├── watchdog.rs     # File watcher + WebSocket hot reload
+│   ├── logging.rs      # Structured JSON logging with rotation
+│   ├── handlers/web/   # actix-web request handlers
+│   │   ├── api.rs      # REST API + File Upload API endpoints
+│   │   ├── assets.rs   # Static assets (CSS, JS, fonts)
+│   │   ├── logs.rs     # Log viewer and raw log API
+│   │   ├── server.rs   # File serving with path traversal protection
+│   │   └── templates.rs # Dashboard template
+│   └── utils/
+│       ├── port.rs     # Port availability checking
+│       └── validation.rs # Server name validation
+│
+├── setup/
+│   └── setup_toml.rs   # First-run TOML generation
+│
+└── ui/                 # TUI rendering (ratatui + crossterm)
+    ├── color.rs        # Color parsing and AppColor
+    ├── cursor.rs       # Cursor types and blinking
+    ├── screen.rs       # Screen management
+    ├── terminal.rs     # Terminal setup/teardown
+    ├── viewport.rs     # Viewport calculations
+    └── widget.rs       # Widget traits (Widget, CursorWidget, AnimatedWidget)
+```
+
+---
+
+## Tech Stack
+
+| Component        | Library                    |
+|------------------|----------------------------|
+| TUI              | ratatui + crossterm         |
+| Web Server       | actix-web 4                 |
+| Reverse Proxy    | hyper 0.14                  |
+| Async Runtime    | tokio                       |
+| TLS              | rustls + rcgen              |
+| ACME/Let's Encrypt | ring + base64 + reqwest  |
+| Cryptography     | ring (HMAC-SHA256)          |
+| File Watching    | notify 6                    |
+| WebSocket        | actix-web-actors            |
+| Serialization    | serde + serde_json + toml   |
+| Environment      | dotenvy                     |
+| Logging          | log + env_logger + chrono   |
+| Containerization | Docker (multi-stage build)  |
+
+---
+
+## Version History
+
+- **v0.3.8** — First official public release (stable, Docker-ready, production-tested)
+- **v0.1.0 – v0.3.7** — Internal development builds, developed and tested daily since February 2025
+
+---
+
+## License
 
 ### Dual-Licensing Model
 
 1. **Community License (GPLv3)** — Free for private and non-commercial use
-2. **Commercial License** — Required for commercial applications and enterprise deployments
+2. **Commercial License** — Required for commercial applications
 
-**Commercial licensing inquiries:**
-📧 [l.ersen@icloud.com](mailto:l.ersen@icloud.com)
-
----
-
-## 🤝 Contributing
-
-**Phase 2 Targets:**
-
-- Advanced load balancing with health-aware routing
-- Docker/Kubernetes integration
-- Real-time analytics dashboard
-- Centralized configuration across clusters
-
-**Security Enhancements:**
-
-- Let’s Encrypt integration
-- Sliding-window rate limiting
-- WAF integration
-- OAuth2/JWT auth
-
-**Performance & Scalability:**
-
-- Redis-based sessions/caching
-- DB connection pooling
-- CDN for static assets
-- Auto-scaling triggers
-
-**Development Guidelines:**
-
-- Keep **clippy** clean; comprehensive lints
-- Tests for every security-sensitive feature
-- Async/await best practices
-- Error handling with context (anyhow/thiserror)
+Commercial licensing inquiries: [l.ersen@icloud.com](mailto:l.ersen@icloud.com)
 
 ---
 
-## 📞 Contact & Support
+## Contact
 
-- **Primary Contact:** 📧 [l.ersen@icloud.com](mailto:l.ersen@icloud.com)
-- **GitHub Repository:** [LEVOGNE/rush.sync.server](https://github.com/LEVOGNE/rush.sync.server)
-- **Issues & Bug Reports:** GitHub Issues
-- **Feature Requests:** GitHub Discussions
-- **Security Issues:** 📧 [security@rush-sync.dev](mailto:security@rush-sync.dev)
-
----
-
-_Rush Sync Server v0.3.6 — Production-grade orchestration with hardened terminal lifecycle, anti-flicker UI, safe restart flow, minimal CSS reset, live dashboard, and comprehensive security/monitoring._
+- **Email:** [l.ersen@icloud.com](mailto:l.ersen@icloud.com)
+- **GitHub:** [LEVOGNE/rush.sync.server](https://github.com/LEVOGNE/rush.sync.server)
+- **Issues:** [GitHub Issues](https://github.com/LEVOGNE/rush.sync.server/issues)

@@ -1,7 +1,3 @@
-// =====================================================
-// FILE: commands/clear/clear.rs - TRAIT IMPL
-// =====================================================
-
 use crate::commands::command::Command;
 use crate::core::prelude::*;
 
@@ -22,10 +18,10 @@ impl Command for ClearCommand {
     }
 
     fn execute_sync(&self, _args: &[&str]) -> Result<String> {
-        Ok("__CLEAR__".to_string())
+        Ok(crate::core::constants::SIG_CLEAR.to_string())
     }
 
     fn priority(&self) -> u8 {
-        80 // Sehr hohe Priorität für Clear
+        80 // High priority for system command
     }
 }

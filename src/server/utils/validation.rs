@@ -23,9 +23,9 @@ pub fn find_server<'a>(
         }
     }
 
-    Err(AppError::Validation(format!(
-        "Server '{}' nicht gefunden",
-        identifier
+    Err(AppError::Validation(crate::i18n::get_translation(
+        "server.error.not_found",
+        &[identifier],
     )))
 }
 

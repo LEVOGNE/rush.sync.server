@@ -1,5 +1,3 @@
-use crate::memory::{register_embedded, ResourceKind};
-
 pub const APP_TITLE: &str = "RUSH SYNC SERVER";
 pub const DEFAULT_BUFFER_SIZE: usize = 1000;
 pub const DEFAULT_POLL_RATE: u64 = 16;
@@ -8,8 +6,24 @@ pub const MAX_POLL_RATE: u64 = 1000;
 pub const DOUBLE_ESC_THRESHOLD: u64 = 250;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Registriert die Konstanten im Memory-Manager
+// System command signals
+pub const SIG_CLEAR: &str = "__CLEAR__";
+pub const SIG_EXIT: &str = "__EXIT__";
+pub const SIG_CONFIRM_EXIT: &str = "__CONFIRM_EXIT__";
+pub const SIG_RESTART: &str = "__RESTART__";
+pub const SIG_RESTART_FORCE: &str = "__RESTART_FORCE__";
+pub const SIG_RESTART_WITH_MSG: &str = "__RESTART_WITH_MSG__";
+pub const SIG_CONFIRM_RESTART: &str = "__CONFIRM_RESTART__";
+pub const SIG_CLEAR_HISTORY: &str = "__CLEAR_HISTORY__";
+pub const SIG_CONFIRM_CLEANUP: &str = "__CLEANUP__";
+pub const SIG_CONFIRM_PREFIX: &str = "__CONFIRM:";
+pub const SIG_LIVE_THEME_UPDATE: &str = "__LIVE_THEME_UPDATE__";
+pub const SIG_THEME_MSG_SEP: &str = "__MESSAGE__";
+
+/// Register constants in the memory manager
+#[cfg(feature = "memory")]
 pub fn register_constants_to_memory() {
+    use crate::memory::{register_embedded, ResourceKind};
     register_embedded(
         "core:constant:app_title@v1",
         ResourceKind::EmbeddedAsset,

@@ -1,7 +1,7 @@
-// ## FILE: src/server/logging.rs - ALLE FIXES APPLIED
+// src/server/logging.rs
 use crate::core::config::LoggingConfig;
 use crate::core::prelude::*;
-use actix_web::HttpMessage; // HINZUGEFÜGT
+use actix_web::HttpMessage;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -25,7 +25,7 @@ pub struct ServerLogEntry {
     pub session_id: Option<String>,
 }
 
-// Copy-Trait hinzugefügt für LogEventType
+// Copy trait needed for use after move in write_alert_entry
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub enum LogEventType {
     Request,
@@ -77,10 +77,7 @@ impl ServerLogger {
         port: u16,
         logging_config: &LoggingConfig,
     ) -> Result<Self> {
-        let exe_path = std::env::current_exe().map_err(AppError::Io)?;
-        let base_dir = exe_path.parent().ok_or_else(|| {
-            AppError::Validation("Cannot determine executable directory".to_string())
-        })?;
+        let base_dir = crate::core::helpers::get_base_dir()?;
 
         let log_file_path = base_dir
             .join(".rss")
@@ -104,7 +101,7 @@ impl ServerLogger {
         Self::new_with_config(server_name, port, &LoggingConfig::default())
     }
 
-    // Vereinfachte System-Log Methoden
+    // System log helpers
     pub async fn log_server_start(&self) -> Result<()> {
         self.write_system_entry(LogEventType::ServerStart).await
     }
@@ -138,7 +135,7 @@ impl ServerLogger {
         self.write_log_entry(entry).await
     }
 
-    // Optimierte Request Logging
+    // Request logging
     pub async fn log_request(
         &self,
         req: &actix_web::HttpRequest,
@@ -162,7 +159,7 @@ impl ServerLogger {
                 .to_string()
         };
 
-        // Nur relevante Headers filtern
+        // Filter to relevant headers only, redact sensitive ones
         let headers = req
             .headers()
             .iter()
@@ -211,13 +208,13 @@ impl ServerLogger {
                 Some(req.query_string().to_string())
             },
             headers,
-            session_id: req.extensions().get::<String>().cloned(), // Jetzt funktioniert es mit HttpMessage import
+            session_id: req.extensions().get::<String>().cloned(),
         };
 
         self.write_log_entry(entry).await
     }
 
-    // Vereinfachte Alert-Logging
+    // Alert logging
     pub async fn log_security_alert(&self, ip: &str, reason: &str, details: &str) -> Result<()> {
         if !self.log_security {
             return Ok(());
@@ -245,7 +242,7 @@ impl ServerLogger {
         .await
     }
 
-    // KORRIGIERTE write_alert_entry Method
+    // Write an alert log entry (security or performance)
     async fn write_alert_entry(
         &self,
         event_type: LogEventType,
@@ -272,7 +269,7 @@ impl ServerLogger {
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs(),
-            event_type, // Jetzt Copy-able, kein Move-Problem mehr
+            event_type,
             ip_address: ip.to_string(),
             user_agent: None,
             method: method_name.to_string(),
@@ -326,8 +323,14 @@ impl ServerLogger {
 
     async fn rotate_log_files(&self) -> Result<()> {
         let base_path = &self.log_file_path;
-        let base_name = base_path.file_stem().unwrap().to_string_lossy();
-        let parent_dir = base_path.parent().unwrap();
+        let base_name = base_path
+            .file_stem()
+            .unwrap_or_else(|| std::ffi::OsStr::new("server"))
+            .to_string_lossy();
+        let parent_dir = match base_path.parent() {
+            Some(dir) => dir,
+            None => return Ok(()),
+        };
 
         // Rotate existing archives
         for i in (1..self.config.max_archive_files).rev() {
@@ -403,8 +406,15 @@ impl ServerLogger {
     }
 
     pub fn list_log_files(&self) -> Result<Vec<PathBuf>> {
-        let parent_dir = self.log_file_path.parent().unwrap();
-        let base_name = self.log_file_path.file_stem().unwrap().to_string_lossy();
+        let parent_dir = match self.log_file_path.parent() {
+            Some(dir) => dir,
+            None => return Ok(Vec::new()),
+        };
+        let base_name = self
+            .log_file_path
+            .file_stem()
+            .unwrap_or_else(|| std::ffi::OsStr::new("server"))
+            .to_string_lossy();
         let mut files = Vec::new();
 
         if self.log_file_path.exists() {
@@ -424,7 +434,7 @@ impl ServerLogger {
         Ok(files)
     }
 
-    // Optimierte Stats-Berechnung
+    // Compute request statistics from the log file
     pub async fn get_request_stats(&self) -> Result<ServerStats> {
         use tokio::io::{AsyncBufReadExt, BufReader};
 
