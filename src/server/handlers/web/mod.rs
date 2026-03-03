@@ -12,7 +12,7 @@ pub use templates::*;
 
 use crate::core::config::Config;
 use crate::server::logging::ServerLogger;
-use crate::server::middleware::{ApiKeyAuth, LoggingMiddleware, RateLimiter};
+use crate::server::middleware::{ApiKeyAuth, LoggingMiddleware, PinProtection, RateLimiter};
 use crate::server::tls::TlsManager;
 use crate::server::types::{ServerContext, ServerData, ServerInfo};
 use crate::server::watchdog::{get_watchdog_manager, ws_hot_reload};
@@ -76,6 +76,15 @@ pub fn create_web_server(
     ctx: &ServerContext,
     server_info: ServerInfo,
     config: &Config,
+) -> std::result::Result<actix_web::dev::ServerHandle, String> {
+    create_web_server_with_workers(ctx, server_info, config, None)
+}
+
+pub fn create_web_server_with_workers(
+    ctx: &ServerContext,
+    server_info: ServerInfo,
+    config: &Config,
+    workers_override: Option<usize>,
 ) -> std::result::Result<actix_web::dev::ServerHandle, String> {
     let server_id = server_info.id.clone();
     let server_name = server_info.name.clone();
@@ -148,14 +157,17 @@ pub fn create_web_server(
     let api_key = config.server.api_key.clone();
     let rate_limit_rps = config.server.rate_limit_rps;
     let rate_limit_enabled = config.server.rate_limit_enabled;
+    let pin_server_name = server_name.clone();
+    let pin_server_port = server_port;
     let mut http_server = HttpServer::new(move || {
         let prod_domain = production_domain.clone();
         App::new()
             .app_data(server_data.clone())
-            .app_data(web::Data::new(watchdog_manager.clone()))
+            .app_data(web::Data::from(watchdog_manager.clone()))
             .wrap(LoggingMiddleware::new(server_logger_for_app.clone()))
             .wrap(RateLimiter::new(rate_limit_rps, rate_limit_enabled))
             .wrap(ApiKeyAuth::new(api_key.clone()))
+            .wrap(PinProtection::new(&pin_server_name, pin_server_port))
             .wrap(middleware::Compress::default())
             .wrap(
                 Cors::default()
@@ -205,6 +217,11 @@ pub fn create_web_server(
             .route("/api/acme/dashboard", web::get().to(acme_dashboard_handler))
             .route("/api/analytics", web::get().to(analytics_handler))
             .route("/api/analytics/dashboard", web::get().to(analytics_dashboard_handler))
+            // Settings API
+            .route("/api/settings", web::get().to(settings_get_handler))
+            .route("/api/settings", web::post().to(settings_post_handler))
+            .route("/api/pin/verify", web::post().to(pin_verify_handler))
+            .route("/api/pin/logout", web::post().to(pin_logout_handler))
             // File Management API
             .route("/api/files", web::get().to(list_files))
             .route("/api/files/{path:.*}", web::put().to(upload_file))
@@ -219,7 +236,7 @@ pub fn create_web_server(
             // Fallback (must be last)
             .default_service(web::route().to(serve_fallback_or_inject))
     })
-    .workers(config.server.workers)
+    .workers(workers_override.unwrap_or(config.server.workers))
     .shutdown_timeout(config.server.shutdown_timeout)
     .disable_signals();
 
@@ -297,7 +314,12 @@ pub fn create_web_server(
     }
 
     std::thread::spawn(move || {
-        let rt = match tokio::runtime::Runtime::new() {
+        // Use single-threaded runtime per server to minimize FD/thread overhead.
+        // Actix-web manages its own worker threads separately.
+        let rt = match tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+        {
             Ok(rt) => rt,
             Err(e) => {
                 log::error!(

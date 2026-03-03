@@ -2,8 +2,8 @@
 
 Your website online in 5 minutes. No nginx, no Docker knowledge, no reverse proxy setup required.
 
-**Version:** 0.3.8 (first official public version)
-**Development:** v0.1.0 – v0.3.7 were internal builds, developed and tested daily since February 2025.
+**Version:** 0.3.9
+**Development:** v0.1.0 – v0.3.8 were internal and early public builds, developed and tested daily since February 2025.
 
 ---
 

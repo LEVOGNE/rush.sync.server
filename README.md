@@ -31,7 +31,7 @@ Internet
 
 ## Features
 
-- **Multi-Server Management** — Create, start, stop, and monitor up to 50 web servers from a single instance
+- **Multi-Server Management** — Create, start, stop, and monitor up to 100 web servers from a single instance. Parallel bulk operations (batch size 4) with live progress. 100 servers start in 12.75s using 92 MB RAM, stop in 0.03s. 1–3 workers per server (default 1)
 - **Production Ready** — Configurable bind address (`0.0.0.0`), real domain support, headless/daemon mode
 - **Automatic HTTPS/TLS** — Dual HTTP+HTTPS binding per server, self-signed certificates with production domain SANs
 - **Let's Encrypt Integration** — Automatic ACME certificate provisioning with HTTP-01 challenges and background renewal
@@ -99,7 +99,7 @@ The headless mode auto-starts servers marked for auto-start, initializes the rev
 
 ```toml
 [dependencies]
-rush-sync-server = "0.3.8"
+rush-sync-server = "0.3.9"
 tokio = { version = "1.36", features = ["full"] }
 ```
 
@@ -265,9 +265,9 @@ http://api.example.com     ->  backend on auto-assigned port
 | Command    | Description                          | Examples                                    |
 |------------|--------------------------------------|---------------------------------------------|
 | `create`   | Create a new web server              | `create`, `create api`, `create docs 8090`  |
-| `start`    | Start server(s)                      | `start 1`, `start api`, `start 1-100`, `start all` |
-| `stop`     | Stop server(s)                       | `stop 1`, `stop api`, `stop 1-50`, `stop all` |
-| `list`     | Show all servers with status         | `list`                                      |
+| `start`    | Start server(s) with parallel bulk   | `start 1`, `start api`, `start 1-100`, `start all` |
+| `stop`     | Stop server(s) with parallel bulk    | `stop 1`, `stop api`, `stop 1-50`, `stop all` |
+| `list`     | Show all servers with status & filters | `list`, `list running`, `list stopped`, `list failed` |
 | `cleanup`  | Remove stopped/failed servers        | `cleanup`, `cleanup all`                    |
 | `recovery` | Recover servers from disk            | `recovery`                                  |
 | `restart`  | Restart the TUI application          | `restart`, `restart -f`                     |
@@ -597,12 +597,12 @@ current_theme = "dark"
 current = "en"
 
 [server]
-port_range_start = 8000
-port_range_end = 8200              # Port range for auto-allocation
-max_concurrent = 50                # Up to 50 simultaneous servers (configurable)
+port_range_start = 8001
+port_range_end = 8100              # Port range for auto-allocation
+max_concurrent = 100               # Up to 100 simultaneous servers (configurable)
 shutdown_timeout = 5
 startup_delay_ms = 500
-workers = 1
+workers = 1                            # 1-3 workers per server
 auto_open_browser = true
 bind_address = "127.0.0.1"         # "0.0.0.0" for public access
 enable_https = true
@@ -653,9 +653,9 @@ input_cursor_color = "Black"
 | `server.production_domain` | `localhost` | Your real domain (e.g. `example.com`) |
 | `server.use_lets_encrypt` | `false` | Automatic Let's Encrypt certificates |
 | `server.acme_email` | `""` | Email for Let's Encrypt notifications |
-| `server.max_concurrent` | `50` | Maximum simultaneous servers |
-| `server.port_range_start` | `8000` | Lower port for auto-allocation |
-| `server.port_range_end` | `8200` | Upper port for auto-allocation |
+| `server.max_concurrent` | `100` | Maximum simultaneous servers |
+| `server.port_range_start` | `8001` | Lower port for auto-allocation |
+| `server.port_range_end` | `8100` | Upper port for auto-allocation |
 | `server.api_key` | `""` | Plaintext, `$hmac-sha256$...` hash, or `RSS_API_KEY` env var |
 | `server.rate_limit_rps` | `100` | Max requests per second per IP on `/api/*` |
 | `server.rate_limit_enabled` | `true` | Enable/disable rate limiting |
@@ -839,6 +839,7 @@ src/
 
 ## Version History
 
+- **v0.3.9** — Latest public release
 - **v0.3.8** — First official public release (stable, Docker-ready, production-tested)
 - **v0.1.0 – v0.3.7** — Internal development builds, developed and tested daily since February 2025
 

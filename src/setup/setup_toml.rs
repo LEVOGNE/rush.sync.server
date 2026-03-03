@@ -21,9 +21,9 @@ current = "en"
 # =====================================================
 [server]
 # Port Management
-port_range_start = 8000      # Starting port for auto-allocation
-port_range_end = 8200        # Maximum port for auto-allocation
-max_concurrent = 50          # Maximum simultaneous servers
+port_range_start = 8001      # Starting port for auto-allocation
+port_range_end = 8100        # Maximum port for auto-allocation
+max_concurrent = 100         # Maximum simultaneous servers
 shutdown_timeout = 5         # Graceful shutdown timeout (seconds)
 startup_delay_ms = 500       # Delay after server creation (milliseconds)
 workers = 1                  # Actix workers per server

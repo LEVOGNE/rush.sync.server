@@ -83,10 +83,29 @@ impl CommandRegistry {
     }
 
     pub fn execute_sync(&self, command: &str, args: &[&str]) -> Option<Result<String>> {
+        // Support "command ?" syntax → redirect to help
+        if args == ["?"] || args == ["--help"] || args == ["-h"] {
+            if self.find_command(command).is_some() {
+                // Execute help with the command name as argument
+                return self
+                    .find_command("help")
+                    .map(|help_cmd| help_cmd.execute_sync(&[command]));
+            }
+        }
+
         self.find_command(command).map(|cmd| cmd.execute_sync(args))
     }
 
     pub async fn execute_async(&self, command: &str, args: &[&str]) -> Option<Result<String>> {
+        // Support "command ?" syntax → redirect to help
+        if args == ["?"] || args == ["--help"] || args == ["-h"] {
+            if self.find_command(command).is_some() {
+                return self
+                    .find_command("help")
+                    .map(|help_cmd| help_cmd.execute_sync(&[command]));
+            }
+        }
+
         match self.find_command(command) {
             Some(cmd) => Some(cmd.execute(args).await),
             None => None,

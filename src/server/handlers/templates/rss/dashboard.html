@@ -1,42 +1,41 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rush Sync Server - {{SERVER_NAME}}</title>
+    <title>{{SERVER_NAME}} — Rush Sync</title>
     <link rel="stylesheet" href="/.rss/style.css" />
     <link rel="icon" href="/.rss/favicon.svg" type="image/svg+xml" />
   </head>
   <body>
+    <!-- Atmospheric layers -->
+    <div class="grain"></div>
+    <div class="glow-orb purple"></div>
+    <div class="glow-orb cyan"></div>
+
     <div class="dashboard">
-      <!-- Header mit kompakten Quick Actions -->
       <header class="dashboard-header">
         <div class="server-info">
-          <h1>Rush Sync Server</h1>
+          <h1>Rush Sync</h1>
           <span class="server-name">{{SERVER_NAME}}</span>
           <div class="status-badge">
             <span class="status-dot" data-status="checking"></span>
-            <span class="status-text">Checking...</span>
+            <span class="status-text">Checking</span>
           </div>
-          <!-- Hot Reload Status -->
           <div class="hotreload-badge">
-            <span class="hotreload-icon">∞</span>
-            <span id="hotreload-status" class="hotreload-status checking">Connecting...</span>
+            <span class="hotreload-icon">&#8734;</span>
+            <span id="hotreload-status" class="hotreload-status checking">Connecting</span>
           </div>
         </div>
 
-        <!-- Kompakte Quick Actions im Header -->
         <div class="header-actions">
           <button class="header-btn primary" data-action="view-http" title="Open HTTP">HTTP</button>
-          <button class="header-btn" data-action="view-proxy" title="Open via Proxy HTTPS">
-            HTTPS
-          </button>
-          <button class="header-btn" data-action="test-apis" title="Test APIs">TEST</button>
-          <button class="header-btn" data-action="refresh-stats" title="Refresh Stats">
-            REFRESH
-          </button>
-          <a href="/api/analytics/dashboard" class="header-btn" title="Visitor Analytics" style="text-decoration:none;text-align:center;">ANALYTICS</a>
-          <a href="/api/acme/dashboard" class="header-btn" title="ACME/TLS Certificate Status" style="text-decoration:none;text-align:center;">ACME</a>
+          <button class="header-btn" data-action="view-proxy" title="Open via HTTPS Proxy">HTTPS</button>
+          <button class="header-btn" data-action="test-apis" title="Test API endpoints">TEST</button>
+          <button class="header-btn" data-action="refresh-stats" title="Refresh all stats">REFRESH</button>
+          <a href="/api/analytics/dashboard" class="header-btn" title="Visitor Analytics">ANALYTICS</a>
+          <a href="/api/acme/dashboard" class="header-btn" title="ACME Certificate Status">ACME</a>
+          <button class="header-btn" data-action="logout" title="Logout (clear PIN session)" style="color:#f87171;">LOGOUT</button>
         </div>
 
         <div class="quick-stats">
@@ -45,19 +44,19 @@
             <span class="stat-value">{{PORT}}</span>
           </div>
           <div class="stat">
-            <span class="stat-label">Proxy HTTP</span>
+            <span class="stat-label">HTTP</span>
             <span class="stat-value">{{PROXY_PORT}}</span>
           </div>
           <div class="stat">
-            <span class="stat-label">Proxy HTTPS</span>
+            <span class="stat-label">HTTPS</span>
             <span class="stat-value">{{PROXY_HTTPS_PORT}}</span>
           </div>
           <div class="stat">
             <span class="stat-label">Uptime</span>
-            <span class="stat-value" id="uptime">Starting...</span>
+            <span class="stat-value" id="uptime">0s</span>
           </div>
           <div class="stat">
-            <span class="stat-label">Requests</span>
+            <span class="stat-label">Reqs</span>
             <span class="stat-value" id="request-count">0</span>
           </div>
           <div class="stat">
@@ -67,9 +66,7 @@
         </div>
       </header>
 
-      <!-- Main Content -->
       <main class="dashboard-content">
-        <!-- Tab Navigation -->
         <nav class="tab-nav">
           <button class="tab-btn active" data-tab="overview">Overview</button>
           <button class="tab-btn" data-tab="endpoints">API</button>
@@ -77,14 +74,32 @@
           <button class="tab-btn" data-tab="metrics">Metrics</button>
           <button class="tab-btn" data-tab="certificates">TLS</button>
           <button class="tab-btn" data-tab="hotreload">Hot Reload</button>
+          <button class="tab-btn" data-tab="settings">Settings</button>
         </nav>
 
-        <!-- Tab Content -->
         <div class="tab-content">
-          <!-- Overview Tab -->
+
+          <!-- ============ OVERVIEW ============ -->
           <div class="tab-panel active" id="tab-overview">
             <div class="overview-grid">
-              <!-- Server Config -->
+
+              <div class="card compact full-width" style="border-color:var(--accent-border);background:var(--accent-glow);">
+                <h3 style="border-bottom-color:var(--accent-border);color:var(--accent);">Quick Start</h3>
+                <p style="font-size:13px;line-height:1.7;color:var(--text);">
+                  Create an <code>index.html</code>
+                  in <code>www/{{SERVER_NAME}}-[{{PORT}}]/</code>
+                  to set your main page. It will be served at the root URL and
+                  file changes trigger <strong style="color:var(--accent);">Hot Reload</strong> automatically.
+                </p>
+                <p style="font-size:12px;line-height:1.6;color:var(--text-dim);margin-top:10px;">
+                  This dashboard is always available at
+                  <code style="color:var(--accent);">/.rss/</code>
+                  &#8212; even when your index.html is active.
+                  You can also configure a custom 404 page and PIN protection in
+                  <a href="#" class="tab-btn" data-tab="settings" style="font-size:inherit;padding:0;border:none;text-transform:none;letter-spacing:normal;">Settings</a>.
+                </p>
+              </div>
+
               <div class="card compact">
                 <h3>Configuration</h3>
                 <div class="config-items">
@@ -97,20 +112,20 @@
                     <span>{{VERSION}}</span>
                   </div>
                   <div class="config-item">
-                    <span>HTTP URL</span>
+                    <span>HTTP</span>
                     <a href="http://127.0.0.1:{{PORT}}" target="_blank">127.0.0.1:{{PORT}}</a>
                   </div>
                   <div class="config-item">
-                    <span>Proxy HTTP URL</span>
-                    <a href="http://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}" target="_blank"
-                      >{{SERVER_NAME}}.localhost:{{PROXY_PORT}}</a
-                    >
+                    <span>Proxy HTTP</span>
+                    <a href="http://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}" target="_blank">{{SERVER_NAME}}.localhost:{{PROXY_PORT}}</a>
                   </div>
                   <div class="config-item">
-                    <span>Proxy HTTPS URL</span>
-                    <a href="https://{{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}" target="_blank"
-                      >{{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}</a
-                    >
+                    <span>Proxy HTTPS</span>
+                    <a href="https://{{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}" target="_blank">{{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}</a>
+                  </div>
+                  <div class="config-item">
+                    <span>Dashboard</span>
+                    <a href="/.rss/" style="color:var(--accent);">/.rss/</a>
                   </div>
                   <div class="config-item">
                     <span>WebSocket</span>
@@ -123,7 +138,6 @@
                 </div>
               </div>
 
-              <!-- TLS Certificate Info -->
               <div class="card compact">
                 <h3>TLS Certificate</h3>
                 <div class="config-items">
@@ -150,38 +164,36 @@
                 </div>
               </div>
 
-              <!-- Features -->
               <div class="card compact">
                 <h3>Features</h3>
                 <div class="feature-list">
                   <div class="feature-item">
-                    <span class="feature-icon">🔄</span>
+                    <span class="feature-icon">&#8734;</span>
                     <span>Hot Reload</span>
                   </div>
                   <div class="feature-item">
-                    <span class="feature-icon">🔒</span>
-                    <span>HTTPS/TLS</span>
+                    <span class="feature-icon">&#9919;</span>
+                    <span>HTTPS / TLS</span>
                   </div>
                   <div class="feature-item">
-                    <span class="feature-icon">🌐</span>
+                    <span class="feature-icon">&#8644;</span>
                     <span>Reverse Proxy</span>
                   </div>
                   <div class="feature-item">
-                    <span class="feature-icon">📊</span>
+                    <span class="feature-icon">&#9783;</span>
                     <span>Live Metrics</span>
                   </div>
                   <div class="feature-item">
-                    <span class="feature-icon">🛡️</span>
-                    <span>Security Monitoring</span>
+                    <span class="feature-icon">&#9670;</span>
+                    <span>Security</span>
                   </div>
                   <div class="feature-item">
-                    <span class="feature-icon">⚡</span>
-                    <span>High Performance</span>
+                    <span class="feature-icon">&#9889;</span>
+                    <span>High Perf</span>
                   </div>
                 </div>
               </div>
 
-              <!-- Visitor Analytics Summary -->
               <div class="card compact full-width" id="analytics-overview-card">
                 <h3>Visitor Analytics</h3>
                 <div class="config-items" id="analytics-overview-content">
@@ -192,14 +204,14 @@
                   <div class="config-item"><span>Last 30 Days</span><span id="av-month-views">-</span></div>
                   <div class="config-item"><span>Downloads (30d)</span><span id="av-month-downloads">-</span></div>
                 </div>
-                <div style="margin-top:12px">
-                  <a href="/api/analytics/dashboard" style="color:#6c63ff;font-size:13px;">Full Analytics Dashboard &rarr;</a>
+                <div style="margin-top:14px;">
+                  <a href="/api/analytics/dashboard" style="font-size:12px;font-weight:600;">Full Analytics Dashboard &#8594;</a>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Endpoints Tab -->
+          <!-- ============ ENDPOINTS ============ -->
           <div class="tab-panel" id="tab-endpoints">
             <div class="endpoint-groups">
               <div class="endpoint-group">
@@ -220,7 +232,7 @@
                   <div class="endpoint">
                     <span class="method get">GET</span>
                     <code>/rss.js</code>
-                    <span class="desc">JavaScript</span>
+                    <span class="desc">Client script</span>
                     <button class="test-btn" data-url="/rss.js">Test</button>
                   </div>
                   <div class="endpoint">
@@ -231,9 +243,8 @@
                   </div>
                 </div>
               </div>
-
               <div class="endpoint-group">
-                <h4>Server API & WebSocket</h4>
+                <h4>Server API &amp; WebSocket</h4>
                 <div class="endpoint-list compact">
                   <div class="endpoint">
                     <span class="method get">GET</span>
@@ -270,7 +281,7 @@
             </div>
           </div>
 
-          <!-- Live Logs Tab -->
+          <!-- ============ LIVE LOGS ============ -->
           <div class="tab-panel" id="tab-logs">
             <div class="terminal-container">
               <div class="terminal-header">
@@ -282,9 +293,7 @@
                 <div class="terminal-title">{{SERVER_NAME}}-[{{PORT}}].log</div>
                 <div class="terminal-actions">
                   <button class="terminal-btn">Clear</button>
-                  <button class="terminal-btn">
-                    <span id="autoscroll-text">Auto-scroll ON</span>
-                  </button>
+                  <button class="terminal-btn"><span id="autoscroll-text">Auto-scroll ON</span></button>
                   <button class="terminal-btn">Download Log</button>
                 </div>
               </div>
@@ -312,154 +321,98 @@
                 <div class="log-line system">
                   <span class="log-time">{{CREATION_TIME}}</span>
                   <span class="log-level INFO">INFO</span>
-                  <span class="log-message"
-                    >Proxy HTTP on {{SERVER_NAME}}.localhost:{{PROXY_PORT}}</span
-                  >
+                  <span class="log-message">Proxy HTTP on {{SERVER_NAME}}.localhost:{{PROXY_PORT}}</span>
                 </div>
                 <div class="log-line system">
                   <span class="log-time">{{CREATION_TIME}}</span>
                   <span class="log-level INFO">INFO</span>
-                  <span class="log-message"
-                    >Proxy HTTPS on {{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}</span
-                  >
+                  <span class="log-message">Proxy HTTPS on {{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Metrics Tab -->
+          <!-- ============ METRICS ============ -->
           <div class="tab-panel" id="tab-metrics">
             <div class="metrics-grid">
               <div class="metric-card">
                 <div class="metric-header">
-                  <h4>Response Times</h4>
-                  <span class="metric-trend up" id="response-trend">→</span>
+                  <h4>Response Time</h4>
+                  <span class="metric-trend up" id="response-trend">&#8594;</span>
                 </div>
                 <div class="metric-value" id="avg-response">0ms</div>
-                <div class="metric-detail">avg</div>
+                <div class="metric-detail">average</div>
               </div>
-
               <div class="metric-card">
                 <div class="metric-header">
                   <h4>Traffic</h4>
-                  <span class="metric-trend neutral" id="traffic-trend">→</span>
+                  <span class="metric-trend neutral" id="traffic-trend">&#8594;</span>
                 </div>
                 <div class="metric-value" id="total-requests">0</div>
                 <div class="metric-detail">requests</div>
               </div>
-
               <div class="metric-card">
                 <div class="metric-header">
                   <h4>Data Sent</h4>
-                  <span class="metric-trend up" id="data-trend">→</span>
+                  <span class="metric-trend up" id="data-trend">&#8594;</span>
                 </div>
                 <div class="metric-value" id="bytes-sent">0 KB</div>
                 <div class="metric-detail">total</div>
               </div>
-
               <div class="metric-card">
                 <div class="metric-header">
                   <h4>Unique IPs</h4>
-                  <span class="metric-trend neutral" id="ip-trend">→</span>
+                  <span class="metric-trend neutral" id="ip-trend">&#8594;</span>
                 </div>
                 <div class="metric-value" id="unique-ips">0</div>
                 <div class="metric-detail">visitors</div>
               </div>
             </div>
-
             <div class="metrics-details">
-              <div class="card">
-                <h4>Recent Activity</h4>
-                <div id="recent-activity">
-                  <div class="activity-item">
-                    <span class="activity-time">Just now</span>
-                    <span class="activity-desc">Server started with TLS support</span>
-                  </div>
+              <h4>Recent Activity</h4>
+              <div id="recent-activity">
+                <div class="activity-item">
+                  <span class="activity-time">Just now</span>
+                  <span class="activity-desc">Server started with TLS support</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- TLS Certificate Tab -->
+          <!-- ============ TLS ============ -->
           <div class="tab-panel" id="tab-certificates">
             <div class="overview-grid">
-              <!-- Certificate Details -->
               <div class="card">
                 <h3>Server Certificate</h3>
                 <div class="config-items">
-                  <div class="config-item">
-                    <span>Certificate File</span>
-                    <code>.rss/certs/{{SERVER_NAME}}-{{PORT}}.cert</code>
-                  </div>
-                  <div class="config-item">
-                    <span>Private Key</span>
-                    <code>.rss/certs/{{SERVER_NAME}}-{{PORT}}.key</code>
-                  </div>
-                  <div class="config-item">
-                    <span>Common Name</span>
-                    <code>{{SERVER_NAME}}.localhost</code>
-                  </div>
-                  <div class="config-item">
-                    <span>Subject Alt Names</span>
-                    <span>localhost, 127.0.0.1, {{SERVER_NAME}}.localhost</span>
-                  </div>
-                  <div class="config-item">
-                    <span>Valid for</span>
-                    <span id="cert-validity">365 days</span>
-                  </div>
-                  <div class="config-item">
-                    <span>Auto-generated</span>
-                    <span class="status-value success">Yes</span>
-                  </div>
+                  <div class="config-item"><span>Certificate File</span><code>.rss/certs/{{SERVER_NAME}}-{{PORT}}.cert</code></div>
+                  <div class="config-item"><span>Private Key</span><code>.rss/certs/{{SERVER_NAME}}-{{PORT}}.key</code></div>
+                  <div class="config-item"><span>Common Name</span><code>{{SERVER_NAME}}.localhost</code></div>
+                  <div class="config-item"><span>Subject Alt Names</span><span>localhost, 127.0.0.1, {{SERVER_NAME}}.localhost</span></div>
+                  <div class="config-item"><span>Valid for</span><span id="cert-validity">365 days</span></div>
+                  <div class="config-item"><span>Auto-generated</span><span class="status-value success">Yes</span></div>
                 </div>
               </div>
-
-              <!-- Proxy Certificate -->
               <div class="card">
                 <h3>Proxy Certificate</h3>
                 <div class="config-items">
-                  <div class="config-item">
-                    <span>Certificate File</span>
-                    <code>.rss/certs/proxy-{{PROXY_HTTPS_PORT}}.cert</code>
-                  </div>
-                  <div class="config-item">
-                    <span>Private Key</span>
-                    <code>.rss/certs/proxy-{{PROXY_HTTPS_PORT}}.key</code>
-                  </div>
-                  <div class="config-item">
-                    <span>Common Name</span>
-                    <code>*.localhost</code>
-                  </div>
-                  <div class="config-item">
-                    <span>Subject Alt Names</span>
-                    <span>localhost, 127.0.0.1, *.localhost, proxy.localhost</span>
-                  </div>
-                  <div class="config-item">
-                    <span>Wildcard Support</span>
-                    <span class="status-value success">Yes</span>
-                  </div>
-                  <div class="config-item">
-                    <span>Auto-generated</span>
-                    <span class="status-value success">Yes</span>
-                  </div>
+                  <div class="config-item"><span>Certificate File</span><code>.rss/certs/proxy-{{PROXY_HTTPS_PORT}}.cert</code></div>
+                  <div class="config-item"><span>Private Key</span><code>.rss/certs/proxy-{{PROXY_HTTPS_PORT}}.key</code></div>
+                  <div class="config-item"><span>Common Name</span><code>*.localhost</code></div>
+                  <div class="config-item"><span>Subject Alt Names</span><span>localhost, 127.0.0.1, *.localhost</span></div>
+                  <div class="config-item"><span>Wildcard</span><span class="status-value success">Yes</span></div>
+                  <div class="config-item"><span>Auto-generated</span><span class="status-value success">Yes</span></div>
                 </div>
               </div>
-
-              <!-- ACME / Let's Encrypt Status (loaded dynamically) -->
               <div class="card full-width" id="acme-card">
                 <h3>Let's Encrypt / ACME</h3>
                 <div id="acme-status-content" class="config-items">
-                  <div class="config-item">
-                    <span>Status</span>
-                    <span id="acme-status-val">Loading...</span>
-                  </div>
+                  <div class="config-item"><span>Status</span><span id="acme-status-val">Loading...</span></div>
                 </div>
-                <div style="margin-top:12px">
-                  <a href="/api/acme/dashboard" style="color:#6c63ff;font-size:13px;">Open ACME Dashboard &rarr;</a>
+                <div style="margin-top:14px;">
+                  <a href="/api/acme/dashboard" style="font-size:12px;font-weight:600;">Open ACME Dashboard &#8594;</a>
                 </div>
               </div>
-
-              <!-- URL Testing - KORREKTE PORTS -->
               <div class="card full-width">
                 <h3>URL Testing</h3>
                 <div class="endpoint-list compact">
@@ -470,44 +423,31 @@
                     <button class="test-btn" data-url="http://127.0.0.1:{{PORT}}">Test</button>
                   </div>
                   <div class="endpoint">
-                    <span class="method get">PROXY-HTTP</span>
+                    <span class="method get">PROXY</span>
                     <code>http://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}</code>
                     <span class="desc">Via HTTP proxy</span>
-                    <button
-                      class="test-btn"
-                      data-url="http://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}"
-                    >
-                      Test
-                    </button>
+                    <button class="test-btn" data-url="http://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}">Test</button>
                   </div>
                   <div class="endpoint">
-                    <span class="method get">PROXY-HTTPS</span>
+                    <span class="method get">TLS</span>
                     <code>https://{{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}</code>
                     <span class="desc">Via HTTPS proxy</span>
-                    <button
-                      class="test-btn"
-                      data-url="https://{{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}"
-                    >
-                      Test
-                    </button>
+                    <button class="test-btn" data-url="https://{{SERVER_NAME}}.localhost:{{PROXY_HTTPS_PORT}}">Test</button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Hot Reload Tab -->
+          <!-- ============ HOT RELOAD ============ -->
           <div class="tab-panel" id="tab-hotreload">
             <div class="hotreload-grid">
-              <!-- WebSocket Status -->
               <div class="card">
                 <h3>WebSocket Connection</h3>
                 <div class="websocket-status">
                   <div class="status-item">
                     <span class="status-label">Connection</span>
-                    <span id="ws-connection-status" class="status-value checking"
-                      >Connecting...</span
-                    >
+                    <span id="ws-connection-status" class="status-value checking">Connecting...</span>
                   </div>
                   <div class="status-item">
                     <span class="status-label">Endpoint</span>
@@ -519,8 +459,6 @@
                   </div>
                 </div>
               </div>
-
-              <!-- File Watching -->
               <div class="card">
                 <h3>File Watcher</h3>
                 <div class="watcher-info">
@@ -529,7 +467,7 @@
                     <code class="info-value">www/{{SERVER_NAME}}-[{{PORT}}]/</code>
                   </div>
                   <div class="info-item">
-                    <span class="info-label">Supported Files</span>
+                    <span class="info-label">File Types</span>
                     <span class="info-value">html, css, js, json, svg, png, jpg, ico</span>
                   </div>
                   <div class="info-item">
@@ -538,8 +476,6 @@
                   </div>
                 </div>
               </div>
-
-              <!-- Recent Changes -->
               <div class="card full-width">
                 <h3>Recent File Changes</h3>
                 <div id="file-changes-log" class="changes-log">
@@ -552,22 +488,110 @@
                 </div>
               </div>
             </div>
-
-            <!-- Test Hot Reload -->
             <div class="card">
               <h3>Test Hot Reload</h3>
               <p class="test-instructions">
-                To test Hot Reload, edit any file in the
-                <code>www/{{SERVER_NAME}}-[{{PORT}}]/</code> directory. The page will automatically
-                reload when you save changes.
+                Edit any file in <code>www/{{SERVER_NAME}}-[{{PORT}}]/</code> and the browser will
+                automatically reload when you save.
               </p>
               <div class="test-actions">
-                <button class="btn btn-secondary" data-action="simulate-file-change">
-                  Simulate File Change
-                </button>
+                <button class="btn btn-secondary" data-action="simulate-file-change">Simulate File Change</button>
               </div>
             </div>
           </div>
+
+          <!-- ============ SETTINGS ============ -->
+          <div class="tab-panel" id="tab-settings">
+            <div class="overview-grid">
+              <div class="card">
+                <h3>Custom 404 Page</h3>
+                <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+                  When no <code>index.html</code> exists, visitors see the system dashboard.
+                  Set a custom 404 page to show your own error page instead.
+                </p>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    Enable Custom 404
+                    <small>Serve a custom page for missing files</small>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="setting-custom-404-enabled" />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    404 Page Path
+                    <small>Relative to server directory</small>
+                  </div>
+                  <input type="text" class="setting-input" id="setting-custom-404-path"
+                         placeholder="404.html" value="404.html" />
+                </div>
+                <div style="margin-top:12px;">
+                  <button class="btn btn-primary" id="save-404-settings">Save</button>
+                  <span id="save-404-status" style="font-size:11px;color:var(--green);margin-left:10px;display:none;">Saved!</span>
+                </div>
+              </div>
+
+              <div class="card">
+                <h3>Dashboard PIN Protection</h3>
+                <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+                  Protect this dashboard with a PIN code. When enabled, visitors must enter
+                  the PIN to access <code>/.rss/</code> and API endpoints.
+                </p>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    Enable PIN Lock
+                    <small>Require PIN to access dashboard</small>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="setting-pin-enabled" />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    PIN Code
+                    <small>4&#8211;8 digit numeric code</small>
+                  </div>
+                  <input type="password" class="setting-input" id="setting-pin-code"
+                         placeholder="&#8226;&#8226;&#8226;&#8226;" maxlength="8"
+                         style="width:120px;text-align:center;letter-spacing:4px;" />
+                </div>
+                <div style="margin-top:12px;">
+                  <button class="btn btn-primary" id="save-pin-settings">Save</button>
+                  <span id="save-pin-status" style="font-size:11px;color:var(--green);margin-left:10px;display:none;">Saved!</span>
+                </div>
+              </div>
+
+              <div class="card full-width">
+                <h3>Dashboard Access</h3>
+                <div class="config-items">
+                  <div class="config-item">
+                    <span>Dashboard URL</span>
+                    <a href="/.rss/" style="color:var(--accent);font-family:var(--mono);font-size:12px;">http://127.0.0.1:{{PORT}}/.rss/</a>
+                  </div>
+                  <div class="config-item">
+                    <span>Proxy Dashboard</span>
+                    <a href="/.rss/" style="color:var(--accent);font-family:var(--mono);font-size:12px;">http://{{SERVER_NAME}}.localhost:{{PROXY_PORT}}/.rss/</a>
+                  </div>
+                  <div class="config-item">
+                    <span>Server Directory</span>
+                    <code>www/{{SERVER_NAME}}-[{{PORT}}]/</code>
+                  </div>
+                  <div class="config-item">
+                    <span>Config File</span>
+                    <code>.rss/config.toml</code>
+                  </div>
+                </div>
+                <p style="font-size:11px;color:var(--text-muted);margin-top:12px;line-height:1.5;">
+                  The dashboard at <code>/.rss/</code> is always accessible,
+                  regardless of your index.html or 404 settings.
+                </p>
+              </div>
+            </div>
+          </div>
+
         </div>
       </main>
     </div>
@@ -578,17 +602,17 @@
         if(!el)return;
         var s=d.status||'not_configured';
         var cert=d.certificate||{};
-        var colors={'success':'#00d4aa','failed':'#ff4466','provisioning':'#ffaa00','idle':'#6c63ff','not_configured':'#888'};
+        var colors={'success':'#34d399','failed':'#f87171','provisioning':'#fbbf24','idle':'#60a5fa','not_configured':'#71717a'};
         var labels={'success':'Active','failed':'Failed','provisioning':'Provisioning...','idle':'Idle','not_configured':'Not Configured'};
         var h='';
         h+='<div class="config-item"><span>Status</span><span style="color:'+colors[s]+'">'+labels[s]+'</span></div>';
         if(d.domain)h+='<div class="config-item"><span>Domain</span><code>'+d.domain+'</code></div>';
         if(cert.exists){
           if(cert.age_days!=null)h+='<div class="config-item"><span>Certificate Age</span><span>'+cert.age_days+' days</span></div>';
-          if(cert.days_until_renewal!=null)h+='<div class="config-item"><span>Renewal In</span><span style="color:'+(cert.days_until_renewal>14?'#00d4aa':'#ffaa00')+'">'+cert.days_until_renewal+' days</span></div>';
+          if(cert.days_until_renewal!=null)h+='<div class="config-item"><span>Renewal In</span><span style="color:'+(cert.days_until_renewal>14?'#34d399':'#fbbf24')+'">'+cert.days_until_renewal+' days</span></div>';
           if(cert.sans&&cert.sans.length)h+='<div class="config-item"><span>SANs</span><span>'+cert.sans.length+' domains</span></div>';
         }
-        if(d.last_error)h+='<div class="config-item"><span>Last Error</span><span style="color:#ff4466;font-size:12px">'+d.last_error+'</span></div>';
+        if(d.last_error)h+='<div class="config-item"><span>Last Error</span><span style="color:#f87171;font-size:11px">'+d.last_error+'</span></div>';
         el.innerHTML=h;
       }).catch(function(){});
     })();
@@ -603,6 +627,64 @@
         s('av-month-views',(m.page_views||0).toLocaleString()+' views');
         s('av-month-downloads',(m.downloads||0).toLocaleString());
       }).catch(function(){});
+    })();
+    (function(){
+      var flash=function(el,msg,color){
+        el.textContent=msg||'Saved!';
+        el.style.color=color||'var(--green)';
+        el.style.display='inline';
+        setTimeout(function(){el.style.display='none';},2500);
+      };
+
+      // Load settings on page load
+      fetch('/api/settings').then(function(r){return r.json()}).then(function(d){
+        document.getElementById('setting-custom-404-enabled').checked=!!d.custom_404_enabled;
+        document.getElementById('setting-custom-404-path').value=d.custom_404_path||'404.html';
+        document.getElementById('setting-pin-enabled').checked=!!d.pin_enabled;
+        if(d.pin_set){
+          document.getElementById('setting-pin-code').placeholder='\u2022\u2022\u2022\u2022 (set)';
+        }
+      }).catch(function(){});
+
+      // Save 404 settings
+      document.getElementById('save-404-settings').addEventListener('click',function(){
+        var st=document.getElementById('save-404-status');
+        fetch('/api/settings',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            custom_404_enabled:document.getElementById('setting-custom-404-enabled').checked,
+            custom_404_path:document.getElementById('setting-custom-404-path').value
+          })
+        }).then(function(r){
+          if(r.ok){flash(st,'Saved!','var(--green)');}
+          else{flash(st,'Error!','var(--red)');}
+        }).catch(function(){flash(st,'Error!','var(--red)');});
+      });
+
+      // Save PIN settings
+      document.getElementById('save-pin-settings').addEventListener('click',function(){
+        var st=document.getElementById('save-pin-status');
+        var pinVal=document.getElementById('setting-pin-code').value;
+        var pinEnabled=document.getElementById('setting-pin-enabled').checked;
+        if(pinEnabled&&!pinVal){
+          flash(st,'Enter a PIN first!','var(--orange)');
+          return;
+        }
+        var payload={pin_enabled:pinEnabled};
+        if(pinVal)payload.pin_code=pinVal;
+        fetch('/api/settings',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(payload)
+        }).then(function(r){
+          if(r.ok){
+            flash(st,'Saved!','var(--green)');
+            document.getElementById('setting-pin-code').value='';
+            document.getElementById('setting-pin-code').placeholder=pinEnabled?'\u2022\u2022\u2022\u2022 (set)':'\u2022\u2022\u2022\u2022';
+          } else{flash(st,'Error!','var(--red)');}
+        }).catch(function(){flash(st,'Error!','var(--red)');});
+      });
     })();
     </script>
   </body>

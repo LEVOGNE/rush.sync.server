@@ -82,23 +82,32 @@ pub async fn initialize_server_system() -> crate::core::error::Result<()> {
     let mut corrected_servers = 0;
 
     for (_server_id, persistent_info) in persistent_servers.iter_mut() {
-        if persistent_info.status == ServerStatus::Running {
-            if !is_port_available(persistent_info.port, &config.server.bind_address) {
-                log::warn!(
-                    "Server {} claims to be running on port {}, but port is occupied",
-                    persistent_info.name,
-                    persistent_info.port
-                );
-                persistent_info.status = ServerStatus::Failed;
+        match persistent_info.status {
+            ServerStatus::Running => {
+                if !is_port_available(persistent_info.port, &config.server.bind_address) {
+                    log::warn!(
+                        "Server {} claims to be running on port {}, but port is occupied",
+                        persistent_info.name,
+                        persistent_info.port
+                    );
+                } else {
+                    log::info!(
+                        "Server {} was running but is no longer active, correcting status",
+                        persistent_info.name
+                    );
+                }
+                persistent_info.status = ServerStatus::Stopped;
                 corrected_servers += 1;
-            } else {
+            }
+            ServerStatus::Failed => {
                 log::info!(
-                    "Server {} was running but is no longer active, correcting status",
+                    "Server {} was failed, resetting to stopped on restart",
                     persistent_info.name
                 );
                 persistent_info.status = ServerStatus::Stopped;
                 corrected_servers += 1;
             }
+            ServerStatus::Stopped => {}
         }
     }
 

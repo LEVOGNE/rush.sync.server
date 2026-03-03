@@ -791,17 +791,17 @@
             <a href="/api/analytics/dashboard" style="color:var(--accent);text-decoration:none;font-size:13px;font-weight:600;padding:4px 12px;border:1px solid rgba(108,99,255,0.3);border-radius:6px;transition:all 0.2s;">Analytics</a>
             <a href="/api/acme/dashboard" style="color:var(--green);text-decoration:none;font-size:13px;font-weight:600;padding:4px 12px;border:1px solid rgba(74,222,128,0.3);border-radius:6px;transition:all 0.2s;">ACME/TLS</a>
             <a href="/.rss/" style="color:var(--cyan);text-decoration:none;font-size:13px;font-weight:600;padding:4px 12px;border:1px solid rgba(34,211,238,0.3);border-radius:6px;transition:all 0.2s;">Dashboard</a>
-            <div class="status-version">v0.3.8</div>
+            <div class="status-version">v0.3.9</div>
         </div>
 
         <!-- Release Banner -->
         <div style="background: linear-gradient(135deg, rgba(108,99,255,0.12), rgba(74,222,128,0.08)); border: 1px solid rgba(108,99,255,0.25); border-radius: 12px; padding: 20px 28px; margin-bottom: 32px;">
             <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                <span style="background: var(--green); color: #0a0a0f; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 6px; letter-spacing: 0.5px;">FIRST PUBLIC RELEASE</span>
-                <span style="font-size: 15px; font-weight: 600;">v0.3.8 &mdash; Official Public Version</span>
+                <span style="background: var(--green); color: #0a0a0f; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 6px; letter-spacing: 0.5px;">LATEST RELEASE</span>
+                <span style="font-size: 15px; font-weight: 600;">v0.3.9 &mdash; Official Public Version</span>
             </div>
             <p style="color: var(--text-dim); font-size: 14px; margin-top: 10px; line-height: 1.6;">
-                Versions 0.1.0 through 0.3.7 were internal development builds &mdash; developed and tested daily since February 2025, with hundreds of bug fixes and countless iterations. This is the first version released for the public &mdash; stable, Docker-ready, and production-tested.
+                Versions 0.1.0 through 0.3.8 were internal development and early public builds &mdash; developed and tested daily since February 2025, with hundreds of bug fixes and countless iterations. Stable, Docker-ready, and production-tested.
             </p>
         </div>
 
@@ -848,20 +848,20 @@
 
             <div class="hero-stats">
                 <div class="hero-stat">
-                    <div class="value">~10 MB</div>
-                    <div class="label">Binary Size</div>
+                    <div class="value">100</div>
+                    <div class="label">Servers</div>
                 </div>
                 <div class="hero-stat">
-                    <div class="value">50</div>
-                    <div class="label">Max Servers</div>
+                    <div class="value">12.75s</div>
+                    <div class="label">Start All</div>
                 </div>
                 <div class="hero-stat">
-                    <div class="value">0</div>
-                    <div class="label">Dependencies</div>
+                    <div class="value">92 MB</div>
+                    <div class="label">Total RAM</div>
                 </div>
                 <div class="hero-stat">
-                    <div class="value">&lt;1s</div>
-                    <div class="label">Boot Time</div>
+                    <div class="value">0.03s</div>
+                    <div class="label">Stop All</div>
                 </div>
                 <div class="hero-stat">
                     <div class="value" id="lv-visitors">-</div>
@@ -890,7 +890,7 @@
                         <p>x86_64 &middot; GNU/Linux</p>
                         <div style="margin-top: auto; padding-top: 16px;">
                             <div style="padding: 10px 24px; background: var(--orange); color: #0a0a0f; border-radius: 8px; font-weight: 600; font-size: 14px; transition: opacity 0.2s;">Download</div>
-                            <div style="margin-top: 10px; font-size: 12px; color: var(--text-dim);">v0.3.8 &middot; 11 MB</div>
+                            <div style="margin-top: 10px; font-size: 12px; color: var(--text-dim);">v0.3.9 &middot; 11 MB</div>
                             <div style="margin-top: 6px; font-size: 11px; color: var(--text-dim); font-family: 'SF Mono', monospace;">chmod +x rush-sync</div>
                             <div id="dl-linux" style="margin-top: 10px; font-size: 11px; color: var(--orange); font-weight: 600; min-height: 16px; opacity: 0; transition: opacity 0.3s;"></div>
                         </div>
@@ -903,7 +903,7 @@
                         <p>Apple Silicon (M1/M2/M3/M4)</p>
                         <div style="margin-top: auto; padding-top: 16px;">
                             <div style="padding: 10px 24px; background: var(--accent); color: white; border-radius: 8px; font-weight: 600; font-size: 14px; transition: opacity 0.2s;">Download</div>
-                            <div style="margin-top: 10px; font-size: 12px; color: var(--text-dim);">v0.3.8 &middot; 9.5 MB</div>
+                            <div style="margin-top: 10px; font-size: 12px; color: var(--text-dim);">v0.3.9 &middot; 9.5 MB</div>
                             <div style="margin-top: 6px; font-size: 11px; color: var(--text-dim); font-family: 'SF Mono', monospace;">chmod +x rush-sync</div>
                             <div id="dl-macos" style="margin-top: 10px; font-size: 11px; color: var(--accent); font-weight: 600; min-height: 16px; opacity: 0; transition: opacity 0.3s;"></div>
                         </div>
@@ -916,7 +916,7 @@
                         <p>x86_64 &middot; Windows 10/11</p>
                         <div style="margin-top: auto; padding-top: 16px;">
                             <div style="padding: 10px 24px; background: var(--cyan); color: #0a0a0f; border-radius: 8px; font-weight: 600; font-size: 14px; transition: opacity 0.2s;">Download</div>
-                            <div style="margin-top: 10px; font-size: 12px; color: var(--text-dim);">v0.3.8 &middot; 12 MB</div>
+                            <div style="margin-top: 10px; font-size: 12px; color: var(--text-dim);">v0.3.9 &middot; 12 MB</div>
                             <div style="margin-top: 6px; font-size: 11px; color: var(--text-dim); font-family: 'SF Mono', monospace;">rush-sync.exe</div>
                             <div id="dl-windows" style="margin-top: 10px; font-size: 11px; color: var(--cyan); font-weight: 600; min-height: 16px; opacity: 0; transition: opacity 0.3s;"></div>
                         </div>
@@ -1056,7 +1056,7 @@
                 <div class="feature">
                     <div class="feature-icon green">&#9889;</div>
                     <h3>Multi-Server</h3>
-                    <p>Run up to 50 independent web servers simultaneously. Each with its own port, directory, logs, and configuration. Create, start, stop individually.</p>
+                    <p>Run up to 100 independent web servers simultaneously &mdash; all 100 start in 12.75s using only 92 MB RAM, stop in 0.03s. Each with its own port, directory, logs, and 1&ndash;3 workers (default 1). Parallel bulk operations with live progress.</p>
                 </div>
                 <div class="feature">
                     <div class="feature-icon cyan">&#128274;</div>
@@ -1417,7 +1417,7 @@
                 <div class="doc-card" onclick="openDoc('benchmark')">
                     <div class="doc-card-icon" style="background: rgba(34, 211, 238, 0.15);">&#128200;</div>
                     <h3>Benchmark</h3>
-                    <p>Resource footprint analysis — memory usage, linear scaling, Docker performance, and comparison with nginx, Caddy, and Node.js.</p>
+                    <p>100 servers in 12.75s, 92 MB RAM, stop all in 0.03s. Resource footprint analysis, linear scaling, Docker performance, and comparison with nginx, Caddy, and Node.js.</p>
                     <div class="doc-hint">Click to read &rarr;</div>
                 </div>
             </div>
@@ -1456,8 +1456,8 @@
 
         <!-- Footer -->
         <footer>
-            <p>RUSH.SYNC.SERVER v0.3.8 &mdash; First Official Public Release &mdash; Built with Rust</p>
-            <p style="margin-top: 6px; font-size: 12px; color: #555566;">v0.1.0 &ndash; v0.3.7: Internal development &bull; v0.3.8: Official public release</p>
+            <p>RUSH.SYNC.SERVER v0.3.9 &mdash; Latest Public Release &mdash; Built with Rust</p>
+            <p style="margin-top: 6px; font-size: 12px; color: #555566;">v0.1.0 &ndash; v0.3.8: Internal development &amp; early public builds &bull; v0.3.9: Latest release</p>
             <p style="margin-top: 8px;">
                 <a href="https://github.com/LEVOGNE/rush.sync.server">GitHub</a>
                 <span style="margin: 0 8px; color: #333;">|</span>

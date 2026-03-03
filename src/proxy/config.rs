@@ -17,7 +17,7 @@ impl Default for ProxyConfig {
             port: 8000,
             enable_tls: true,
             cert_dir: ".rss/certs".to_string(),
-            max_concurrent: 50,
+            max_concurrent: 100,
             timeout_seconds: 30,
         }
     }

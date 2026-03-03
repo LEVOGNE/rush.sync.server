@@ -95,9 +95,32 @@ pub async fn serve_fallback_or_inject(
         }
     }
 
+    // Check for custom 404 page (works for both "/" and other paths)
+    let settings = crate::server::settings::ServerSettings::load(&server_dir);
+    if settings.custom_404_enabled {
+        let custom_404 = server_dir.join(&settings.custom_404_path);
+        if custom_404.exists() {
+            if let Ok(html) = tokio::fs::read_to_string(&custom_404).await {
+                let html = if !html.contains("/rss.js") {
+                    inject_rss_script(html)
+                } else {
+                    html
+                };
+                let mut status = if path == "/" {
+                    HttpResponse::Ok()
+                } else {
+                    HttpResponse::NotFound()
+                };
+                return Ok(status
+                    .content_type("text/html; charset=utf-8")
+                    .body(html));
+            }
+        }
+    }
+
     if path == "/" {
-        log::info!("Serving system fallback");
-        serve_system_fallback(data).await
+        log::info!("Serving system fallback dashboard");
+        serve_system_fallback(&req, data).await
     } else {
         log::info!("File not found: {}", path);
         Ok(HttpResponse::NotFound()
@@ -106,7 +129,29 @@ pub async fn serve_fallback_or_inject(
     }
 }
 
-async fn serve_system_fallback(data: web::Data<ServerDataWithConfig>) -> ActixResult<HttpResponse> {
+async fn serve_system_fallback(
+    req: &HttpRequest,
+    data: web::Data<ServerDataWithConfig>,
+) -> ActixResult<HttpResponse> {
+    // PIN check for dashboard fallback at /
+    let server_dir =
+        crate::server::settings::ServerSettings::get_server_dir(&data.server.name, data.server.port);
+    if let Some(ref dir) = server_dir {
+        let settings = crate::server::settings::ServerSettings::load(dir);
+        if settings.pin_enabled && !settings.pin_code.is_empty() {
+            let expected_token = format!("rss-pin-{}-{}", data.server.name, data.server.port);
+            let has_valid_cookie = req
+                .cookie("rss_pin")
+                .map(|c| c.value() == expected_token)
+                .unwrap_or(false);
+            if !has_valid_cookie {
+                return Ok(HttpResponse::Found()
+                    .insert_header(("Location", "/.rss/"))
+                    .finish());
+            }
+        }
+    }
+
     let template = include_str!("../templates/rss/dashboard.html");
 
     let html_content = template
@@ -202,7 +247,7 @@ mod tests {
         let html = "<html><head><title>Test</title></head><body><h1>Hi</h1></body></html>";
         let result = inject_rss_script(html.to_string());
         assert!(result.contains(r#"<link rel="stylesheet" href="/.rss/_reset.css">"#));
-        assert!(result.contains(r#"<script type="module" src="/rss.js"></script>"#));
+        assert!(result.contains(r#"<script defer src="/rss.js"></script>"#));
     }
 
     #[test]

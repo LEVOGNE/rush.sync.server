@@ -82,6 +82,17 @@ static DISPLAY_COLOR_MAP: LazyLock<HashMap<&'static str, Color>> = LazyLock::new
     map.insert("READY", Color::Magenta);
     map.insert("BEREIT", Color::Magenta);
 
+    // Server status
+    map.insert("Running", Color::Green);
+    map.insert("RUNNING", Color::Green);
+    map.insert("Stopped", Color::Red);
+    map.insert("STOPPED", Color::Red);
+    map.insert("Failed", Color::Red);
+    map.insert("FAILED", Color::Red);
+    map.insert("PERSISTENT", Color::Magenta);
+    map.insert("Started", Color::Green);
+    map.insert("STARTED", Color::Green);
+
     map
 });
 

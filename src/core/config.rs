@@ -142,13 +142,13 @@ fn default_cursor() -> String {
 
 // Server Defaults
 fn default_port_start() -> u16 {
-    8080
+    8001
 }
 fn default_port_end() -> u16 {
-    8999
+    8100
 }
 fn default_max_concurrent() -> usize {
-    50
+    100
 }
 fn default_shutdown_timeout() -> u64 {
     5
@@ -305,9 +305,9 @@ impl Default for Theme {
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            port_range_start: 8080,
-            port_range_end: 8999,
-            max_concurrent: 50,
+            port_range_start: 8001,
+            port_range_end: 8100,
+            max_concurrent: 100,
             shutdown_timeout: 5,
             startup_delay_ms: 500,
             workers: 1,

@@ -37,10 +37,26 @@ impl Command for StartCommand {
         let config = get_config()?;
         let ctx = crate::server::shared::get_shared_context();
 
-        match parse_bulk_args(args) {
-            BulkMode::Single(identifier) => self.start_single_server(&config, ctx, &identifier),
-            BulkMode::Range(start, end) => self.start_range_servers(&config, ctx, start, end),
-            BulkMode::All => self.start_all_servers(&config, ctx),
+        // Extract --workers N from args
+        let (filtered_args, workers_override) = Self::extract_workers_flag(args);
+
+        if filtered_args.is_empty() {
+            return Err(AppError::Validation(get_translation(
+                "server.error.id_missing",
+                &[],
+            )));
+        }
+
+        let filtered_refs: Vec<&str> = filtered_args.iter().map(|s| s.as_str()).collect();
+
+        match parse_bulk_args(&filtered_refs) {
+            BulkMode::Single(identifier) => {
+                self.start_server_internal(&config, ctx, &identifier, false, workers_override)
+            }
+            BulkMode::Range(start, end) => {
+                self.start_range_servers(&config, ctx, start, end, workers_override)
+            }
+            BulkMode::All => self.start_all_servers(&config, ctx, workers_override),
             BulkMode::Invalid(error) => Err(AppError::Validation(error)),
         }
     }
@@ -51,12 +67,46 @@ impl Command for StartCommand {
 }
 
 impl StartCommand {
-    // Start single server (existing robust logic)
-    fn start_single_server(
+    /// Extract --workers N flag from args, return remaining args + workers value
+    fn extract_workers_flag(args: &[&str]) -> (Vec<String>, Option<usize>) {
+        let mut filtered = Vec::new();
+        let mut workers = None;
+        let mut skip_next = false;
+
+        for (i, arg) in args.iter().enumerate() {
+            if skip_next {
+                skip_next = false;
+                continue;
+            }
+
+            if *arg == "--workers" || *arg == "-w" {
+                if let Some(next) = args.get(i + 1) {
+                    if let Ok(w) = next.parse::<usize>() {
+                        if w >= 1 && w <= 16 {
+                            workers = Some(w);
+                            skip_next = true;
+                            continue;
+                        }
+                    }
+                }
+                // Invalid --workers value, keep it as regular arg
+                filtered.push(arg.to_string());
+            } else {
+                filtered.push(arg.to_string());
+            }
+        }
+
+        (filtered, workers)
+    }
+
+    // Internal start logic
+    fn start_server_internal(
         &self,
         config: &Config,
         ctx: &ServerContext,
         identifier: &str,
+        skip_browser: bool,
+        workers_override: Option<usize>,
     ) -> Result<String> {
         let (server_info, existing_handle) =
             {
@@ -130,65 +180,71 @@ impl StartCommand {
             )));
         }
 
-        self.actually_start_server(config, ctx, server_info, running_count)
+        self.actually_start_server(
+            config,
+            ctx,
+            server_info,
+            running_count,
+            skip_browser,
+            workers_override,
+        )
     }
 
-    // Start servers by range (e.g., "start 1-3")
+    /// Parallel batch size for bulk operations.
+    /// Each batch starts N servers concurrently, overlapping the startup delay.
+    /// Kept conservative to avoid FD exhaustion with many servers.
+    const PARALLEL_BATCH_SIZE: usize = 4;
+
+    // Start servers by range — NON-BLOCKING, PARALLEL with progress
     fn start_range_servers(
         &self,
         config: &Config,
-        ctx: &ServerContext,
+        _ctx: &ServerContext,
         start: u32,
         end: u32,
+        workers_override: Option<usize>,
     ) -> Result<String> {
-        let mut results = Vec::new();
-        let mut started_count = 0;
-        let mut failed_count = 0;
+        let total = (end - start + 1) as usize;
+        let config = config.clone();
+        let rt_handle = tokio::runtime::Handle::current();
 
-        for i in start..=end {
-            let identifier = format!("{}", i);
+        std::thread::spawn(move || {
+            let _guard = rt_handle.enter();
+            let ctx = crate::server::shared::get_shared_context();
+            let timer = std::time::Instant::now();
 
-            match self.start_single_server(config, ctx, &identifier) {
-                Ok(message) => {
-                    if message.contains("successfully started") {
-                        started_count += 1;
-                        results.push(format!("Server {}: Started", i));
-                    } else {
-                        results.push(format!("Server {}: {}", i, message));
-                    }
-                }
-                Err(e) => {
-                    failed_count += 1;
-                    results.push(format!("Server {}: Failed - {}", i, e));
+            let identifiers: Vec<_> = (start..=end)
+                .map(|i| (format!("{}", i), i))
+                .collect();
 
-                    // Stop on critical errors, continue on limit/port issues
-                    if e.to_string().contains("limit reached") {
-                        break;
-                    }
-                }
-            }
-        }
+            let (started, failed) = Self::start_batch_parallel(
+                &config, ctx, &identifiers, total, workers_override, &rt_handle,
+            );
 
-        let summary = format!(
-            "Range start completed: {} started, {} failed (Range: {}-{})",
-            started_count, failed_count, start, end
-        );
+            let elapsed = timer.elapsed();
+            let mem_info = Self::get_memory_info();
+            crate::input::send_progress(format!(
+                "\n  Range {}-{}: {} [Started], {} [Failed]\n  Time: {:.2}s{}\n",
+                start, end, started, failed, elapsed.as_secs_f64(), mem_info,
+            ));
+        });
 
-        if results.is_empty() {
-            Ok(summary)
-        } else {
-            Ok(format!("{}\n\nResults:\n{}", summary, results.join("\n")))
-        }
+        Ok(format!("  Starting {} servers (range {}-{})...", total, start, end))
     }
 
-    // Start all stopped servers
-    fn start_all_servers(&self, config: &Config, ctx: &ServerContext) -> Result<String> {
-        let stopped_servers: Vec<_> = {
+    // Start all stopped servers — NON-BLOCKING, PARALLEL with progress
+    fn start_all_servers(
+        &self,
+        config: &Config,
+        ctx: &ServerContext,
+        workers_override: Option<usize>,
+    ) -> Result<String> {
+        let mut stopped_servers: Vec<_> = {
             let servers = read_lock(&ctx.servers, "servers")?;
             servers
                 .values()
                 .filter(|s| s.status == ServerStatus::Stopped)
-                .map(|s| (s.id.clone(), s.name.clone()))
+                .map(|s| (s.id.clone(), s.name.clone(), s.port))
                 .collect()
         };
 
@@ -196,55 +252,191 @@ impl StartCommand {
             return Ok("No stopped servers to start".to_string());
         }
 
-        if stopped_servers.len() > 50 {
-            log::warn!(
-                "Starting {} servers - this may take a while",
-                stopped_servers.len()
+        stopped_servers.sort_by_key(|(_, _, port)| *port);
+
+        let total = stopped_servers.len();
+        let config = config.clone();
+        let rt_handle = tokio::runtime::Handle::current();
+
+        // Prepare identifiers with index for progress
+        let servers_with_idx: Vec<_> = stopped_servers
+            .iter()
+            .enumerate()
+            .map(|(i, (id, name, port))| (id.clone(), name.clone(), *port, i as u32))
+            .collect();
+
+        std::thread::spawn(move || {
+            let _guard = rt_handle.enter();
+            let ctx = crate::server::shared::get_shared_context();
+            let timer = std::time::Instant::now();
+
+            let identifiers: Vec<_> = servers_with_idx
+                .iter()
+                .map(|(id, _name, _port, idx)| (id.clone(), *idx))
+                .collect();
+
+            // Map for port lookup
+            let port_map: std::collections::HashMap<String, (String, u16)> = servers_with_idx
+                .iter()
+                .map(|(id, name, port, _)| (id.clone(), (name.clone(), *port)))
+                .collect();
+
+            let (started, failed) = Self::start_batch_parallel_with_names(
+                &config, ctx, &identifiers, &port_map, total, workers_override, &rt_handle,
             );
-        }
 
-        let mut results = Vec::new();
-        let mut started_count = 0;
-        let mut failed_count = 0;
+            let elapsed = timer.elapsed();
+            let mem_info = Self::get_memory_info();
+            crate::input::send_progress(format!(
+                "\n  Done: {} [Started], {} [Failed] (of {})\n  Time: {:.2}s{}\n",
+                started, failed, total, elapsed.as_secs_f64(), mem_info,
+            ));
+        });
 
-        for (server_id, server_name) in stopped_servers {
-            match self.start_single_server(config, ctx, &server_id) {
-                Ok(message) => {
-                    if message.contains("successfully started") {
-                        started_count += 1;
-                        results.push(format!("{}: Started", server_name));
-                    } else {
-                        results.push(format!("{}: {}", server_name, message));
-                    }
-                }
-                Err(e) => {
-                    failed_count += 1;
-                    results.push(format!("{}: Failed - {}", server_name, e));
-
-                    if e.to_string().contains("limit reached") {
-                        break;
-                    }
-                }
-            }
-        }
-
-        let summary = format!(
-            "Start all completed: {} started, {} failed",
-            started_count, failed_count
-        );
-
-        Ok(format!("{}\n\nResults:\n{}", summary, results.join("\n")))
+        Ok(format!("  Starting {} servers ({} parallel)...", total, Self::PARALLEL_BATCH_SIZE))
     }
 
-    // Actually start the server (extracted from single server logic)
+    /// Start servers in parallel batches (for range operations)
+    fn start_batch_parallel(
+        config: &Config,
+        ctx: &ServerContext,
+        identifiers: &[(String, u32)],
+        total: usize,
+        workers_override: Option<usize>,
+        rt_handle: &tokio::runtime::Handle,
+    ) -> (usize, usize) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let started = AtomicUsize::new(0);
+        let failed = AtomicUsize::new(0);
+        let progress_idx = AtomicUsize::new(0);
+
+        for chunk in identifiers.chunks(Self::PARALLEL_BATCH_SIZE) {
+            std::thread::scope(|s| {
+                for (identifier, num) in chunk {
+                    let idx = progress_idx.fetch_add(1, Ordering::Relaxed) + 1;
+                    crate::input::send_progress(format!(
+                        "  [{}/{}] Starting server {}...",
+                        idx, total, num
+                    ));
+
+                    let started = &started;
+                    let failed = &failed;
+                    let rt = rt_handle.clone();
+
+                    s.spawn(move || {
+                        let _g = rt.enter();
+                        let cmd = StartCommand::new();
+                        match cmd.start_server_internal(config, ctx, identifier, true, workers_override) {
+                            Ok(message) => {
+                                if message.contains("started successfully") {
+                                    started.fetch_add(1, Ordering::Relaxed);
+                                    let port = Self::extract_port_from_message(&message);
+                                    let name = Self::extract_name_from_message(&message)
+                                        .unwrap_or_else(|| format!("server-{}", num));
+                                    let url_str = port
+                                        .map(|p| format!("  http://127.0.0.1:{}", p))
+                                        .unwrap_or_default();
+                                    crate::input::send_progress(format!(
+                                        "  {}: [Started]{}",
+                                        name, url_str
+                                    ));
+                                } else {
+                                    crate::input::send_progress(format!("  Server {}: {}", num, message));
+                                }
+                            }
+                            Err(e) => {
+                                failed.fetch_add(1, Ordering::Relaxed);
+                                crate::input::send_progress(format!(
+                                    "  Server {}: [Failed] - {}",
+                                    num, e
+                                ));
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        (started.load(Ordering::Relaxed), failed.load(Ordering::Relaxed))
+    }
+
+    /// Start servers in parallel batches (for "all" operations with name/port info)
+    fn start_batch_parallel_with_names(
+        config: &Config,
+        ctx: &ServerContext,
+        identifiers: &[(String, u32)],
+        port_map: &std::collections::HashMap<String, (String, u16)>,
+        total: usize,
+        workers_override: Option<usize>,
+        rt_handle: &tokio::runtime::Handle,
+    ) -> (usize, usize) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let started = AtomicUsize::new(0);
+        let failed = AtomicUsize::new(0);
+        let progress_idx = AtomicUsize::new(0);
+
+        for chunk in identifiers.chunks(Self::PARALLEL_BATCH_SIZE) {
+            std::thread::scope(|s| {
+                for (server_id, _idx) in chunk {
+                    let idx = progress_idx.fetch_add(1, Ordering::Relaxed) + 1;
+                    let (name, port) = port_map
+                        .get(server_id)
+                        .cloned()
+                        .unwrap_or_else(|| (server_id.clone(), 0));
+
+                    crate::input::send_progress(format!(
+                        "  [{}/{}] Starting {}...",
+                        idx, total, name
+                    ));
+
+                    let started = &started;
+                    let failed = &failed;
+                    let rt = rt_handle.clone();
+
+                    s.spawn(move || {
+                        let _g = rt.enter();
+                        let cmd = StartCommand::new();
+                        match cmd.start_server_internal(config, ctx, server_id, true, workers_override) {
+                            Ok(message) => {
+                                if message.contains("started successfully") {
+                                    started.fetch_add(1, Ordering::Relaxed);
+                                    crate::input::send_progress(format!(
+                                        "  {}: [Started]  http://127.0.0.1:{}",
+                                        name, port
+                                    ));
+                                } else {
+                                    crate::input::send_progress(format!("  {}: {}", name, message));
+                                }
+                            }
+                            Err(e) => {
+                                failed.fetch_add(1, Ordering::Relaxed);
+                                crate::input::send_progress(format!(
+                                    "  {}: [Failed] - {}",
+                                    name, e
+                                ));
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        (started.load(Ordering::Relaxed), failed.load(Ordering::Relaxed))
+    }
+
+    // Actually start the server
     fn actually_start_server(
         &self,
         config: &Config,
         ctx: &ServerContext,
         server_info: crate::server::types::ServerInfo,
         current_running_count: usize,
+        skip_browser: bool,
+        workers_override: Option<usize>,
     ) -> Result<String> {
-        match self.spawn_server(config, ctx, server_info.clone()) {
+        match self.spawn_server(config, ctx, server_info.clone(), workers_override) {
             Ok(handle) => {
                 {
                     let mut handles = write_lock(&ctx.handles, "handles")?;
@@ -261,18 +453,34 @@ impl StartCommand {
 
                 let server_url =
                     format!("http://{}:{}", config.server.bind_address, server_info.port);
+                let proxy_http_port = config.proxy.port;
+                let proxy_https_port = config.proxy.port + config.proxy.https_port_offset;
+                let actual_workers = workers_override.unwrap_or(config.server.workers);
 
-                if config.server.auto_open_browser {
+                let open_browser = !skip_browser && config.server.auto_open_browser;
+                if open_browser {
                     self.spawn_browser_opener(server_url.clone(), server_info.name.clone(), config);
                 }
 
                 Ok(format!(
-                    "Server '{}' successfully started on {} [PERSISTENT] ({}/{} running){}",
+                    "\n  Server '{}' started successfully [PERSISTENT]\n\n  \
+                     HTTP        {}\n  \
+                     Proxy HTTP  http://{}.localhost:{}\n  \
+                     Proxy HTTPS https://{}.localhost:{}\n  \
+                     Dashboard   {}/.rss/\n  \
+                     Directory   www/{}-[{}]/\n  \
+                     Workers     {}\n\n  \
+                     Running {}/{}{}\n",
                     server_info.name,
                     server_url,
+                    server_info.name, proxy_http_port,
+                    server_info.name, proxy_https_port,
+                    server_url,
+                    server_info.name, server_info.port,
+                    actual_workers,
                     current_running_count + 1,
                     config.server.max_concurrent,
-                    if config.server.auto_open_browser {
+                    if open_browser {
                         " - Browser opening..."
                     } else {
                         ""
@@ -293,7 +501,74 @@ impl StartCommand {
         }
     }
 
-    // Helper methods (unchanged from robust version)
+    /// Get process memory usage for benchmarking
+    fn get_memory_info() -> String {
+        #[cfg(target_os = "macos")]
+        {
+            use std::mem;
+            extern "C" {
+                fn mach_task_self() -> u32;
+                fn task_info(
+                    task: u32,
+                    flavor: u32,
+                    info: *mut libc::c_void,
+                    count: *mut u32,
+                ) -> i32;
+            }
+
+            #[repr(C)]
+            struct MachTaskBasicInfo {
+                virtual_size: u64,
+                resident_size: u64,
+                resident_size_max: u64,
+                user_time: [u32; 2],
+                system_time: [u32; 2],
+                policy: i32,
+                suspend_count: i32,
+            }
+
+            let mut info: MachTaskBasicInfo = unsafe { mem::zeroed() };
+            let mut count = (mem::size_of::<MachTaskBasicInfo>() / mem::size_of::<u32>()) as u32;
+
+            let result = unsafe {
+                task_info(
+                    mach_task_self(),
+                    20, // MACH_TASK_BASIC_INFO
+                    &mut info as *mut _ as *mut libc::c_void,
+                    &mut count,
+                )
+            };
+
+            if result == 0 {
+                let rss_mb = info.resident_size as f64 / (1024.0 * 1024.0);
+                format!("  |  Memory: {:.1} MB", rss_mb)
+            } else {
+                String::new()
+            }
+        }
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
+                for line in status.lines() {
+                    if line.starts_with("VmRSS:") {
+                        let kb: f64 = line
+                            .split_whitespace()
+                            .nth(1)
+                            .and_then(|s| s.parse().ok())
+                            .unwrap_or(0.0);
+                        return format!("  |  Memory: {:.1} MB", kb / 1024.0);
+                    }
+                }
+            }
+            String::new()
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+        {
+            String::new()
+        }
+    }
+
+    // Helper methods
     fn validate_port_safely(
         &self,
         server_info: &crate::server::types::ServerInfo,
@@ -335,8 +610,14 @@ impl StartCommand {
         config: &Config,
         ctx: &ServerContext,
         server_info: crate::server::types::ServerInfo,
+        workers_override: Option<usize>,
     ) -> std::result::Result<actix_web::dev::ServerHandle, String> {
-        crate::server::handlers::web::create_web_server(ctx, server_info, config)
+        crate::server::handlers::web::create_web_server_with_workers(
+            ctx,
+            server_info,
+            config,
+            workers_override,
+        )
     }
 
     fn spawn_browser_opener(&self, url: String, name: String, config: &Config) {
@@ -355,6 +636,24 @@ impl StartCommand {
                 server.status = status;
             }
         }
+    }
+
+    /// Extract port from a success message like "http://127.0.0.1:8001"
+    fn extract_port_from_message(message: &str) -> Option<u16> {
+        message
+            .find("127.0.0.1:")
+            .and_then(|pos| {
+                let after = &message[pos + 10..];
+                let port_str: String = after.chars().take_while(|c| c.is_ascii_digit()).collect();
+                port_str.parse().ok()
+            })
+    }
+
+    /// Extract server name from a success message like "Server 'rss-001' started"
+    fn extract_name_from_message(message: &str) -> Option<String> {
+        let start = message.find('\'')?;
+        let end = message[start + 1..].find('\'')?;
+        Some(message[start + 1..start + 1 + end].to_string())
     }
 }
 

@@ -247,7 +247,8 @@ export class UIManager {
   connectWebSocket() {
     if (this.websocket?.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = `ws://127.0.0.1:${this.config.serverPort}/ws/hot-reload`;
+    const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProto}//${location.host}/ws/hot-reload`;
 
     try {
       this.websocket = new WebSocket(wsUrl);
@@ -393,29 +394,23 @@ export class UIManager {
   // ===== EVENT HANDLERS =====
 
   handleClick(event) {
-    event.preventDefault();
-
     if (event.target.classList.contains('tab-btn')) {
+      event.preventDefault();
       this.switchTab(event.target.dataset.tab);
     } else if (event.target.classList.contains('test-btn')) {
+      event.preventDefault();
       if (this.apiManager) {
         this.apiManager.testEndpoint(event.target.dataset.url, event.target);
       }
     } else if (event.target.hasAttribute('data-action')) {
+      event.preventDefault();
       const action = event.target.dataset.action;
       const data = event.target.dataset;
 
       console.log('[UI] Action:', action);
-
-      // Handle UI-specific actions
-      if (action === 'simulate-file-change') {
-        // This will be handled by app controller
-        this.onAction?.(action, data);
-      } else {
-        // Pass other actions to app controller
-        this.onAction?.(action, data);
-      }
+      this.onAction?.(action, data);
     } else if (event.target.classList.contains('terminal-btn')) {
+      event.preventDefault();
       this.handleTerminalButton(event.target);
     }
   }

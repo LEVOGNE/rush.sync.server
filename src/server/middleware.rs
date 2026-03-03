@@ -431,6 +431,136 @@ where
     }
 }
 
+// =============================================================================
+// PIN Protection Middleware
+// =============================================================================
+
+#[derive(Clone)]
+pub struct PinProtection {
+    server_name: String,
+    server_port: u16,
+}
+
+impl PinProtection {
+    pub fn new(server_name: &str, server_port: u16) -> Self {
+        Self {
+            server_name: server_name.to_string(),
+            server_port,
+        }
+    }
+}
+
+impl<S, B> Transform<S, ServiceRequest> for PinProtection
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Response = ServiceResponse<EitherBody<B>>;
+    type Error = Error;
+    type InitError = ();
+    type Transform = PinProtectionService<S>;
+    type Future = Ready<std::result::Result<Self::Transform, Self::InitError>>;
+
+    fn new_transform(&self, service: S) -> Self::Future {
+        ready(Ok(PinProtectionService {
+            service,
+            server_name: self.server_name.clone(),
+            server_port: self.server_port,
+        }))
+    }
+}
+
+pub struct PinProtectionService<S> {
+    service: S,
+    server_name: String,
+    server_port: u16,
+}
+
+impl<S, B> Service<ServiceRequest> for PinProtectionService<S>
+where
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Response = ServiceResponse<EitherBody<B>>;
+    type Error = Error;
+    type Future = LocalBoxFuture<'static, std::result::Result<Self::Response, Self::Error>>;
+
+    actix_web::dev::forward_ready!(service);
+
+    fn call(&self, req: ServiceRequest) -> Self::Future {
+        let path = req.path().to_string();
+
+        // Always allow these paths (needed for PIN page + unlock + user content)
+        // /.rss/ exact = dashboard handler shows PIN page itself
+        let is_exempt = path == "/api/pin/verify"
+            || path == "/api/pin/logout"
+            || path == "/api/health"
+            || path == "/.rss/"
+            || path == "/.rss/style.css"
+            || path == "/.rss/_reset.css"
+            || path == "/.rss/favicon.svg"
+            || path.starts_with("/.rss/fonts/")
+            || path.starts_with("/.well-known/")
+            || path == "/rss.js"
+            || path == "/ws/hot-reload";
+
+        // Only protect dashboard and API paths
+        let is_protected = path.starts_with("/api/")
+            || path.starts_with("/.rss/");
+
+        if is_exempt || !is_protected {
+            let fut = self.service.call(req);
+            return Box::pin(async move { fut.await.map(|res| res.map_into_left_body()) });
+        }
+
+        // Load settings and check PIN
+        let server_dir = crate::server::settings::ServerSettings::get_server_dir(
+            &self.server_name,
+            self.server_port,
+        );
+        let settings = match server_dir {
+            Some(ref dir) => crate::server::settings::ServerSettings::load(dir),
+            None => crate::server::settings::ServerSettings::default(),
+        };
+
+        // If PIN not enabled, pass through
+        if !settings.pin_enabled || settings.pin_code.is_empty() {
+            let fut = self.service.call(req);
+            return Box::pin(async move { fut.await.map(|res| res.map_into_left_body()) });
+        }
+
+        // Check for valid PIN cookie
+        let expected_token = format!("rss-pin-{}-{}", self.server_name, self.server_port);
+        let has_valid_cookie = req
+            .cookie("rss_pin")
+            .map(|c| c.value() == expected_token)
+            .unwrap_or(false);
+
+        if has_valid_cookie {
+            let fut = self.service.call(req);
+            return Box::pin(async move { fut.await.map(|res| res.map_into_left_body()) });
+        }
+
+        // Blocked — return 401 for API, redirect for dashboard
+        if path.starts_with("/api/") {
+            let response = HttpResponse::Unauthorized()
+                .json(serde_json::json!({
+                    "error": "PIN required",
+                    "message": "Dashboard is PIN protected. Unlock at /.rss/"
+                }));
+            Box::pin(async move { Ok(req.into_response(response).map_into_right_body()) })
+        } else {
+            // For /.rss/ paths, redirect to dashboard (which shows PIN page)
+            let response = HttpResponse::Found()
+                .insert_header(("Location", "/.rss/"))
+                .finish();
+            Box::pin(async move { Ok(req.into_response(response).map_into_right_body()) })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

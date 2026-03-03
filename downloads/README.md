@@ -44,6 +44,6 @@ and a `www/` directory for your websites. Run `help` to see all commands.
 - Contact: l.ersen@icloud.com
 
 ---
-v0.3.8 — First Official Public Release
-v0.1.0 – v0.3.7: Internal development builds, developed and tested daily since February 2025.
+v0.3.9 — Latest Public Release
+v0.1.0 – v0.3.8: Internal and early public builds, developed and tested daily since February 2025.
 (c) 2025 Levogne (Levent Ersen)

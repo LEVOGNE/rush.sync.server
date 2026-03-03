@@ -6,6 +6,9 @@ use std::path::PathBuf;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Raise file descriptor limit for many concurrent servers
+    raise_fd_limit();
+
     // Load .env file (silently ignore if missing)
     let _ = dotenvy::dotenv();
 
@@ -99,6 +102,15 @@ async fn run_headless() -> Result<()> {
 fn setup_panic_handler(headless: bool) {
     std::panic::set_hook(Box::new(move |panic_info| {
         if !headless {
+            // Disable mouse capture FIRST (prevents escape sequence leaks)
+            let _ = crossterm::execute!(
+                std::io::stdout(),
+                crossterm::style::Print("\x1B[?1000l"),
+                crossterm::style::Print("\x1B[?1002l"),
+                crossterm::style::Print("\x1B[?1015l"),
+                crossterm::style::Print("\x1B[?1006l"),
+                crossterm::style::Print("\x1B[?1049l")
+            );
             let _ = crossterm::terminal::disable_raw_mode();
             let _ = crossterm::execute!(
                 std::io::stdout(),
@@ -151,4 +163,30 @@ fn get_debug_log_path() -> PathBuf {
         .ok()
         .and_then(|exe| exe.parent().map(|p| p.join(".rss").join("rush.debug")))
         .unwrap_or_else(|| PathBuf::from("rush.debug"))
+}
+
+/// Raise the file descriptor soft limit to the hard limit.
+/// Needed when running 50+ concurrent servers (each uses ~10-20 FDs).
+fn raise_fd_limit() {
+    #[cfg(unix)]
+    {
+        use libc::{getrlimit, rlimit, setrlimit, RLIMIT_NOFILE};
+
+        let mut rlim = rlimit {
+            rlim_cur: 0,
+            rlim_max: 0,
+        };
+
+        unsafe {
+            if getrlimit(RLIMIT_NOFILE, &mut rlim) == 0 {
+                let target = rlim.rlim_max.min(65536);
+                if rlim.rlim_cur < target {
+                    rlim.rlim_cur = target;
+                    if setrlimit(RLIMIT_NOFILE, &rlim) == 0 {
+                        // Successfully raised
+                    }
+                }
+            }
+        }
+    }
 }

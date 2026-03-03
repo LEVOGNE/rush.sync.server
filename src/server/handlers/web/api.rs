@@ -444,6 +444,137 @@ pub async fn delete_file(
     })))
 }
 
+// GET /api/settings — Read server settings
+pub async fn settings_get_handler(
+    data: web::Data<ServerDataWithConfig>,
+) -> ActixResult<HttpResponse> {
+    let server_dir =
+        crate::server::settings::ServerSettings::get_server_dir(&data.server.name, data.server.port);
+    let settings = match server_dir {
+        Some(dir) => crate::server::settings::ServerSettings::load(&dir),
+        None => crate::server::settings::ServerSettings::default(),
+    };
+
+    // Return settings but mask the PIN code
+    Ok(HttpResponse::Ok().json(json!({
+        "custom_404_enabled": settings.custom_404_enabled,
+        "custom_404_path": settings.custom_404_path,
+        "pin_enabled": settings.pin_enabled,
+        "pin_set": !settings.pin_code.is_empty(),
+    })))
+}
+
+// POST /api/settings — Save server settings
+pub async fn settings_post_handler(
+    data: web::Data<ServerDataWithConfig>,
+    body: web::Json<serde_json::Value>,
+) -> ActixResult<HttpResponse> {
+    let server_dir =
+        crate::server::settings::ServerSettings::get_server_dir(&data.server.name, data.server.port);
+    let server_dir = match server_dir {
+        Some(dir) => dir,
+        None => {
+            return Ok(
+                HttpResponse::InternalServerError().json(json!({"error": "Server directory not found"}))
+            )
+        }
+    };
+
+    // Ensure directory exists
+    if !server_dir.exists() {
+        let _ = std::fs::create_dir_all(&server_dir);
+    }
+
+    let mut settings = crate::server::settings::ServerSettings::load(&server_dir);
+
+    // Update fields if present
+    if let Some(v) = body.get("custom_404_enabled").and_then(|v| v.as_bool()) {
+        settings.custom_404_enabled = v;
+    }
+    if let Some(v) = body.get("custom_404_path").and_then(|v| v.as_str()) {
+        let path = v.trim();
+        if !path.is_empty() && !path.contains("..") {
+            settings.custom_404_path = path.to_string();
+        }
+    }
+    if let Some(v) = body.get("pin_enabled").and_then(|v| v.as_bool()) {
+        settings.pin_enabled = v;
+    }
+    if let Some(v) = body.get("pin_code").and_then(|v| v.as_str()) {
+        let pin = v.trim();
+        if !pin.is_empty() {
+            settings.pin_code = crate::server::settings::ServerSettings::encode_pin(pin);
+        }
+    }
+
+    // Auto-create 404.html if enabled and file doesn't exist
+    settings.ensure_404_page(&server_dir, &data.server.name);
+
+    match settings.save(&server_dir) {
+        Ok(_) => {
+            log::info!("Settings saved for {}-[{}]", data.server.name, data.server.port);
+            Ok(HttpResponse::Ok().json(json!({
+                "status": "saved",
+                "custom_404_enabled": settings.custom_404_enabled,
+                "custom_404_path": settings.custom_404_path,
+                "pin_enabled": settings.pin_enabled,
+                "pin_set": !settings.pin_code.is_empty(),
+            })))
+        }
+        Err(e) => {
+            log::error!("Failed to save settings: {}", e);
+            Ok(HttpResponse::InternalServerError().json(json!({"error": format!("Save failed: {}", e)})))
+        }
+    }
+}
+
+// POST /api/pin/verify — Verify PIN and set cookie
+pub async fn pin_verify_handler(
+    data: web::Data<ServerDataWithConfig>,
+    body: web::Json<serde_json::Value>,
+) -> ActixResult<HttpResponse> {
+    let server_dir =
+        crate::server::settings::ServerSettings::get_server_dir(&data.server.name, data.server.port);
+    let settings = match server_dir {
+        Some(dir) => crate::server::settings::ServerSettings::load(&dir),
+        None => crate::server::settings::ServerSettings::default(),
+    };
+
+    let input_pin = body
+        .get("pin")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    if settings.verify_pin(input_pin) {
+        // Create a simple token from server name + port
+        let token = format!("rss-pin-{}-{}", data.server.name, data.server.port);
+        Ok(HttpResponse::Ok()
+            .cookie(
+                actix_web::cookie::Cookie::build("rss_pin", &token)
+                    .path("/")
+                    .http_only(true)
+                    .max_age(actix_web::cookie::time::Duration::minutes(3))
+                    .finish(),
+            )
+            .json(json!({"status": "ok"})))
+    } else {
+        Ok(HttpResponse::Unauthorized().json(json!({"error": "Invalid PIN"})))
+    }
+}
+
+// POST /api/pin/logout — Clear PIN cookie
+pub async fn pin_logout_handler() -> ActixResult<HttpResponse> {
+    Ok(HttpResponse::Ok()
+        .cookie(
+            actix_web::cookie::Cookie::build("rss_pin", "")
+                .path("/")
+                .http_only(true)
+                .max_age(actix_web::cookie::time::Duration::ZERO)
+                .finish(),
+        )
+        .json(json!({"status": "logged_out"})))
+}
+
 // ACME challenge handler for Let's Encrypt HTTP-01 validation
 pub async fn acme_challenge_handler(path: web::Path<String>) -> ActixResult<HttpResponse> {
     let token = path.into_inner();

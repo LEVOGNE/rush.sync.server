@@ -20,6 +20,13 @@ use std::{
     sync::OnceLock,
 };
 
+#[derive(Clone)]
+struct TerminalInfo {
+    term_program: String,
+    tmux: bool,
+}
+static TERMINAL_INFO: OnceLock<TerminalInfo> = OnceLock::new();
+
 pub type TerminalBackend = Terminal<CrosstermBackend<Stdout>>;
 
 pub struct ScreenManager {
@@ -31,14 +38,8 @@ pub struct ScreenManager {
     events: EventHandler,
     keyboard_manager: KeyboardManager,
     waiting_for_restart_confirmation: bool,
+    progress_rx: tokio::sync::mpsc::UnboundedReceiver<String>,
 }
-
-#[derive(Clone)]
-struct TerminalInfo {
-    term_program: String,
-    tmux: bool,
-}
-static TERMINAL_INFO: OnceLock<TerminalInfo> = OnceLock::new();
 
 impl ScreenManager {
     pub async fn new(config: &Config) -> Result<Self> {
@@ -49,6 +50,9 @@ impl ScreenManager {
         let terminal = Terminal::new(backend)?;
         let size = terminal.size()?;
 
+        // Initialize progress channel for non-blocking bulk commands
+        let progress_rx = crate::input::init_progress_channel();
+
         let mut screen_manager = Self {
             terminal,
             terminal_mgr,
@@ -58,6 +62,7 @@ impl ScreenManager {
             events: EventHandler::new(config.poll_rate),
             keyboard_manager: KeyboardManager::new(),
             waiting_for_restart_confirmation: false,
+            progress_rx,
         };
 
         let version = crate::core::constants::VERSION;
@@ -71,16 +76,35 @@ impl ScreenManager {
 
     pub async fn run(&mut self) -> Result<()> {
         let result = loop {
-            if let Some(event) = self.events.next().await {
-                match event {
-                    AppEvent::Input(key) => {
-                        if self.handle_input(key).await? {
-                            self.events.shutdown().await;
-                            break Ok(());
+            // Poll both event sources: TUI events AND background progress messages
+            tokio::select! {
+                event = self.events.next() => {
+                    if let Some(event) = event {
+                        match event {
+                            AppEvent::Input(key) => {
+                                if self.handle_input(key).await? {
+                                    self.events.shutdown().await;
+                                    break Ok(());
+                                }
+                            }
+                            AppEvent::MouseScrollUp => {
+                                self.message_display.handle_scroll(ScrollDirection::Up, 3);
+                            }
+                            AppEvent::MouseScrollDown => {
+                                self.message_display.handle_scroll(ScrollDirection::Down, 3);
+                            }
+                            AppEvent::Resize(w, h) => self.handle_resize(w, h).await?,
+                            AppEvent::Tick => self.handle_tick().await?,
+                            AppEvent::Progress(msg) => {
+                                self.message_display.add_message_instant(msg);
+                            }
                         }
                     }
-                    AppEvent::Resize(w, h) => self.handle_resize(w, h).await?,
-                    AppEvent::Tick => self.handle_tick().await?,
+                }
+                progress = self.progress_rx.recv() => {
+                    if let Some(msg) = progress {
+                        self.message_display.add_message_instant(msg);
+                    }
                 }
             }
             self.render().await?;

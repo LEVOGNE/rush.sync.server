@@ -1,15 +1,43 @@
 pub mod keyboard;
 pub mod state;
 
-use crossterm::event::{self as crossterm_event, Event as CrosstermEvent, KeyEvent};
+use crossterm::event::{self as crossterm_event, Event as CrosstermEvent, KeyEvent, MouseEventKind};
+use std::sync::OnceLock;
 use tokio::sync::mpsc::{self, Sender};
 use tokio::time::{interval, Duration, Instant};
 
 #[derive(Debug)]
 pub enum AppEvent {
     Input(KeyEvent),
+    MouseScrollUp,
+    MouseScrollDown,
     Tick,
     Resize(u16, u16),
+    /// Background progress message from async commands (start all, stop all, etc.)
+    Progress(String),
+}
+
+// ===== Global Progress Channel =====
+// Commands can send progress messages to the TUI without blocking.
+
+static PROGRESS_TX: OnceLock<mpsc::UnboundedSender<String>> = OnceLock::new();
+
+/// Initialize the global progress channel. Returns the receiver.
+/// Called once by ScreenManager at startup.
+pub fn init_progress_channel() -> mpsc::UnboundedReceiver<String> {
+    let (tx, rx) = mpsc::unbounded_channel();
+    let _ = PROGRESS_TX.set(tx);
+    rx
+}
+
+/// Send a progress message to the TUI. Safe to call from any thread/task.
+/// Returns false if the channel is not initialized or closed.
+pub fn send_progress(message: String) -> bool {
+    if let Some(tx) = PROGRESS_TX.get() {
+        tx.send(message).is_ok()
+    } else {
+        false
+    }
 }
 
 pub struct EventHandler {
@@ -52,6 +80,17 @@ impl EventHandler {
                                     CrosstermEvent::Key(key) if now.duration_since(last_key_time) >= key_interval => {
                                         let _ = tx.send(AppEvent::Input(key)).await;
                                         last_key_time = now;
+                                    }
+                                    CrosstermEvent::Mouse(mouse) => {
+                                        match mouse.kind {
+                                            MouseEventKind::ScrollUp => {
+                                                let _ = tx.send(AppEvent::MouseScrollUp).await;
+                                            }
+                                            MouseEventKind::ScrollDown => {
+                                                let _ = tx.send(AppEvent::MouseScrollDown).await;
+                                            }
+                                            _ => {}
+                                        }
                                     }
                                     CrosstermEvent::Resize(w, h) if now.duration_since(last_resize_time) >= resize_interval => {
                                         let _ = tx.send(AppEvent::Resize(w, h)).await;

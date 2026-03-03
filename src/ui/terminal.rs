@@ -129,6 +129,15 @@ impl TerminalManager {
 impl Drop for TerminalManager {
     fn drop(&mut self) {
         if self.raw_mode_enabled {
+            // Disable mouse capture FIRST (prevents escape sequence leaks)
+            let _ = execute!(
+                std::io::stdout(),
+                crossterm::style::Print("\x1B[?1000l"),
+                crossterm::style::Print("\x1B[?1002l"),
+                crossterm::style::Print("\x1B[?1015l"),
+                crossterm::style::Print("\x1B[?1006l"),
+                crossterm::style::Print("\x1B[?1049l")
+            );
             let _ = disable_raw_mode();
             let _ = execute!(
                 std::io::stdout(),

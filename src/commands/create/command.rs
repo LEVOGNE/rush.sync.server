@@ -86,7 +86,7 @@ impl CreateCommand {
                             name: None,
                             port: Some(port),
                         }
-                    } else if port > 0 && port <= 50 {
+                    } else if port > 0 && port <= 100 {
                         // "create 5" -> Bulk creation with count
                         CreationMode::BulkAuto { count: port as u32 }
                     } else {
@@ -119,9 +119,9 @@ impl CreateCommand {
                     if count == 0 {
                         return CreationMode::Invalid("Count must be > 0".to_string());
                     }
-                    if count > 50 {
+                    if count > 100 {
                         return CreationMode::Invalid(
-                            "Maximum 50 servers per bulk operation".to_string(),
+                            "Maximum 100 servers per bulk operation".to_string(),
                         );
                     }
                     CreationMode::BulkWithBase {

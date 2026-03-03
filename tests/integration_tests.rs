@@ -140,9 +140,9 @@ fn test_bulk_parsing_name_with_dash() {
 #[tokio::test]
 async fn test_config_default_values() {
     let config = rush_sync_server::Config::default();
-    assert_eq!(config.server.port_range_start, 8080);
-    assert_eq!(config.server.port_range_end, 8999);
-    assert_eq!(config.server.max_concurrent, 50);
+    assert_eq!(config.server.port_range_start, 8001);
+    assert_eq!(config.server.port_range_end, 8100);
+    assert_eq!(config.server.max_concurrent, 100);
     assert!(config.server.workers >= 1);
     assert!(config.server.shutdown_timeout > 0);
 }
@@ -696,6 +696,8 @@ mod proxy_tests {
             bind_address: "127.0.0.1".to_string(),
             health_check_interval: 30,
             timeout_ms: 5000,
+            production_domain: "localhost".to_string(),
+            use_lets_encrypt: false,
         }
     }
 

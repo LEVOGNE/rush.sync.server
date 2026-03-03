@@ -256,6 +256,9 @@ export class RushSyncApp {
       case 'refresh-stats':
         this.refreshStats();
         break;
+      case 'logout':
+        this.logout();
+        break;
       case 'simulate-file-change':
         this.simulateFileChange();
         break;
@@ -353,9 +356,27 @@ export class RushSyncApp {
     }
   }
 
+  async logout() {
+    try {
+      await fetch('/api/pin/logout', { method: 'POST' });
+    } catch (e) {
+      // ignore
+    }
+    location.reload();
+  }
+
   async refreshStats() {
     console.log('[Rush Sync] Refreshing stats...');
     this.ui.addLogEntry('INFO', 'Refreshing all stats...');
+
+    const btn = document.querySelector('[data-action="refresh-stats"]');
+    let originalText = '';
+    if (btn) {
+      originalText = btn.textContent;
+      btn.textContent = 'Loading...';
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+    }
 
     try {
       await this.api.updateMetrics();
@@ -368,9 +389,21 @@ export class RushSyncApp {
 
       this.ui.addLogEntry('SUCCESS', 'Stats refreshed successfully');
       console.log('[Rush Sync] Stats refresh completed');
+
+      if (btn) {
+        btn.textContent = 'Done!';
+        btn.style.opacity = '1';
+        setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1200);
+      }
     } catch (error) {
       this.ui.addLogEntry('ERROR', `Stats refresh failed: ${error.message}`);
       console.error('[Rush Sync] Stats refresh failed:', error);
+
+      if (btn) {
+        btn.textContent = 'Error!';
+        btn.style.opacity = '1';
+        setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1200);
+      }
     }
   }
 

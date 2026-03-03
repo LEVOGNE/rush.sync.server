@@ -393,7 +393,7 @@ pub async fn handle_proxy_request(
 <h1>RUSH<span>.</span>SYNC<span>.</span>SERVER</h1>
 <p class="sub">{}</p>
 <div class="routes">{}</div>
-<p class="info">Powered by Rush Sync Server v0.3.8</p>
+<p class="info">Powered by Rush Sync Server v0.3.9</p>
 <p class="info" style="margin-top:8px"><a class="gh" href="https://github.com/LEVOGNE/rush.sync.server">GitHub</a></p>
 </div></body></html>"#,
                 if routes.is_empty() {

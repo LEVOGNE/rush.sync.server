@@ -49,6 +49,8 @@ impl From<PersistentServerInfo> for ServerInfo {
 
 pub struct ServerRegistry {
     file_path: PathBuf,
+    /// Mutex to serialize all file operations (prevents race conditions on concurrent writes)
+    write_lock: tokio::sync::Mutex<()>,
 }
 
 impl ServerRegistry {
@@ -61,7 +63,10 @@ impl ServerRegistry {
             std::fs::create_dir_all(parent).map_err(AppError::Io)?;
         }
 
-        Ok(Self { file_path })
+        Ok(Self {
+            file_path,
+            write_lock: tokio::sync::Mutex::new(()),
+        })
     }
 
     /// Fallback constructor that never fails — uses temp dir if base_dir is unavailable
@@ -71,7 +76,10 @@ impl ServerRegistry {
             Err(_) => {
                 let path = std::env::temp_dir().join(".rss").join("servers.list");
                 let _ = std::fs::create_dir_all(path.parent().unwrap_or(&path));
-                Self { file_path: path }
+                Self {
+                    file_path: path,
+                    write_lock: tokio::sync::Mutex::new(()),
+                }
             }
         }
     }
@@ -119,12 +127,13 @@ impl ServerRegistry {
         Ok(())
     }
 
-    // Generic update helper to reduce boilerplate
+    // Generic update helper — serialized by write_lock to prevent race conditions
     async fn update_server(
         &self,
         server_id: &str,
         update_fn: impl Fn(&mut PersistentServerInfo),
     ) -> Result<HashMap<String, PersistentServerInfo>> {
+        let _lock = self.write_lock.lock().await;
         let mut servers = self.load_servers().await?;
         if let Some(server) = servers.get_mut(server_id) {
             update_fn(server);
@@ -164,6 +173,7 @@ impl ServerRegistry {
         &self,
         server_info: ServerInfo,
     ) -> Result<HashMap<String, PersistentServerInfo>> {
+        let _lock = self.write_lock.lock().await;
         let mut servers = self.load_servers().await?;
         let persistent_info = PersistentServerInfo::from(server_info);
         servers.insert(persistent_info.id.clone(), persistent_info);
@@ -175,6 +185,7 @@ impl ServerRegistry {
         &self,
         server_id: &str,
     ) -> Result<HashMap<String, PersistentServerInfo>> {
+        let _lock = self.write_lock.lock().await;
         let mut servers = self.load_servers().await?;
         servers.remove(server_id);
         self.save_servers(&servers).await?;
@@ -185,6 +196,7 @@ impl ServerRegistry {
         &self,
         cleanup_type: CleanupType,
     ) -> Result<(HashMap<String, PersistentServerInfo>, usize)> {
+        let _lock = self.write_lock.lock().await;
         let mut servers = self.load_servers().await?;
         let initial_count = servers.len();
 

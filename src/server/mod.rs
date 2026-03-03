@@ -7,6 +7,7 @@ pub mod manager;
 pub mod middleware;
 pub mod persistence;
 pub mod redirect;
+pub mod settings;
 pub mod shared;
 pub mod tls;
 pub mod types;

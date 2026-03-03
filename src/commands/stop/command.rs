@@ -3,7 +3,6 @@ use crate::commands::parsing::{parse_bulk_args, BulkMode};
 use crate::core::prelude::*;
 use crate::server::types::{ServerContext, ServerStatus};
 use crate::server::utils::validation::find_server;
-use std::time::Duration;
 
 #[derive(Debug, Default)]
 pub struct StopCommand;
@@ -39,7 +38,7 @@ impl Command for StopCommand {
         let ctx = crate::server::shared::get_shared_context();
 
         match parse_bulk_args(args) {
-            BulkMode::Single(identifier) => self.stop_single_server(&config, ctx, &identifier),
+            BulkMode::Single(identifier) => self.stop_single_server(&config, ctx, &identifier, false),
             BulkMode::Range(start, end) => self.stop_range_servers(&config, ctx, start, end),
             BulkMode::All => self.stop_all_servers(&config, ctx),
             BulkMode::Invalid(error) => Err(AppError::Validation(error)),
@@ -52,12 +51,17 @@ impl Command for StopCommand {
 }
 
 impl StopCommand {
+    /// Parallel batch size for bulk stop operations
+    const PARALLEL_BATCH_SIZE: usize = 4;
+
     // Stop single server
+    // `bulk_mode`: when true, skip the blocking sleep (for parallel bulk ops)
     fn stop_single_server(
         &self,
         config: &Config,
         ctx: &ServerContext,
         identifier: &str,
+        bulk_mode: bool,
     ) -> Result<String> {
         let (server_info, handle) = {
             let servers_guard = ctx
@@ -94,11 +98,13 @@ impl StopCommand {
         // Set status to Stopped immediately
         self.update_server_status(ctx, &server_info.id, ServerStatus::Stopped);
 
-        // Notify browser to close
-        self.notify_browser_shutdown(&server_info);
+        // Notify browser to close (skip in bulk mode for speed)
+        if !bulk_mode {
+            self.notify_browser_shutdown(&server_info);
+        }
 
         if let Some(handle) = handle {
-            // Graceful shutdown
+            // Graceful shutdown (async, non-blocking)
             self.shutdown_server_gracefully(handle, server_info.id.clone(), config);
 
             // Persist status update (non-blocking)
@@ -108,10 +114,12 @@ impl StopCommand {
                     .await;
             });
 
-            // Brief pause for consistent timing
-            std::thread::sleep(Duration::from_millis(
-                config.server.startup_delay_ms.min(500),
-            ));
+            // Only sleep for single-server stop (TUI feedback), skip for bulk
+            if !bulk_mode {
+                std::thread::sleep(std::time::Duration::from_millis(
+                    config.server.startup_delay_ms.min(500),
+                ));
+            }
 
             let running_count = {
                 let servers = ctx.servers.read().unwrap_or_else(|e| {
@@ -143,57 +151,50 @@ impl StopCommand {
         }
     }
 
-    // Stop servers by range (e.g., "stop 1-3")
+    // Stop servers by range — NON-BLOCKING, PARALLEL with progress
     fn stop_range_servers(
         &self,
         config: &Config,
-        ctx: &ServerContext,
+        _ctx: &ServerContext,
         start: u32,
         end: u32,
     ) -> Result<String> {
-        let mut results = Vec::new();
-        let mut stopped_count = 0;
-        let mut failed_count = 0;
+        let total = (end - start + 1) as usize;
+        let config = config.clone();
+        let rt_handle = tokio::runtime::Handle::current();
 
-        for i in start..=end {
-            let identifier = format!("{}", i);
+        std::thread::spawn(move || {
+            let _guard = rt_handle.enter();
+            let ctx = crate::server::shared::get_shared_context();
+            let timer = std::time::Instant::now();
 
-            match self.stop_single_server(config, ctx, &identifier) {
-                Ok(message) => {
-                    if message.contains("stopped [PERSISTENT]") {
-                        stopped_count += 1;
-                        results.push(format!("Server {}: Stopped", i));
-                    } else {
-                        results.push(format!("Server {}: {}", i, message));
-                    }
-                }
-                Err(e) => {
-                    failed_count += 1;
-                    results.push(format!("Server {}: Failed - {}", i, e));
-                }
-            }
-        }
+            let identifiers: Vec<_> = (start..=end)
+                .map(|i| (format!("{}", i), i))
+                .collect();
 
-        let summary = format!(
-            "Range stop completed: {} stopped, {} failed (Range: {}-{})",
-            stopped_count, failed_count, start, end
-        );
+            let (stopped, failed) = Self::stop_batch_parallel(
+                &config, ctx, &identifiers, total, &rt_handle,
+            );
 
-        if results.is_empty() {
-            Ok(summary)
-        } else {
-            Ok(format!("{}\n\nResults:\n{}", summary, results.join("\n")))
-        }
+            let elapsed = timer.elapsed();
+            let mem_info = Self::get_memory_info();
+            crate::input::send_progress(format!(
+                "\n  Range {}-{}: {} [Stopped], {} [Failed]\n  Time: {:.2}s{}\n",
+                start, end, stopped, failed, elapsed.as_secs_f64(), mem_info,
+            ));
+        });
+
+        Ok(format!("  Stopping {} servers (range {}-{}, {} parallel)...", total, start, end, Self::PARALLEL_BATCH_SIZE))
     }
 
-    // Stop all running servers
+    // Stop all running servers — NON-BLOCKING, PARALLEL with progress, sorted by port
     fn stop_all_servers(&self, config: &Config, ctx: &ServerContext) -> Result<String> {
-        let running_servers: Vec<_> = {
+        let mut running_servers: Vec<_> = {
             let servers = read_lock(&ctx.servers, "servers")?;
             servers
                 .values()
                 .filter(|s| s.status == ServerStatus::Running)
-                .map(|s| (s.id.clone(), s.name.clone()))
+                .map(|s| (s.id.clone(), s.name.clone(), s.port))
                 .collect()
         };
 
@@ -201,47 +202,225 @@ impl StopCommand {
             return Ok("No running servers to stop".to_string());
         }
 
-        if running_servers.len() > 20 {
-            return Err(AppError::Validation(
-                "Too many servers to stop at once (max 20). Use ranges instead.".to_string(),
+        // Sort by port for consistent ordering
+        running_servers.sort_by_key(|(_, _, port)| *port);
+
+        let total = running_servers.len();
+        let config = config.clone();
+        let rt_handle = tokio::runtime::Handle::current();
+
+        std::thread::spawn(move || {
+            let _guard = rt_handle.enter();
+            let ctx = crate::server::shared::get_shared_context();
+            let timer = std::time::Instant::now();
+
+            let identifiers: Vec<_> = running_servers
+                .iter()
+                .map(|(id, name, _port)| (id.clone(), name.clone()))
+                .collect();
+
+            let (stopped, failed) = Self::stop_batch_parallel_with_names(
+                &config, ctx, &identifiers, total, &rt_handle,
+            );
+
+            let elapsed = timer.elapsed();
+            let mem_info = Self::get_memory_info();
+            crate::input::send_progress(format!(
+                "\n  Done: {} [Stopped], {} [Failed] (of {})\n  Time: {:.2}s{}\n",
+                stopped, failed, total, elapsed.as_secs_f64(), mem_info,
             ));
+        });
+
+        Ok(format!("  Stopping {} servers ({} parallel)...", total, Self::PARALLEL_BATCH_SIZE))
+    }
+
+    /// Stop servers in parallel batches (for range operations)
+    fn stop_batch_parallel(
+        config: &Config,
+        ctx: &ServerContext,
+        identifiers: &[(String, u32)],
+        total: usize,
+        rt_handle: &tokio::runtime::Handle,
+    ) -> (usize, usize) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let stopped = AtomicUsize::new(0);
+        let failed = AtomicUsize::new(0);
+        let progress_idx = AtomicUsize::new(0);
+
+        for chunk in identifiers.chunks(Self::PARALLEL_BATCH_SIZE) {
+            std::thread::scope(|s| {
+                for (identifier, num) in chunk {
+                    let idx = progress_idx.fetch_add(1, Ordering::Relaxed) + 1;
+                    crate::input::send_progress(format!(
+                        "  [{}/{}] Stopping server {}...",
+                        idx, total, num
+                    ));
+
+                    let stopped = &stopped;
+                    let failed = &failed;
+                    let rt = rt_handle.clone();
+
+                    s.spawn(move || {
+                        let _g = rt.enter();
+                        let cmd = StopCommand::new();
+                        match cmd.stop_single_server(config, ctx, identifier, true) {
+                            Ok(message) => {
+                                if message.contains("stopped [PERSISTENT]") {
+                                    stopped.fetch_add(1, Ordering::Relaxed);
+                                    crate::input::send_progress(format!(
+                                        "  Server {}: [Stopped]",
+                                        num
+                                    ));
+                                } else {
+                                    crate::input::send_progress(format!(
+                                        "  Server {}: {}",
+                                        num, message
+                                    ));
+                                }
+                            }
+                            Err(e) => {
+                                failed.fetch_add(1, Ordering::Relaxed);
+                                crate::input::send_progress(format!(
+                                    "  Server {}: [Failed] - {}",
+                                    num, e
+                                ));
+                            }
+                        }
+                    });
+                }
+            });
         }
 
-        let mut results = Vec::new();
-        let mut stopped_count = 0;
-        let mut failed_count = 0;
+        (stopped.load(Ordering::Relaxed), failed.load(Ordering::Relaxed))
+    }
 
-        // Stop servers in parallel for better performance
-        let server_stops: Vec<_> = running_servers
-            .into_iter()
-            .map(|(server_id, server_name)| {
-                match self.stop_single_server(config, ctx, &server_id) {
-                    Ok(message) => {
-                        if message.contains("stopped [PERSISTENT]") {
-                            stopped_count += 1;
-                            (server_name, "Stopped".to_string())
-                        } else {
-                            (server_name, message)
+    /// Stop servers in parallel batches (for "all" operations with name info)
+    fn stop_batch_parallel_with_names(
+        config: &Config,
+        ctx: &ServerContext,
+        identifiers: &[(String, String)], // (server_id, server_name)
+        total: usize,
+        rt_handle: &tokio::runtime::Handle,
+    ) -> (usize, usize) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let stopped = AtomicUsize::new(0);
+        let failed = AtomicUsize::new(0);
+        let progress_idx = AtomicUsize::new(0);
+
+        for chunk in identifiers.chunks(Self::PARALLEL_BATCH_SIZE) {
+            std::thread::scope(|s| {
+                for (server_id, server_name) in chunk {
+                    let idx = progress_idx.fetch_add(1, Ordering::Relaxed) + 1;
+                    crate::input::send_progress(format!(
+                        "  [{}/{}] Stopping {}...",
+                        idx, total, server_name
+                    ));
+
+                    let stopped = &stopped;
+                    let failed = &failed;
+                    let rt = rt_handle.clone();
+
+                    s.spawn(move || {
+                        let _g = rt.enter();
+                        let cmd = StopCommand::new();
+                        match cmd.stop_single_server(config, ctx, server_id, true) {
+                            Ok(message) => {
+                                if message.contains("stopped [PERSISTENT]") {
+                                    stopped.fetch_add(1, Ordering::Relaxed);
+                                    crate::input::send_progress(format!(
+                                        "  {}: [Stopped]",
+                                        server_name
+                                    ));
+                                } else {
+                                    crate::input::send_progress(format!(
+                                        "  {}: {}",
+                                        server_name, message
+                                    ));
+                                }
+                            }
+                            Err(e) => {
+                                failed.fetch_add(1, Ordering::Relaxed);
+                                crate::input::send_progress(format!(
+                                    "  {}: [Failed] - {}",
+                                    server_name, e
+                                ));
+                            }
                         }
-                    }
-                    Err(e) => {
-                        failed_count += 1;
-                        (server_name, format!("Failed - {}", e))
+                    });
+                }
+            });
+        }
+
+        (stopped.load(Ordering::Relaxed), failed.load(Ordering::Relaxed))
+    }
+
+    /// Get process memory usage for benchmarking
+    fn get_memory_info() -> String {
+        #[cfg(target_os = "macos")]
+        {
+            use std::mem;
+            extern "C" {
+                fn mach_task_self() -> u32;
+                fn task_info(
+                    task: u32,
+                    flavor: u32,
+                    info: *mut libc::c_void,
+                    count: *mut u32,
+                ) -> i32;
+            }
+
+            #[repr(C)]
+            struct MachTaskBasicInfo {
+                virtual_size: u64,
+                resident_size: u64,
+                resident_size_max: u64,
+                user_time: [u32; 2],
+                system_time: [u32; 2],
+                policy: i32,
+                suspend_count: i32,
+            }
+
+            let mut info: MachTaskBasicInfo = unsafe { mem::zeroed() };
+            let mut count = (mem::size_of::<MachTaskBasicInfo>() / mem::size_of::<u32>()) as u32;
+
+            let result = unsafe {
+                task_info(
+                    mach_task_self(),
+                    20, // MACH_TASK_BASIC_INFO
+                    &mut info as *mut _ as *mut libc::c_void,
+                    &mut count,
+                )
+            };
+
+            if result == 0 {
+                let rss_mb = info.resident_size as f64 / (1024.0 * 1024.0);
+                format!("  |  Memory: {:.1} MB", rss_mb)
+            } else {
+                String::new()
+            }
+        }
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
+                for line in status.lines() {
+                    if line.starts_with("VmRSS:") {
+                        let kb: f64 = line
+                            .split_whitespace()
+                            .nth(1)
+                            .and_then(|s| s.parse().ok())
+                            .unwrap_or(0.0);
+                        return format!("  |  Memory: {:.1} MB", kb / 1024.0);
                     }
                 }
-            })
-            .collect();
-
-        for (server_name, result) in server_stops {
-            results.push(format!("{}: {}", server_name, result));
+            }
+            String::new()
         }
-
-        let summary = format!(
-            "Stop all completed: {} stopped, {} failed",
-            stopped_count, failed_count
-        );
-
-        Ok(format!("{}\n\nResults:\n{}", summary, results.join("\n")))
+        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+        {
+            String::new()
+        }
     }
 
     // Browser notification

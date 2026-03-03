@@ -22,9 +22,9 @@ current_theme = "dark"
 current = "en"
 
 [server]
-port_range_start = 8000
-port_range_end = 8200
-max_concurrent = 50
+port_range_start = 8001
+port_range_end = 8100
+max_concurrent = 100
 shutdown_timeout = 5
 startup_delay_ms = 500
 workers = 1
